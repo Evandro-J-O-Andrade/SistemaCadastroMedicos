@@ -1,0 +1,18 @@
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f7f7f9; color: #222; }
+
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+header, footer { background: #0f172a; color: #fff; padding: 12px 20px; }
+header h1 { margin: 0; font-size: 18px; }
+
+.main-layout { display: flex; flex: 1; min-height: 0; }
+aside { width: 220px; background: #eaecef; padding: 16px; border-right: 1px solid #d0d7de; }
+aside h3 { margin-top: 0; font-size: 16px; }
+
+main { flex: 1; padding: 20px; overflow: auto; }
+
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav li { margin-bottom: 8px; }
+nav a { text-decoration: none; color: #0f172a; }
+nav a.active, nav a:hover { text-decoration: underline; }

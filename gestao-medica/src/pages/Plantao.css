@@ -1,0 +1,152 @@
+/* Container principal */
+.plantao-container {
+  max-width: 950px;
+  margin: 40px auto;
+  padding: 30px;
+  background-color: #fdfdfd;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  font-family: 'Arial', sans-serif;
+  color: #333;
+  position: relative;
+}
+
+/* Título */
+.plantao-container h2 {
+  text-align: center;
+  font-size: 2.2rem;
+  color: #4a4a4a;
+  margin-bottom: 35px;
+}
+
+/* Formulário */
+.form-plantao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 30px;
+  align-items: center;
+}
+
+/* Label e inputs */
+.form-plantao label {
+  display: flex;
+  flex-direction: column;
+  font-weight: bold;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+/* Input de médico maior */
+.input-medico {
+  width: 500px; /* Agora maior para nomes longos */
+  padding: 10px 12px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  transition: border 0.3s, box-shadow 0.3s;
+}
+
+/* Input de quantidade menor, mas centralizado verticalmente */
+.input-quantidade {
+  width: 100px;
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* Inputs e select foco */
+.form-plantao input:focus,
+.form-plantao select:focus {
+  border-color: #ff6b81;
+  box-shadow: 0 0 5px rgba(255, 107, 129, 0.3);
+  outline: none;
+}
+
+/* Botão Salvar Plantão alinhado à direita do input de quantidade */
+.btn-salvar-plantao {
+  padding: 12px 20px;
+  background-color: #ff6b81;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 2px; /* Ajusta alinhamento com quantidade */
+  margin-left: 10px; /* Espaço entre input e botão */
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.btn-salvar-plantao:hover {
+  background-color: #ff4b61;
+  transform: scale(1.05);
+}
+
+/* Botão Cadastrar Médico (final do container) */
+.btn-cadastrar-medico {
+  display: block;
+  margin: 30px auto 0 auto;
+  padding: 12px 25px;
+  background-color: #6b83ff;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.btn-cadastrar-medico:hover {
+  background-color: #475dd1;
+  transform: scale(1.05);
+}
+
+/* Lista de plantões */
+.tabela-plantao {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 25px;
+  overflow-x: auto;
+}
+
+.tabela-plantao th,
+.tabela-plantao td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.tabela-plantao th {
+  background-color: #ff6b81;
+  color: #fff;
+  border-radius: 8px;
+}
+
+.tabela-plantao tr:hover {
+  background-color: #ffe2e8;
+  transition: background-color 0.3s;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .form-plantao {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .input-medico {
+    width: 100%;
+  }
+  .input-quantidade {
+    width: 100%;
+  }
+  .btn-salvar-plantao {
+    margin-left: 0;
+    width: 100%;
+    margin-top: 10px;
+  }
+  .btn-cadastrar-medico {
+    width: 100%;
+  }
+}
