@@ -1,76 +1,135 @@
-.relatorios-container {
-  padding: 30px;
+/* ==============================
+   ESTILOS DO RELATÓRIO
+   ============================== */
+
+/* Container principal do relatório */
+.relatorio-container {
+  max-width: 1000px; /* largura centralizada */
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   font-family: Arial, sans-serif;
-  background: #f4f6f8;
-  min-height: 100vh;
 }
 
-.relatorios-container h2 {
-  text-align: center;
-  margin-bottom: 25px;
-  color: #2c3e50;
-}
-
-.filtros {
-  display: flex;
-  justify-content: space-between;
-  gap: 15px;
-  margin-bottom: 25px;
-  flex-wrap: wrap;
-}
-
-.filtros input,
-.filtros select {
-  padding: 12px;
-  font-size: 15px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  flex: 1;
-  min-width: 180px;
-}
-
-.tabela-plantao {
-  width: 100%;
-  border-collapse: collapse;
+/* Título */
+.relatorio-container h2 {
+  font-size: 1.8rem;
   margin-bottom: 20px;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
+  text-align: center;
+  color: #333;
 }
 
-.tabela-plantao th,
-.tabela-plantao td {
+/* ==============================
+   FORMULÁRIO
+   ============================== */
+
+.relatorio-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px; /* espaçamento entre os campos */
+  margin-bottom: 25px;
+}
+
+/* Campos de input/select */
+.relatorio-form input,
+.relatorio-form select {
+  padding: 10px;
+  font-size: 1rem;
   border: 1px solid #ddd;
-  padding: 12px;
-  text-align: left;
+  border-radius: 8px;
+  transition: 0.3s;
+  width: 100%;
 }
 
-.tabela-plantao th {
-  background-color: #3498db;
-  color: white;
-  font-weight: 600;
+/* Foco nos inputs */
+.relatorio-form input:focus,
+.relatorio-form select:focus {
+  outline: none;
+  border-color: #0077ff;
+  box-shadow: 0 0 5px rgba(0,119,255,0.3);
 }
 
-.tabela-plantao tbody tr:nth-child(even) {
-  background-color: #f9f9f9;
-}
-
-.botoes-relatorio {
+/* Container dos botões */
+.relatorio-buttons {
+  grid-column: span 2;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
+  gap: 15px;
 }
 
-.botoes-relatorio button {
-  padding: 12px 25px;
-  background-color: #2ecc71;
-  color: white;
+/* Botões */
+.relatorio-buttons button {
+  padding: 10px 20px;
+  font-size: 1rem;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 15px;
-  transition: background 0.3s;
+  transition: 0.3s;
 }
 
-.botoes-relatorio button:hover {
-  background-color: #27ae60;
+.relatorio-buttons .btn-gerar {
+  background: #28a745;
+  color: white;
+}
+
+.relatorio-buttons .btn-limpar {
+  background: #dc3545;
+  color: white;
+}
+
+.relatorio-buttons button:hover {
+  opacity: 0.9;
+}
+
+/* ==============================
+   SEÇÃO DE GRÁFICOS
+   ============================== */
+
+.grafico-section {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 2px solid #eee;
+}
+
+/* Título dos gráficos */
+.grafico-section h3 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #444;
+}
+
+/* Opções de gráficos */
+.grafico-options {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.grafico-options button {
+  padding: 8px 15px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.grafico-options button:hover,
+.grafico-options button.active {
+  background: #0077ff;
+  color: white;
+  border-color: #0077ff;
+}
+
+/* Container do gráfico */
+.grafico-container {
+  max-width: 800px;
+  margin: 0 auto;
+  background: #fafafa;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.05);
 }
