@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // Para navegação
-import medicosData from "./MedicosData"; // Dados simulados de médicos
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; 
+import medicosData from "./MedicosData"; 
 import "./Plantao.css";
 
 export default function Plantao() {
@@ -11,6 +11,19 @@ export default function Plantao() {
   const [quantidade, setQuantidade] = useState("");
   const [plantaoList, setPlantaoList] = useState([]);
 
+  // Carregar plantões do localStorage ao iniciar
+  useEffect(() => {
+    const dados = localStorage.getItem("plantaoData");
+    if (dados) {
+      setPlantaoList(JSON.parse(dados));
+    }
+  }, []);
+
+  // Salvar plantões no localStorage sempre que mudar
+  useEffect(() => {
+    localStorage.setItem("plantaoData", JSON.stringify(plantaoList));
+  }, [plantaoList]);
+
   const medicoSuggestions = medicosData.filter((m) =>
     m.nome.toLowerCase().includes(medicoInput.toLowerCase())
   );
@@ -20,10 +33,22 @@ export default function Plantao() {
       alert("Preencha todos os campos!");
       return;
     }
-    setPlantaoList([...plantaoList, { nome: medicoInput, especialidade, quantidade }]);
+    const novoPlantao = {
+      id: Date.now(), 
+      nome: medicoInput,
+      especialidade,
+      quantidade,
+    };
+    setPlantaoList([...plantaoList, novoPlantao]);
     setMedicoInput("");
     setEspecialidade("");
     setQuantidade("");
+  };
+
+  const handleRemovePlantao = (id) => {
+    const confirmado = window.confirm("Deseja realmente excluir este plantão?");
+    if (!confirmado) return;
+    setPlantaoList(plantaoList.filter((p) => p.id !== id));
   };
 
   return (
@@ -87,14 +112,23 @@ export default function Plantao() {
               <th>Médico</th>
               <th>Especialidade</th>
               <th>Quantidade</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {plantaoList.map((p, index) => (
-              <tr key={index}>
+            {plantaoList.map((p) => (
+              <tr key={p.id}>
                 <td>{p.nome}</td>
                 <td>{p.especialidade}</td>
                 <td>{p.quantidade}</td>
+                <td>
+                  <button
+                    className="btn-excluir-plantao"
+                    onClick={() => handleRemovePlantao(p.id)}
+                  >
+                    Excluir
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

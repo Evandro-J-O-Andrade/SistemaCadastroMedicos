@@ -1,135 +1,121 @@
-/* ==============================
-   ESTILOS DO RELATÓRIO
-   ============================== */
-
-/* Container principal do relatório */
-.relatorio-container {
-  max-width: 1000px; /* largura centralizada */
-  margin: 20px auto;
+.relatorios-wrap {
   padding: 20px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   font-family: Arial, sans-serif;
 }
 
-/* Título */
-.relatorio-container h2 {
-  font-size: 1.8rem;
-  margin-bottom: 20px;
+.relatorios-header h1 {
   text-align: center;
-  color: #333;
+  margin-bottom: 20px;
 }
 
-/* ==============================
-   FORMULÁRIO
-   ============================== */
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
 
-.relatorio-form {
+.relatorios-controles .grid-3 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px; /* espaçamento entre os campos */
-  margin-bottom: 25px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
-/* Campos de input/select */
-.relatorio-form input,
-.relatorio-form select {
-  padding: 10px;
-  font-size: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  transition: 0.3s;
+.field label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.field input, .field select {
   width: 100%;
-}
-
-/* Foco nos inputs */
-.relatorio-form input:focus,
-.relatorio-form select:focus {
-  outline: none;
-  border-color: #0077ff;
-  box-shadow: 0 0 5px rgba(0,119,255,0.3);
-}
-
-/* Container dos botões */
-.relatorio-buttons {
-  grid-column: span 2;
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-}
-
-/* Botões */
-.relatorio-buttons button {
-  padding: 10px 20px;
-  font-size: 1rem;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.relatorio-buttons .btn-gerar {
-  background: #28a745;
-  color: white;
-}
-
-.relatorio-buttons .btn-limpar {
-  background: #dc3545;
-  color: white;
-}
-
-.relatorio-buttons button:hover {
-  opacity: 0.9;
-}
-
-/* ==============================
-   SEÇÃO DE GRÁFICOS
-   ============================== */
-
-.grafico-section {
-  margin-top: 40px;
-  padding-top: 20px;
-  border-top: 2px solid #eee;
-}
-
-/* Título dos gráficos */
-.grafico-section h3 {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #444;
-}
-
-/* Opções de gráficos */
-.grafico-options {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.grafico-options button {
-  padding: 8px 15px;
-  border-radius: 6px;
+  padding: 6px;
+  border-radius: 4px;
   border: 1px solid #ccc;
-  background: #f5f5f5;
-  cursor: pointer;
-  transition: 0.3s;
+  box-sizing: border-box;
+  margin-bottom: 4px;
 }
 
-.grafico-options button:hover,
-.grafico-options button.active {
-  background: #0077ff;
+.relatorios-controles button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background: #4CAF50;
   color: white;
-  border-color: #0077ff;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
 }
 
-/* Container do gráfico */
-.grafico-container {
-  max-width: 800px;
-  margin: 0 auto;
-  background: #fafafa;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+.relatorios-controles button:hover {
+  background: #45a049;
+}
+
+.relatorios-tabela table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.relatorios-tabela th, .relatorios-tabela td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+.relatorios-tabela th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+/* Gráfico */
+.relatorios-grafico {
+  width: 100%;
+  height: 450px;       /* altura fixa para não quebrar layout */
+}
+.relatorios-grafico canvas {
+  width: 100% !important;
+  height: 400px !important;
+}
+/* Gráfico */
+.relatorios-grafico {
+  width: 100%;
+  height: 450px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Select para escolher gráfico */
+.tipo-grafico-select {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  margin:10px 0;
+  gap: 10px;
+}
+
+.tipo-grafico-select label {
+  font-weight: bold;
+}
+
+/* Exibe total de atendimentos no topo do gráfico */
+.total-atendimentos {
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 16px;
+  color: #4a90e2;
+}
+
+/* Responsividade */
+@media screen and (max-width: 768px) {
+  .relatorios-controles .grid-3 {
+    flex-direction: column;
+  }
+
+  .field {
+    min-width: 100%;
+  }
 }

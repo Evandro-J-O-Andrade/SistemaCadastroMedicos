@@ -1,214 +1,346 @@
-// src/pages/Relatorios.jsx
-import React, { useState } from "react";
-import medicos from "./MedicosData";
-import "./Relatorios.css";
-
+import React, { useMemo, useState, useRef } from "react";
+import dayjs from "dayjs";
+import "dayjs/locale/pt-br";
 import { Pie, Bar, Line } from "react-chartjs-2";
+import "./Relatorios.css";
 import {
   Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
   CategoryScale,
   LinearScale,
+  ArcElement,
   BarElement,
   PointElement,
   LineElement,
-} from "chart.js";
-
-ChartJS.register(
-  ArcElement,
   Tooltip,
   Legend,
+  Filler,
+} from "chart.js";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
+import * as XLSX from "xlsx";
+
+import GraficoBarra from "./GraficoBarra";
+import GraficoPizza from "./GraficoPizza";
+import GraficoLinha from "./GraficoLinha";
+import GraficoArea from "./GraficoArea";
+import medicos from "./MedicosData";
+
+ChartJS.register(
   CategoryScale,
   LinearScale,
+  ArcElement,
   BarElement,
   PointElement,
-  LineElement
+  LineElement,
+  Tooltip,
+  Legend,
+  Filler
 );
 
+dayjs.locale("pt-br");
+
+const ESPECIALIDADES = [
+  "Clínico",
+  "Pediátrico",
+  "Emergencista",
+  "Cinderela",
+  "Visitador",
+  "Fisioterapeuta",
+  "Nutricionista",
+];
+
+const hojeYYYYMMDD = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const toISO = (date, time) => `${date}T${time}:00`;
+
 export default function Relatorios() {
-  const [filtros, setFiltros] = useState({
-    dataInicio: new Date().toISOString().slice(0, 10),
-    dataFim: new Date().toISOString().slice(0, 10),
-    medico: "",
-    especialidade: ""
-  });
+  const [dataDe, setDataDe] = useState(hojeYYYYMMDD());
+  const [horaDe, setHoraDe] = useState("07:00");
+  const [dataAte, setDataAte] = useState(hojeYYYYMMDD());
+  const [horaAte, setHoraAte] = useState("19:00");
+  const [especialidade, setEspecialidade] = useState(""); 
+  const [horario, setHorario] = useState(""); 
+  const [medicoQuery, setMedicoQuery] = useState(""); 
+  const [tipoGrafico, setTipoGrafico] = useState("pizza"); 
+  const [visao, setVisao] = useState("profissional"); 
+  const [plantoes, setPlantoes] = useState([]);
+  const [carregado, setCarregado] = useState(false);
+  const [linhas, setLinhas] = useState([]);
+  const [gerado, setGerado] = useState(false);
 
-  const [plantaoData] = useState([
-    { id: 1, data: "2025-08-25", medico: "Dr. João Silva", especialidade: "Clínico", quantidade: 12, observacao: "" },
-    { id: 2, data: "2025-08-25", medico: "Dra. Maria Souza", especialidade: "Pediátrico", quantidade: 8, observacao: "Plantão noturno" },
-    // ...carregar todos os plantões
-  ]);
+  const graficoRef = useRef(null);
 
-  const [graficoTipo, setGraficoTipo] = useState("pizza");
-
-  const handleFiltroChange = (e) => {
-    setFiltros({ ...filtros, [e.target.name]: e.target.value });
+  const carregarProfissionais = () => {
+    try {
+      const raw = localStorage.getItem("plantaoData");
+      const arr = raw ? JSON.parse(raw) : [];
+      setPlantoes(Array.isArray(arr) ? arr : []);
+      setCarregado(true);
+      setGerado(false);
+    } catch {
+      setPlantoes([]);
+      setCarregado(true);
+      setGerado(false);
+    }
   };
 
-  const limparCampos = () => {
-    setFiltros({
-      dataInicio: new Date().toISOString().slice(0, 10),
-      dataFim: new Date().toISOString().slice(0, 10),
-      medico: "",
-      especialidade: ""
+  const gerarRelatorio = () => {
+    if (!carregado) carregarProfissionais();
+
+    const inicio = new Date(toISO(dataDe, horaDe));
+    const fim = new Date(toISO(dataAte, horaAte));
+    const nomeBusca = medicoQuery.trim().toLowerCase();
+
+    const filtrados = plantoes.filter((p) => {
+      const data = p.data || hojeYYYYMMDD();
+      const hora = p.horaInicio || "00:00";
+      const dt = new Date(toISO(data, hora));
+
+      const okPeriodo = dt >= inicio && dt <= fim;
+      const okEsp = !especialidade || (p.especialidade || "").toLowerCase() === especialidade.toLowerCase();
+      const okMedico = !nomeBusca || (p.medico || "").toLowerCase().includes(nomeBusca);
+      const okHorario = !horario || (horario === "7-19" ? p.turno === "Diurno" : p.turno === "Noturno");
+
+      return okPeriodo && okEsp && okMedico && okHorario;
     });
+
+    const mapa = new Map();
+    filtrados.forEach((p) => {
+      const q = Number(p.quantidade || p.atendimentos || 0);
+      const key = `${p.medico || "—"}||${p.especialidade || "—"}||${p.data}`;
+      mapa.set(key, (mapa.get(key) || 0) + q);
+    });
+
+    const arr = Array.from(mapa.entries()).map(([k, total]) => {
+      const [med, esp, data] = k.split("||");
+      return { medico: med, especialidade: esp, data, total };
+    });
+
+    arr.sort((a, b) => b.total - a.total);
+    setLinhas(arr);
+    setGerado(true);
   };
 
-  const filtrarPlantao = () => {
-    return plantaoData.filter(p =>
-      (!filtros.dataInicio || p.data >= filtros.dataInicio) &&
-      (!filtros.dataFim || p.data <= filtros.dataFim) &&
-      (!filtros.medico || p.medico.toLowerCase().includes(filtros.medico.toLowerCase())) &&
-      (!filtros.especialidade || p.especialidade === filtros.especialidade)
-    );
+  // ======= RELATÓRIO FAKE =======
+  const gerarRelatorioFake = () => {
+    if (!carregado) carregarProfissionais();
+
+    const fake = [];
+    medicos.forEach((medico) => {
+      ESPECIALIDADES.forEach((esp) => {
+        const total = Math.floor(Math.random() * 10) + 1; // 1 a 10 atendimentos
+        const turno = Math.random() > 0.5 ? "Diurno" : "Noturno";
+        fake.push({
+          medico: medico.nome,
+          especialidade: esp,
+          data: hojeYYYYMMDD(),
+          total,
+          turno,
+        });
+      });
+    });
+
+    setLinhas(fake);
+    setGerado(true);
+  };
+  // =====================================
+
+  const limpar = () => {
+    setEspecialidade("");
+    setVisao("profissional");
+    setTipoGrafico("pizza");
+    setMedicoQuery("");
+    setHorario("");
+    setLinhas([]);
+    setGerado(false);
   };
 
-  const somatorioPorMedico = () => {
-    const resumo = {};
-    filtrarPlantao().forEach(p => {
-      resumo[p.medico] = (resumo[p.medico] || 0) + p.quantidade;
-    });
-    return resumo;
-  };
+  const { labels, valores } = useMemo(() => {
+    if (!gerado || linhas.length === 0) return { labels: [], valores: [] };
 
-  const dadosGrafico = () => {
-    const filtered = filtrarPlantao();
-    const resumo = {};
-    filtered.forEach(p => {
-      const chave = p.medico + " - " + p.especialidade;
-      resumo[chave] = (resumo[chave] || 0) + p.quantidade;
-    });
-    const labels = Object.keys(resumo);
-    const data = Object.values(resumo);
+    if (visao === "especialidade") {
+      const m = new Map();
+      linhas.forEach((l) => m.set(l.especialidade, (m.get(l.especialidade) || 0) + l.total));
+      return { labels: Array.from(m.keys()), valores: Array.from(m.values()) };
+    } else {
+      const m = new Map();
+      linhas.forEach((l) => m.set(l.medico, (m.get(l.medico) || 0) + l.total));
+      return { labels: Array.from(m.keys()), valores: Array.from(m.values()) };
+    }
+  }, [linhas, visao, gerado]);
 
-    // cores diferentes por especialidade
-    const cores = filtered.map(p => {
-      switch (p.especialidade) {
-        case "Clínico": return "#36A2EB";
-        case "Pediátrico": return "#FF6384";
-        case "Emergencista": return "#FFCE56";
-        case "Cinderela": return "#9966FF";
-        case "Visitador": return "#4BC0C0";
-        case "Fisioterapeuta": return "#FF9F40";
-        case "Nutricionista": return "#8AFF33";
-        default: return "#CCCCCC";
-      }
-    });
-
-    return {
+  const chartData = useMemo(
+    () => ({
       labels,
       datasets: [
         {
-          label: "Quantidade de Atendimentos",
-          data,
-          backgroundColor: cores,
-          borderWidth: 1,
+          label: visao === "especialidade" ? "Atendimentos por Especialidade" : "Atendimentos por Profissional",
+          data: valores,
+          fill: tipoGrafico === "area",
         },
       ],
-    };
-  };
+    }),
+    [labels, valores, visao, tipoGrafico]
+  );
 
-  const salvarCSV = () => {
-    const filtered = filtrarPlantao();
-    let csv = "Data,Medico,Especialidade,Quantidade,Observacao\n";
-    filtered.forEach(p => {
-      csv += `${p.data},${p.medico},${p.especialidade},${p.quantidade},${p.observacao}\n`;
-    });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "relatorio_plantao.csv";
-    link.click();
-  };
-
-  const resumoMedicos = somatorioPorMedico();
+  const empty = gerado && linhas.length === 0;
 
   return (
-    <div className="relatorio-container">
-      <h2>Relatórios de Plantão</h2>
+    <div className="relatorios-wrap">
+      <header className="relatorios-header">
+        <h1>DASHBOARD DE GESTÃO DE PRODUTIVIDADE MÉDICA</h1>
+      </header>
 
-      <div className="relatorio-form">
-        <label>Data Início:</label>
-        <input type="date" name="dataInicio" value={filtros.dataInicio} onChange={handleFiltroChange} />
-        <label>Data Fim:</label>
-        <input type="date" name="dataFim" value={filtros.dataFim} onChange={handleFiltroChange} />
-        <input
-          type="text"
-          placeholder="Pesquisar médico"
-          name="medico"
-          value={filtros.medico}
-          onChange={handleFiltroChange}
-          list="medicosList"
-        />
-        <datalist id="medicosList">
-          {medicos.map(m => (
-            <option key={m.id} value={m.nome} />
-          ))}
-        </datalist>
-        <select name="especialidade" value={filtros.especialidade} onChange={handleFiltroChange}>
-          <option value="">Todas especialidades</option>
-          <option value="Clínico">Clínico</option>
-          <option value="Pediátrico">Pediátrico</option>
-          <option value="Emergencista">Emergencista</option>
-          <option value="Cinderela">Cinderela</option>
-          <option value="Visitador">Visitador</option>
-          <option value="Fisioterapeuta">Fisioterapeuta</option>
-          <option value="Nutricionista">Nutricionista</option>
-        </select>
-      </div>
-
-      <div className="relatorio-buttons">
-        <button onClick={salvarCSV}>Gerar Relatório CSV</button>
-        <button onClick={limparCampos}>Limpar Campos</button>
-      </div>
-
-      <table className="tabela-plantao">
-        <thead>
-          <tr>
-            <th>Data</th>
-            <th>Médico</th>
-            <th>Especialidade</th>
-            <th>Quantidade</th>
-            <th>Observação</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtrarPlantao().map(p => (
-            <tr key={p.id}>
-              <td>{p.data}</td>
-              <td>{p.medico}</td>
-              <td>{p.especialidade}</td>
-              <td>{p.quantidade}</td>
-              <td>{p.observacao}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div className="resumo-medicos">
-        <h3>Resumo por Médico</h3>
-        <ul>
-          {Object.keys(resumoMedicos).map(m => (
-            <li key={m}>{m}: {resumoMedicos[m]} atendimentos</li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="grafico-section">
-        <h3>Gráfico de Atendimentos</h3>
-        <div className="grafico-options">
-          <button onClick={() => setGraficoTipo("pizza")} className={graficoTipo === "pizza" ? "active" : ""}>Pizza</button>
-          <button onClick={() => setGraficoTipo("barra")} className={graficoTipo === "barra" ? "active" : ""}>Barra</button>
-          <button onClick={() => setGraficoTipo("linha")} className={graficoTipo === "linha" ? "active" : ""}>Linha</button>
+      {/* CONTROLES */}
+      <section className="relatorios-controles card">
+        <div className="grid-3">
+          <div className="field">
+            <label>Data/Hora Inicial:</label>
+            <input type="date" value={dataDe} onChange={(e) => setDataDe(e.target.value)} />
+            <input type="time" value={horaDe} onChange={(e) => setHoraDe(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Data/Hora Final:</label>
+            <input type="date" value={dataAte} onChange={(e) => setDataAte(e.target.value)} />
+            <input type="time" value={horaAte} onChange={(e) => setHoraAte(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Horário do Plantão:</label>
+            <select value={horario} onChange={(e) => setHorario(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="7-19">7h - 19h</option>
+              <option value="19-7">19h - 7h</option>
+            </select>
+          </div>
         </div>
-        <div className="grafico-container">
-          {graficoTipo === "pizza" && <Pie data={dadosGrafico()} />}
-          {graficoTipo === "barra" && <Bar data={dadosGrafico()} />}
-          {graficoTipo === "linha" && <Line data={dadosGrafico()} />}
+
+        <div className="grid-3">
+          <div className="field">
+            <label>Especialidade:</label>
+            <select value={especialidade} onChange={(e) => setEspecialidade(e.target.value)}>
+              <option value="">Todas</option>
+              {ESPECIALIDADES.map((esp) => (
+                <option key={esp} value={esp}>{esp}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Médico:</label>
+            <input
+              list="medicos"
+              value={medicoQuery}
+              onChange={(e) => setMedicoQuery(e.target.value)}
+              style={{ width: "100%" }}
+              placeholder="Todos"
+            />
+            <datalist id="medicos">
+              {medicos.map((m) => (
+                <option key={m.id} value={m.nome} />
+              ))}
+            </datalist>
+          </div>
+          <div className="field">
+            <label>Visão:</label>
+            <select value={visao} onChange={(e) => setVisao(e.target.value)}>
+              <option value="profissional">Profissional</option>
+              <option value="especialidade">Especialidade</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Tipo de Gráfico:</label>
+            <select value={tipoGrafico} onChange={(e) => setTipoGrafico(e.target.value)}>
+              <option value="pizza">Pizza</option>
+              <option value="barra">Barra</option>
+              <option value="linha">Linha</option>
+              <option value="area">Área</option>
+            </select>
+          </div>
         </div>
-      </div>
+
+        <div className="grid-3" style={{ marginTop: 12 }}>
+          <button onClick={gerarRelatorio}>Gerar Relatório</button>
+          <button onClick={limpar}>Limpar</button>
+          <button onClick={() => exportPDF(chartData, linhas)}>PDF</button>
+          <button onClick={() => exportExcel(linhas)}>Excel</button>
+          <button onClick={gerarRelatorioFake}>Relatório Fake</button>
+        </div>
+      </section>
+
+      {/* TABELA */}
+      {empty && <p>Sem dados para este filtro.</p>}
+      {linhas.length > 0 && (
+        <section className="relatorios-tabela card">
+          <table>
+            <thead>
+              <tr>
+                <th>Médico</th>
+                <th>Especialidade</th>
+                <th>Data</th>
+                <th>Total Atendimentos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linhas.map((l, i) => (
+                <tr key={i}>
+                  <td>{l.medico}</td>
+                  <td>{l.especialidade}</td>
+                  <td>{l.data}</td>
+                  <td>{l.total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+     {/* GRÁFICO */}
+{linhas.length > 0 && (
+  <section className="relatorios-grafico card" ref={graficoRef}>
+    <div className="tipo-grafico-select">
+      <label>Tipo de Gráfico:</label>
+      <select value={tipoGrafico} onChange={(e) => setTipoGrafico(e.target.value)}>
+        <option value="pizza">Pizza</option>
+        <option value="barra">Barra</option>
+        <option value="linha">Linha</option>
+        <option value="area">Área</option>
+      </select>
+    </div>
+
+    <div className="total-atendimentos">
+      Total de atendimentos: {valores.reduce((a, b) => a + b, 0)}
+    </div>
+
+    {tipoGrafico === "pizza" && <GraficoPizza data={chartData} />}
+    {tipoGrafico === "barra" && <GraficoBarra data={chartData} />}
+    {tipoGrafico === "linha" && <GraficoLinha data={chartData} />}
+    {tipoGrafico === "area" && <GraficoArea data={chartData} />}
+  </section>
+)}
     </div>
   );
 }
+
+// Funções de export
+const exportPDF = async (chartData, linhas) => {
+  const doc = new jsPDF("p", "mm", "a4");
+  doc.text("Relatório de Atendimentos", 14, 16);
+  doc.autoTable({
+    startY: 24,
+    head: [["Médico", "Especialidade", "Data", "Total Atendimentos"]],
+    body: linhas.map((l) => [l.medico, l.especialidade, l.data, l.total]),
+  });
+  doc.save("relatorio.pdf");
+};
+
+const exportExcel = (linhas) => {
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+  XLSX.writeFile(wb, "relatorio.xlsx");
+};
