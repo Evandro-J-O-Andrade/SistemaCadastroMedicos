@@ -1,8 +1,18 @@
 import React, { useMemo, useState, useRef } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
-import { Pie, Bar, Line } from "react-chartjs-2";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
+import * as XLSX from "xlsx";
+
 import "./Relatorios.css";
+import medicos from "./MedicosData";
+
+import GraficoBarra from "./GraficoBarra";
+import GraficoPizza from "./GraficoPizza";
+import GraficoLinha from "./GraficoLinha";
+import GraficoArea from "./GraficoArea";
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -15,15 +25,6 @@ import {
   Legend,
   Filler,
 } from "chart.js";
-import { jsPDF } from "jspdf";
-import "jspdf-autotable";
-import * as XLSX from "xlsx";
-
-import GraficoBarra from "./GraficoBarra";
-import GraficoPizza from "./GraficoPizza";
-import GraficoLinha from "./GraficoLinha";
-import GraficoArea from "./GraficoArea";
-import medicos from "./MedicosData";
 
 ChartJS.register(
   CategoryScale,
@@ -49,6 +50,19 @@ const ESPECIALIDADES = [
   "Nutricionista",
 ];
 
+const CORES_ESPECIALIDADE = {
+  "Emergencista": "#FF0000",
+  "Pediátrico": "#FFC0CB",
+  "Clínico": "#09098fff",
+  "Visitador": "#008000",
+  "Cinderela": "#800080",
+  "Fisioterapeuta": "#FFA500",
+  "Nutricionista": "#00CED1",
+};
+
+const CHART_HEIGHT = 400;
+const CHART_WIDTH = 600;
+
 const hojeYYYYMMDD = () => {
   const d = new Date();
   const y = d.getFullYear();
@@ -67,6 +81,7 @@ export default function Relatorios() {
   const [especialidade, setEspecialidade] = useState(""); 
   const [horario, setHorario] = useState(""); 
   const [medicoQuery, setMedicoQuery] = useState(""); 
+  const [crmQuery, setCrmQuery] = useState(""); 
   const [tipoGrafico, setTipoGrafico] = useState("pizza"); 
   const [visao, setVisao] = useState("profissional"); 
   const [plantoes, setPlantoes] = useState([]);
@@ -96,6 +111,7 @@ export default function Relatorios() {
     const inicio = new Date(toISO(dataDe, horaDe));
     const fim = new Date(toISO(dataAte, horaAte));
     const nomeBusca = medicoQuery.trim().toLowerCase();
+    const crmBusca = crmQuery.trim();
 
     const filtrados = plantoes.filter((p) => {
       const data = p.data || hojeYYYYMMDD();
@@ -105,9 +121,10 @@ export default function Relatorios() {
       const okPeriodo = dt >= inicio && dt <= fim;
       const okEsp = !especialidade || (p.especialidade || "").toLowerCase() === especialidade.toLowerCase();
       const okMedico = !nomeBusca || (p.medico || "").toLowerCase().includes(nomeBusca);
-      const okHorario = !horario || (horario === "7-19" ? p.turno === "Diurno" : p.turno === "Noturno");
+      const okCrm = !crmBusca || (p.crm || "").includes(crmBusca);
+      const okHorario = !horario || (horario === "7h-19h" ? p.turno === "Diurno" : p.turno === "Noturno");
 
-      return okPeriodo && okEsp && okMedico && okHorario;
+      return okPeriodo && okEsp && okMedico && okCrm && okHorario;
     });
 
     const mapa = new Map();
@@ -127,21 +144,25 @@ export default function Relatorios() {
     setGerado(true);
   };
 
-  // ======= RELATÓRIO FAKE =======
   const gerarRelatorioFake = () => {
     if (!carregado) carregarProfissionais();
 
     const fake = [];
     medicos.forEach((medico) => {
       ESPECIALIDADES.forEach((esp) => {
-        const total = Math.floor(Math.random() * 10) + 1; // 1 a 10 atendimentos
+        const total = Math.floor(Math.random() * 10) + 1;
         const turno = Math.random() > 0.5 ? "Diurno" : "Noturno";
+        const crmFake = medico.crm
+          ? medico.crm
+          : String(Math.floor(Math.random() * 900000) + 100000);
+
         fake.push({
           medico: medico.nome,
           especialidade: esp,
           data: hojeYYYYMMDD(),
           total,
           turno,
+          crm: crmFake,
         });
       });
     });
@@ -149,13 +170,13 @@ export default function Relatorios() {
     setLinhas(fake);
     setGerado(true);
   };
-  // =====================================
 
   const limpar = () => {
     setEspecialidade("");
     setVisao("profissional");
     setTipoGrafico("pizza");
     setMedicoQuery("");
+    setCrmQuery("");
     setHorario("");
     setLinhas([]);
     setGerado(false);
@@ -175,19 +196,27 @@ export default function Relatorios() {
     }
   }, [linhas, visao, gerado]);
 
-  const chartData = useMemo(
-    () => ({
+  const chartData = useMemo(() => {
+    const backgroundColors = labels.map(label => {
+      if (visao === "especialidade") return CORES_ESPECIALIDADE[label] || "#808080";
+      return "#36A2EB";
+    });
+
+    return {
       labels,
       datasets: [
         {
           label: visao === "especialidade" ? "Atendimentos por Especialidade" : "Atendimentos por Profissional",
           data: valores,
           fill: tipoGrafico === "area",
+          backgroundColor: tipoGrafico === "linha" ? "transparent" : backgroundColors,
+          borderColor: backgroundColors,
+          borderWidth: 2,
+          tension: tipoGrafico === "linha" || tipoGrafico === "area" ? 0.4 : 0,
         },
       ],
-    }),
-    [labels, valores, visao, tipoGrafico]
-  );
+    };
+  }, [labels, valores, visao, tipoGrafico]);
 
   const empty = gerado && linhas.length === 0;
 
@@ -214,8 +243,8 @@ export default function Relatorios() {
             <label>Horário do Plantão:</label>
             <select value={horario} onChange={(e) => setHorario(e.target.value)}>
               <option value="">Todos</option>
-              <option value="7-19">7h - 19h</option>
-              <option value="19-7">19h - 7h</option>
+              <option value="7h-19h">7h - 19h</option>
+              <option value="19h-7h">19h - 7h</option>
             </select>
           </div>
         </div>
@@ -246,6 +275,15 @@ export default function Relatorios() {
             </datalist>
           </div>
           <div className="field">
+            <label>CRM:</label>
+            <input
+              type="text"
+              value={crmQuery}
+              onChange={(e) => setCrmQuery(e.target.value)}
+              placeholder="Todos"
+            />
+          </div>
+          <div className="field">
             <label>Visão:</label>
             <select value={visao} onChange={(e) => setVisao(e.target.value)}>
               <option value="profissional">Profissional</option>
@@ -266,7 +304,8 @@ export default function Relatorios() {
         <div className="grid-3" style={{ marginTop: 12 }}>
           <button onClick={gerarRelatorio}>Gerar Relatório</button>
           <button onClick={limpar}>Limpar</button>
-          <button onClick={() => exportPDF(chartData, linhas)}>PDF</button>
+         <button onClick={() => gerarPDFHtml()}>PDF</button>
+
           <button onClick={() => exportExcel(linhas)}>Excel</button>
           <button onClick={gerarRelatorioFake}>Relatório Fake</button>
         </div>
@@ -280,6 +319,7 @@ export default function Relatorios() {
             <thead>
               <tr>
                 <th>Médico</th>
+                <th>CRM</th>
                 <th>Especialidade</th>
                 <th>Data</th>
                 <th>Total Atendimentos</th>
@@ -289,6 +329,7 @@ export default function Relatorios() {
               {linhas.map((l, i) => (
                 <tr key={i}>
                   <td>{l.medico}</td>
+                  <td>{l.crm || "—"}</td>
                   <td>{l.especialidade}</td>
                   <td>{l.data}</td>
                   <td>{l.total}</td>
@@ -299,48 +340,75 @@ export default function Relatorios() {
         </section>
       )}
 
-     {/* GRÁFICO */}
-{linhas.length > 0 && (
-  <section className="relatorios-grafico card" ref={graficoRef}>
-    <div className="tipo-grafico-select">
-      <label>Tipo de Gráfico:</label>
-      <select value={tipoGrafico} onChange={(e) => setTipoGrafico(e.target.value)}>
-        <option value="pizza">Pizza</option>
-        <option value="barra">Barra</option>
-        <option value="linha">Linha</option>
-        <option value="area">Área</option>
-      </select>
-    </div>
+      {/* GRÁFICO */}
+      {linhas.length > 0 && (
+        <section className="relatorios-grafico card" ref={graficoRef}>
+          <div className="tipo-grafico-select">
+            <label>Tipo de Gráfico:</label>
+            <select value={tipoGrafico} onChange={(e) => setTipoGrafico(e.target.value)}>
+              <option value="pizza">Pizza</option>
+              <option value="barra">Barra</option>
+              <option value="linha">Linha</option>
+              <option value="area">Área</option>
+            </select>
+          </div>
 
-    <div className="total-atendimentos">
-      Total de atendimentos: {valores.reduce((a, b) => a + b, 0)}
-    </div>
+          <div className="total-atendimentos">
+            Total de atendimentos: {valores.reduce((a, b) => a + b, 0)}
+          </div>
 
-    {tipoGrafico === "pizza" && <GraficoPizza data={chartData} />}
-    {tipoGrafico === "barra" && <GraficoBarra data={chartData} />}
-    {tipoGrafico === "linha" && <GraficoLinha data={chartData} />}
-    {tipoGrafico === "area" && <GraficoArea data={chartData} />}
-  </section>
-)}
+          {tipoGrafico === "pizza" && <GraficoPizza data={chartData} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+          {tipoGrafico === "barra" && <GraficoBarra data={chartData} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+          {tipoGrafico === "linha" && <GraficoLinha data={chartData} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+          {tipoGrafico === "area" && <GraficoArea data={chartData} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+        </section>
+        
+      )}
     </div>
   );
 }
 
-// Funções de export
-const exportPDF = async (chartData, linhas) => {
-  const doc = new jsPDF("p", "mm", "a4");
-  doc.text("Relatório de Atendimentos", 14, 16);
-  doc.autoTable({
-    startY: 24,
-    head: [["Médico", "Especialidade", "Data", "Total Atendimentos"]],
-    body: linhas.map((l) => [l.medico, l.especialidade, l.data, l.total]),
-  });
-  doc.save("relatorio.pdf");
+
+import html2canvas from "html2canvas";
+
+
+const gerarPDFHtml = async () => {
+  const elemento = document.querySelector(".relatorios-wrap");
+  if (!elemento) return alert("Não há conteúdo para gerar o PDF.");
+
+  try {
+    // Captura a tela em alta resolução
+    const canvas = await html2canvas(elemento, { scale: 2 });
+    const imgData = canvas.toDataURL("image/png");
+
+    // Cria o PDF
+    const pdf = new jsPDF("p", "mm", "a4");
+    const larguraPdf = pdf.internal.pageSize.getWidth();
+    const alturaPdf = (canvas.height * larguraPdf) / canvas.width;
+
+    // Adiciona a imagem no PDF
+    pdf.addImage(imgData, "PNG", 0, 0, larguraPdf, alturaPdf);
+
+    // Salva o PDF
+    pdf.save(`relatorio_${dayjs().format("YYYYMMDD_HHmm")}.pdf`);
+  } catch (erro) {
+    console.error("Erro ao gerar PDF:", erro);
+    alert("Falha ao gerar PDF.");
+  }
 };
 
+
+
+
 const exportExcel = (linhas) => {
-  const ws = XLSX.utils.json_to_sheet(linhas);
+  const ws = XLSX.utils.json_to_sheet(linhas.map(l => ({
+    Médico: l.medico,
+    CRM: l.crm || "—",
+    Especialidade: l.especialidade,
+    Data: l.data,
+    "Total Atendimentos": l.total
+  })));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Relatório");
-  XLSX.writeFile(wb, "relatorio.xlsx");
+  XLSX.writeFile(wb, `relatorio_${dayjs().format("YYYYMMDD_HHmm")}.xlsx`);
 };

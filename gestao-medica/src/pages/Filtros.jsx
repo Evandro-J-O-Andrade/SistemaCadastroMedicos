@@ -4,7 +4,6 @@ import "dayjs/locale/pt-br";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend,
 } from "recharts";
-
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -57,6 +56,13 @@ export default function Filtros() {
           medicos: [
             { id: 1, nome: "DR. ALEXANDRE MAURICIO RODRIGUES DE ARAUJO" },
             { id: 2, nome: "DRA. ADRIANA ESCOBAR" },
+            { id: 3, nome: "DR. BRUNO CAVALCANTE" },
+            { id: 4, nome: "DRA. CAMILA OLIVEIRA" },
+            { id: 5, nome: "DR. DIEGO FERNANDES" },
+            { id: 6, nome: "DRA. FABIANA SOUZA" },  
+            { id: 7, nome: "DR. GUSTAVO LIMA" },
+            { id: 8, nome: "DRA. HELENA RIBEIRO" },
+            { id: 9, nome: "DR. IGOR SANTOS" },
           ],
           especialidades: [
             { id: 10, nome: "Clínico Diurno" },
@@ -102,6 +108,8 @@ export default function Filtros() {
         { data: fmt(dia), periodo: "Noite", especialidade: "Emergencista", medico: "—", atendimentos: 1 },
         { data: fmt(dia), periodo: "Dia", especialidade: "Vistador", medico: "—", atendimentos: 1 },
         { data: fmt(dia), periodo: "Dia", especialidade: "Cinderela", medico: "—", atendimentos: 1 },
+        
+        
       ];
       setLinhas(base);
       setErro("⚠️ Mostrando dados de demonstração (backend não respondeu).");

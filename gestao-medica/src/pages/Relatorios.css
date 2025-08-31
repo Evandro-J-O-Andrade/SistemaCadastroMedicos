@@ -1,13 +1,16 @@
+/* Container geral do relatório */
 .relatorios-wrap {
   padding: 20px;
   font-family: Arial, sans-serif;
 }
 
+/* Header */
 .relatorios-header h1 {
   text-align: center;
   margin-bottom: 20px;
 }
 
+/* Cartão */
 .card {
   background: #fff;
   border-radius: 8px;
@@ -16,6 +19,7 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
+/* Controles */
 .relatorios-controles .grid-3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -23,6 +27,7 @@
   margin-bottom: 12px;
 }
 
+/* Campos de input/select */
 .field label {
   display: block;
   font-weight: bold;
@@ -38,6 +43,7 @@
   margin-bottom: 4px;
 }
 
+/* Botões */
 .relatorios-controles button {
   padding: 8px 12px;
   border: none;
@@ -53,6 +59,7 @@
   background: #45a049;
 }
 
+/* Tabela */
 .relatorios-tabela table {
   width: 100%;
   border-collapse: collapse;
@@ -69,23 +76,22 @@
   font-weight: bold;
 }
 
-/* Gráfico */
+/* Container do gráfico */
 .relatorios-grafico {
   width: 100%;
-  height: 450px;       /* altura fixa para não quebrar layout */
-}
-.relatorios-grafico canvas {
-  width: 100% !important;
-  height: 400px !important;
-}
-/* Gráfico */
-.relatorios-grafico {
-  width: 100%;
-  height: 450px;
+  max-width: 100%;       /* aumenta a largura máxima */
+  min-height: 100%;      /* garante altura mínima */
+  margin: 0 auto;         /* centraliza horizontalmente */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 15px 0;
+}
+.relatorios-grafico canvas {
+  width: 100% !important;  /* largura proporcional ao container */
+  height: auto !important; /* altura proporcional ao container */
+  max-height: 600px;       /* altura máxima */
 }
 
 /* Select para escolher gráfico */
@@ -93,7 +99,6 @@
   margin-bottom: 10px;
   display: flex;
   align-items: center;
-  margin:10px 0;
   gap: 10px;
 }
 
@@ -112,10 +117,14 @@
 /* Responsividade */
 @media screen and (max-width: 768px) {
   .relatorios-controles .grid-3 {
-    flex-direction: column;
+    grid-template-columns: 1fr; /* coluna única */
   }
 
   .field {
     min-width: 100%;
+  }
+
+  .relatorios-grafico {
+    max-width: 100%; /* full width em telas pequenas */
   }
 }

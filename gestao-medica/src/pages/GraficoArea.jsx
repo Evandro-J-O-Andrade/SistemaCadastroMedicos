@@ -2,32 +2,25 @@ import React from "react";
 import { Line } from "react-chartjs-2";
 
 export default function GraficoArea({ data }) {
-  const areaData = {
+  const options = {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { enabled: true } },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1 } },
+      x: { ticks: { autoSkip: false } },
+    },
+  };
+
+  // Configura dataset para área (fill)
+  const dataArea = {
     ...data,
-    datasets: data.datasets.map((ds) => ({
+    datasets: data.datasets.map(ds => ({
       ...ds,
+      tension: 0.3,
       fill: true,
-      tension: 0.4,
+      borderWidth: 2,
     })),
   };
 
-  return (
-    <div style={{ width: "100%", height: "400px" }}>
-      <Line
-        data={areaData}
-        options={{
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: "top" },
-            tooltip: { mode: "index", intersect: false },
-          },
-          scales: {
-            x: { display: true },
-            y: { beginAtZero: true },
-          },
-        }}
-      />
-    </div>
-  );
+  return <Line data={dataArea} options={options} />;
 }
