@@ -11,12 +11,16 @@
   },
   "dependencies": {
     "chart.js": "^4.5.0",
+    "cheerio": "^1.1.2",
+    "cors": "^2.8.5",
     "dayjs": "^1.11.13",
+    "express": "^5.1.0",
     "htm": "^3.1.1",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.2",
     "jspdf-autotable": "^5.0.2",
+    "node-fetch": "^3.3.2",
     "react": "^19.1.1",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.1.1",
@@ -39,5 +43,13 @@
   "main": "eslint.config.js",
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Evandro-J-O-Andrade/SistemaCadastroMedicos.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Evandro-J-O-Andrade/SistemaCadastroMedicos/issues"
+  },
+  "homepage": "https://github.com/Evandro-J-O-Andrade/SistemaCadastroMedicos#readme"
 }
