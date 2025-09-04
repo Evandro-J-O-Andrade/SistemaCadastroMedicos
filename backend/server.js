@@ -46,7 +46,8 @@ app.get("/buscar-crm", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
+// Use 5000 as default port if process.env.PORT is not available
+const PORT = typeof globalThis.process !== "undefined" && globalThis.process.env && globalThis.process.env.PORT ? globalThis.process.env.PORT : 5000;
 const HOST = "0.0.0.0";
 
 app.listen(PORT, HOST, () => {
