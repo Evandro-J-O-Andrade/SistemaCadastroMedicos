@@ -1,55 +1,83 @@
-// server.js
-import express from "express";
-import cors from "cors";
-import fetch from "node-fetch";
-import * as cheerio from "cheerio";
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const gestao = require('./gestaoMedica'); // agora require funciona
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-// Endpoint para buscar CRM pelo nome do médico
-app.get("/buscar-crm", async (req, res) => {
-  const nome = req.query.nome;
-  if (!nome) {
-    return res.status(400).json({ error: "Informe o nome do médico" });
-  }
-
-  try {
-    // Monta a URL de pesquisa no site do CREMESP
-    const url = `https://guiamedico.cremesp.org.br/?q=${encodeURIComponent(nome)}`;
-
-    // Faz o request para o site
-    const response = await fetch(url);
-    const html = await response.text();
-
-    // Carrega o HTML no cheerio
-    const $ = cheerio.load(html);
-
-    // Aqui você precisa inspecionar o site e ajustar o seletor
-    // Exemplo (ajustar de acordo com a estrutura real do site):
-    let resultados = [];
-    $(".medico-item").each((i, el) => {
-      const nomeMedico = $(el).find(".nome").text().trim();
-      const crm = $(el).find(".crm").text().trim();
-      resultados.push({ nome: nomeMedico, crm });
-    });
-
-    if (resultados.length === 0) {
-      return res.json({ mensagem: "Nenhum médico encontrado." });
-    }
-
-    res.json(resultados);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Erro ao buscar dados do CREMESP" });
-  }
+// ROTAS MÉDICOS
+app.get('/medicos', async (req, res) => {
+    const medicos = await gestao.listarMedicos();
+    res.json(medicos);
 });
 
-// Use 5000 as default port if process.env.PORT is not available
-const PORT = typeof globalThis.process !== "undefined" && globalThis.process.env && globalThis.process.env.PORT ? globalThis.process.env.PORT : 5000;
-const HOST = "0.0.0.0";
-
-app.listen(PORT, HOST, () => {
-  console.log(`Servidor rodando em http://${HOST}:${PORT}`);
+app.post('/medicos', async (req, res) => {
+    const { nome, crm } = req.body;
+    const medico = await gestao.criarMedico(nome, crm);
+    res.json(medico);
 });
+
+app.get('/medicos/pesquisa', async (req, res) => {
+    const { nome, crm } = req.query;
+    const medicos = await gestao.pesquisarMedicos({ nome, crm });
+    res.json(medicos);
+});
+
+// ROTAS ESPECIALIDADES
+app.get('/especialidades', async (req, res) => {
+    const especialidades = await gestao.listarEspecialidades();
+    res.json(especialidades);
+});
+
+app.post('/especialidades', async (req, res) => {
+    const { nome } = req.body;
+    const esp = await gestao.criarEspecialidade(nome);
+    res.json(esp);
+});
+
+// ROTAS PLANTÕES
+app.get('/plantoes', async (req, res) => {
+    const plantoes = await gestao.listarPlantoes();
+    res.json(plantoes);
+});
+
+app.post('/plantoes', async (req, res) => {
+    const { data, periodo } = req.body;
+    const plantao = await gestao.criarPlantao(data, periodo);
+    res.json(plantao);
+});
+
+// ROTAS ATENDIMENTOS
+app.get('/atendimentos/:idPlantao', async (req, res) => {
+    const atendimentos = await gestao.listarAtendimentosPorPlantao(req.params.idPlantao);
+    res.json(atendimentos);
+});
+
+app.post('/atendimentos', async (req, res) => {
+    const { id_plantao, id_medico, id_especialidade, tipo, quantidade, observacao } = req.body;
+    const atendimento = await gestao.criarAtendimento(id_plantao, id_medico, id_especialidade, tipo, quantidade, observacao);
+    res.json(atendimento);
+});
+
+// ROTAS RELATÓRIOS
+app.get('/relatorio/plantao', async (req, res) => {
+    const rel = await gestao.relatorioConsolidadoPlantao();
+    res.json(rel);
+});
+
+app.get('/relatorio/data', async (req, res) => {
+    const rel = await gestao.relatorioConsolidadoData();
+    res.json(rel);
+});
+
+app.get('/relatorio/atendimentos', async (req, res) => {
+    const { id_medico, id_especialidade, data_inicio, data_fim } = req.query;
+    const rel = await gestao.relatorioAtendimentos({ id_medico, id_especialidade, data_inicio, data_fim });
+    res.json(rel);
+});
+
+// INICIAR SERVIDOR
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
