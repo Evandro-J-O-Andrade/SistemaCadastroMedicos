@@ -8,6 +8,7 @@ import Medicos from "./pages/Medicos";
 import Plantao from "./pages/Plantao";
 import Relatorios from "./pages/Relatorios";
 import Filtros from "./pages/Filtros";
+import CadastroEmLote from "./pages/CadastroEmLote";
 import "./App.css";
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
             <Route path="/plantao" element={<Plantao />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/filtros" element={<Filtros />} />
+            <Route path="/cadastro-lote" element={<CadastroEmLote />} />
           </Routes>
         </main>
       </div>

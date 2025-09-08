@@ -1,0 +1,67 @@
+.cadastro-lote-container {
+  max-width: 800px;
+  margin: 30px auto;
+  padding: 25px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
+  font-family: Arial, sans-serif;
+}
+
+.cadastro-lote-container h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.cadastro-lote-textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 15px;
+  outline: none;
+  transition: border 0.3s;
+}
+
+.cadastro-lote-textarea:focus {
+  border: 1px solid #3b82f6;
+}
+
+.cadastro-lote-botoes-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.cadastro-lote-btn, .cadastro-lote-btn-limpar {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.cadastro-lote-btn-limpar {
+  background: #f59e0b;
+}
+
+.cadastro-lote-btn:hover {
+  background: #2563eb;
+}
+
+.cadastro-lote-btn-limpar:hover {
+  background: #b45309;
+}
+
+.cadastro-lote-mensagem-sucesso {
+  text-align: center;
+  color: #059669;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
