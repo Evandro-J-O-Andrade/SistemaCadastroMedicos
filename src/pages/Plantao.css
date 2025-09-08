@@ -171,3 +171,8 @@
     padding: 12px 0;
   }
 }
+/* Ícones antes do texto */
+.info-plantao p i {
+  margin-right: 6px;
+  color: #6c63ff;
+}

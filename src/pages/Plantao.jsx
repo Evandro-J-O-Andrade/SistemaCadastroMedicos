@@ -61,7 +61,7 @@ export default function Plantao() {
     setPlantaoList(plantaoList.filter((p) => p.id !== id));
   };
 
-  // Função para definir cor do card por especialidade
+  // Cor por especialidade
   const corEspecialidade = (esp) => {
     switch (esp) {
       case "Clinico": return "#6c63ff";
@@ -72,6 +72,20 @@ export default function Plantao() {
       case "Fisioterapeuta": return "#3498db";
       case "Nutricionista": return "#f1c40f";
       default: return "#95a5a6";
+    }
+  };
+
+  // Ícone por especialidade (Font Awesome)
+  const iconeEspecialidade = (esp) => {
+    switch (esp) {
+      case "Clinico": return <i className="fas fa-stethoscope"></i>;
+      case "Pediatrico": return <i className="fas fa-baby"></i>;
+      case "Emergencista": return <i className="fas fa-briefcase-medical"></i>;
+      case "Cinderela": return <i className="fas fa-moon"></i>;
+      case "Visitador": return <i className="fas fa-user-check"></i>;
+      case "Fisioterapeuta": return <i className="fas fa-dumbbell"></i>;
+      case "Nutricionista": return <i className="fas fa-apple-alt"></i>;
+      default: return <i className="fas fa-user-md"></i>;
     }
   };
 
@@ -138,7 +152,7 @@ export default function Plantao() {
             <div className="plantao-card" key={p.id} style={{ borderTop: `6px solid ${corEspecialidade(p.especialidade)}` }}>
               <div className="info-plantao">
                 <p><span>Médico:</span> {p.nome}</p>
-                <p><span>Especialidade:</span> {p.especialidade}</p>
+                <p><span>Especialidade:</span> {iconeEspecialidade(p.especialidade)} {p.especialidade}</p>
                 <p><span>Quantidade:</span> {p.quantidade}</p>
                 <p><span>Data:</span> {p.data}</p>
                 <p><span>Hora:</span> {p.hora}</p>
