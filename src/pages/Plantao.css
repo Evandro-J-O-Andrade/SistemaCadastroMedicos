@@ -66,6 +66,43 @@
   box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3);
 }
 
+/* Container Data/Hora + Aviso */
+.data-hora-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.data-hora-container label {
+  flex: 1;
+}
+
+/* Aviso de conflito */
+.aviso-conflito {
+  align-self: flex-start;
+  background-color: #ffdddd; /* vermelho claro */
+  border: 1px solid #ff5c5c; /* borda vermelha */
+  color: #a70000; /* texto vermelho escuro */
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-weight: bold;
+  animation: piscar 1s infinite;
+  font-size: 14px;
+}
+
+@keyframes piscar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.aviso-conflito.sucesso {
+  background-color: #ddffdd;
+  color: #27ae60; /* verde para sucesso */
+  border: 1px solid #27ae60;
+  animation: none;
+}
+
 /* Cards de plantão */
 .plantao-cards {
   display: grid;
@@ -109,17 +146,40 @@
   color: #6c63ff;
 }
 
-/* Botão excluir */
-.btn-excluir-plantao {
-  align-self: flex-end;
+/* Container de botões do card */
+.acoes-plantao {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+/* Botão Editar */
+.btn-editar-plantao {
+  background-color: #4caf50;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
   padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.btn-editar-plantao:hover {
+  background-color: #3d8b40;
+  transform: translateY(-2px);
+}
+
+/* Botão Excluir */
+.btn-excluir-plantao {
   background-color: #ff5c5c;
   color: #fff;
   border: none;
   border-radius: 12px;
+  padding: 8px 16px;
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition: 0.2s ease;
 }
 
 .btn-excluir-plantao:hover {
@@ -154,6 +214,12 @@
   font-size: 16px;
 }
 
+/* Ícones antes do texto */
+.info-plantao p i {
+  margin-right: 6px;
+  color: #6c63ff;
+}
+
 /* Responsividade */
 @media (max-width: 500px) {
   .plantao-card {
@@ -165,14 +231,18 @@
   }
 
   .btn-excluir-plantao,
+  .btn-editar-plantao,
   .btn-salvar-plantao,
   .btn-cadastrar-medico {
     font-size: 14px;
     padding: 12px 0;
   }
-}
-/* Ícones antes do texto */
-.info-plantao p i {
-  margin-right: 6px;
-  color: #6c63ff;
+
+  .data-hora-container {
+    flex-direction: column;
+  }
+
+  .aviso-conflito {
+    align-self: flex-start;
+  }
 }

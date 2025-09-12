@@ -151,3 +151,35 @@
     padding: 12px 0;
   }
 }
+/* ===== Responsividade ===== */
+@media screen and (max-width: 768px) {
+  .home-container {
+    flex-direction: column; /* Sidebar acima do conteúdo */
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 10px;
+  }
+
+  .sidebar nav ul {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .sidebar nav ul li {
+    margin: 0 15px;
+  }
+
+  .resumo-sistema,
+  .novidades-list {
+    justify-content: center;
+  }
+
+  .card-resumo,
+  .card-novidade {
+    max-width: 90%;
+  }
+}

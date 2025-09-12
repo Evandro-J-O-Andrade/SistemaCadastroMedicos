@@ -9,9 +9,11 @@ function Sidebar({ usuarioAtual }) {
       <h3>Menu</h3>
       <nav>
         <ul>
+             {/* Home sempre disponível para todos logados */}
+          <li><NavLink to="/">Home</NavLink></li>
+
           {["admin","suporte"].includes(usuarioAtual.role) && (
             <>
-              <li><NavLink to="/">Home</NavLink></li>
               <li><NavLink to="/medicos">Médicos</NavLink></li>
               <li><NavLink to="/plantao">Plantão</NavLink></li>
             </>
