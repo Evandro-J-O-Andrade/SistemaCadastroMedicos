@@ -246,3 +246,39 @@
     align-self: flex-start;
   }
 }
+/* Container Data/Hora + Aviso */
+.data-hora-wrapper {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+  grid-column: 1 / -1;
+}
+
+.data-hora-wrapper label {
+  flex: 1;
+}
+
+.data-hora-wrapper input {
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+/* Aviso de conflito abaixo da Data/Hora */
+.aviso-conflito {
+  margin-top: 6px;
+  background-color: #ffdddd; /* vermelho claro */
+  border: 1px solid #ff5c5c; /* borda vermelha */
+  color: #a70000; /* texto vermelho escuro */
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: 13px;
+  animation: piscar 1s infinite;
+}
+
+@media (max-width: 500px) {
+  .data-hora-wrapper {
+    flex-direction: column;
+  }
+}

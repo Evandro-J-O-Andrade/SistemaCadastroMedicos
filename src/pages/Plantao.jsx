@@ -200,7 +200,7 @@ export default function Plantao() {
           />
         </label>
 
-        <div className="data-hora-container">
+        <div className="data-hora-wrapper">
           <label>
             Data do Atendimento:
             <input
