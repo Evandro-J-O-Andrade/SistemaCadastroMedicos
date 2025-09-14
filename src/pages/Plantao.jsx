@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import medicosData from "./MedicosData";
 import "./Plantao.css";
 
 function formatarDataHora(data, hora) {
@@ -16,11 +15,13 @@ function formatarDataHora(data, hora) {
 export default function Plantao() {
   const navigate = useNavigate();
 
-  // Inicializa plantaoList com dados do localStorage
   const [plantaoList, setPlantaoList] = useState(() => {
     const dados = localStorage.getItem("plantaoData");
     return dados ? JSON.parse(dados) : [];
   });
+
+  // Lista de médicos do localStorage
+  const [medicosData, setMedicosData] = useState([]);
 
   const [medicoInput, setMedicoInput] = useState("");
   const [especialidade, setEspecialidade] = useState("");
@@ -29,14 +30,31 @@ export default function Plantao() {
   const [horaAtendimento, setHoraAtendimento] = useState("");
   const [editandoId, setEditandoId] = useState(null);
   const [dataAtual, setDataAtual] = useState(new Date().toLocaleDateString());
-  const [conflitoAviso, setConflitoAviso] = useState("");
 
-  // Salva sempre que plantaoList mudar
+  const [mensagemGlobal, setMensagemGlobal] = useState("");
+  const [tipoMensagem, setTipoMensagem] = useState("");
+  const [plantaoParaExcluir, setPlantaoParaExcluir] = useState(null);
+
+  // Estados do input principal do médico
+  const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
+
+  // Estados da lupa
+  const [lupaInput, setLupaInput] = useState("");
+  const [mostrarListaLupa, setMostrarListaLupa] = useState(false);
+  const [listaFiltradaLupa, setListaFiltradaLupa] = useState([]);
+
+  // Pega médicos do localStorage
+  useEffect(() => {
+    const dados = JSON.parse(localStorage.getItem("medicos") || "[]");
+    setMedicosData(dados);
+  }, []);
+
+  // Salva plantões no localStorage
   useEffect(() => {
     localStorage.setItem("plantaoData", JSON.stringify(plantaoList));
   }, [plantaoList]);
 
-  // Limpa plantões antigos na virada de dia
+  // Limpa plantões ao mudar o dia
   useEffect(() => {
     const interval = setInterval(() => {
       const agora = new Date();
@@ -47,23 +65,83 @@ export default function Plantao() {
         setDataAtual(novaData);
       }
     }, 60 * 1000);
-
     return () => clearInterval(interval);
   }, [dataAtual]);
 
-  const medicoSuggestions = medicosData.filter((m) =>
-    m.nome.toLowerCase().includes(medicoInput.toLowerCase())
-  );
+  // Mensagem global desaparece após 5 segundos
+  useEffect(() => {
+    if (mensagemGlobal) {
+      const timer = setTimeout(() => setMensagemGlobal(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [mensagemGlobal]);
+
+  // Fecha listas ao clicar fora
+  useEffect(() => {
+    const handleClickFora = (event) => {
+      const medicoWrapper = document.querySelector(".medico-wrapper");
+      const lupaWrapper = document.querySelector(".lupa-wrapper");
+
+      if (medicoWrapper && !medicoWrapper.contains(event.target)) {
+        setMostrarListaMedicos(false);
+      }
+
+      if (lupaWrapper && !lupaWrapper.contains(event.target)) {
+        setMostrarListaLupa(false);
+      }
+    };
+
+    document.addEventListener("click", handleClickFora);
+    return () => document.removeEventListener("click", handleClickFora);
+  }, []);
+
+  // Filtra médicos do input principal
+  const filtrarMedicosInput = (valor) => {
+    setMedicoInput(valor);
+    setMostrarListaMedicos(true);
+  };
+
+  const handleSelecionarMedicoDaLista = (nome, e) => {
+    e.stopPropagation();
+    setMedicoInput(nome);
+    setMostrarListaMedicos(false);
+  };
+
+  // Lógica da lupa
+  const abrirListaLupa = () => {
+    if (!lupaInput.trim()) {
+      setListaFiltradaLupa(medicosData);
+    } else {
+      const filtro = medicosData.filter((m) =>
+        m.nome.toLowerCase().includes(lupaInput.toLowerCase())
+      );
+      setListaFiltradaLupa(filtro);
+      if (filtro.length === 0) {
+        setMensagemGlobal(
+          "⚠️ Médico não encontrado ou pode haver erro de digitação!"
+        );
+        setTipoMensagem("erro");
+      }
+    }
+    setMostrarListaLupa(true);
+  };
+
+  const handleSelecionarMedicoDaLupa = (nome) => {
+    setMedicoInput(nome);
+    setLupaInput("");
+    setListaFiltradaLupa([]);
+    setMostrarListaLupa(false);
+  };
 
   const handleAddPlantao = () => {
     if (!medicoInput || !especialidade || !quantidade || !dataAtendimento || !horaAtendimento) {
-      setConflitoAviso("⚠️ Preencha todos os campos!");
+      setMensagemGlobal("⚠️ Preencha todos os campos!");
+      setTipoMensagem("erro");
       return;
     }
 
     const { dataFormatada, horaFormatada } = formatarDataHora(dataAtendimento, horaAtendimento);
 
-    // Verificação de conflito: mesmo médico, mesma especialidade, intervalo < 12h
     const conflito = plantaoList.some((p) => {
       if (p.id === editandoId) return false;
       if (p.nome !== medicoInput) return false;
@@ -81,11 +159,13 @@ export default function Plantao() {
     });
 
     if (conflito) {
-      setConflitoAviso("⚠️ Este médico já possui um plantão registrado nessa especialidade nas últimas 12h!");
+      setMensagemGlobal("⚠️ Este médico já possui um plantão nessa especialidade nas últimas 12h!");
+      setTipoMensagem("erro");
       return;
     }
 
-    setConflitoAviso("✅ Plantão salvo com sucesso!"); // sucesso
+    setMensagemGlobal(editandoId ? "✅ Plantão atualizado com sucesso!" : "✅ Plantão salvo com sucesso!");
+    setTipoMensagem("sucesso");
 
     if (editandoId) {
       const atualizado = plantaoList.map((p) =>
@@ -114,9 +194,24 @@ export default function Plantao() {
     setHoraAtendimento("");
   };
 
-  const handleRemovePlantao = (id) => {
-    if (!window.confirm("Deseja realmente excluir este plantão?")) return;
-    setPlantaoList(plantaoList.filter((p) => p.id !== id));
+  const handleConfirmarExclusao = (id) => {
+    setPlantaoParaExcluir(id);
+    setMensagemGlobal("⚠️ Deseja realmente excluir este plantão?");
+    setTipoMensagem("erro");
+  };
+
+  const handleExcluirConfirmado = () => {
+    if (!plantaoParaExcluir) return;
+    const atualizado = plantaoList.filter((p) => p.id !== plantaoParaExcluir);
+    setPlantaoList(atualizado);
+    setPlantaoParaExcluir(null);
+    setMensagemGlobal("🗑️ Plantão excluído com sucesso!");
+    setTipoMensagem("sucesso");
+  };
+
+  const handleCancelarExclusao = () => {
+    setPlantaoParaExcluir(null);
+    setMensagemGlobal("");
   };
 
   const handleEditPlantao = (plantao) => {
@@ -160,20 +255,65 @@ export default function Plantao() {
       <h2>{editandoId ? "Editar Plantão" : "Registrar Plantão"}</h2>
 
       <div className="form-plantao">
+        {/* Input principal do médico */}
         <label>
           Médico:
-          <input
-            type="text"
-            placeholder="Digite o nome do médico"
-            value={medicoInput}
-            onChange={(e) => setMedicoInput(e.target.value)}
-            list="medicos"
-          />
-          <datalist id="medicos">
-            {medicoSuggestions.map((m) => (
-              <option key={m.id} value={m.nome} />
-            ))}
-          </datalist>
+          <div className="medico-wrapper">
+            <input
+              type="text"
+              placeholder="Digite ou selecione o médico"
+              value={medicoInput}
+              onChange={(e) => filtrarMedicosInput(e.target.value)}
+            />
+            <i
+              className="fas fa-chevron-down"
+              onClick={() => setMostrarListaMedicos(!mostrarListaMedicos)}
+            ></i>
+
+            {mostrarListaMedicos && (
+              <div className="lista-medicos">
+                {medicosData
+                  .filter((m) =>
+                    m.nome.toLowerCase().includes(medicoInput.toLowerCase())
+                  )
+                  .map((m) => (
+                    <div
+                      key={m.id}
+                      onClick={(e) => handleSelecionarMedicoDaLista(m.nome, e)}
+                    >
+                      {m.nome}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </label>
+
+        {/* Campo da lupa */}
+        <label>
+          Procurar Médico:
+          <div className="lupa-wrapper">
+            <input
+              type="text"
+              placeholder="Digite para buscar"
+              value={lupaInput}
+              onChange={(e) => setLupaInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") abrirListaLupa(); }}
+            />
+            <i className="fas fa-search" onClick={abrirListaLupa}></i>
+            {mostrarListaLupa && listaFiltradaLupa.length > 0 && (
+              <div className="lista-medicos">
+                {listaFiltradaLupa.map((m) => (
+                  <div
+                    key={m.id}
+                    onClick={() => handleSelecionarMedicoDaLupa(m.nome)}
+                  >
+                    {m.nome}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </label>
 
         <label>
@@ -218,22 +358,28 @@ export default function Plantao() {
               onChange={(e) => setHoraAtendimento(e.target.value)}
             />
           </label>
-
-          {conflitoAviso && (
-            <span
-              className={`aviso-conflito ${
-                conflitoAviso.startsWith("✅") ? "sucesso" : ""
-              }`}
-            >
-              {conflitoAviso}
-            </span>
-          )}
         </div>
 
         <button className="btn-salvar-plantao" onClick={handleAddPlantao}>
           {editandoId ? "Atualizar Plantão" : "Salvar Plantão"}
         </button>
       </div>
+
+      {mensagemGlobal && (
+        <div className={`mensagem-global ${tipoMensagem}`}>
+          <p>{mensagemGlobal}</p>
+          {plantaoParaExcluir && (
+            <div className="confirmacao-botoes">
+              <button className="btn-confirmar" onClick={handleExcluirConfirmado}>
+                Sim
+              </button>
+              <button className="btn-cancelar" onClick={handleCancelarExclusao}>
+                Cancelar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {plantaoList.length > 0 ? (
         <div className="plantao-cards">
@@ -252,13 +398,13 @@ export default function Plantao() {
               </div>
               <div className="acoes-plantao">
                 <button className="btn-editar-plantao" onClick={() => handleEditPlantao(p)}>Editar</button>
-                <button className="btn-excluir-plantao" onClick={() => handleRemovePlantao(p.id)}>Excluir</button>
+                <button className="btn-excluir-plantao" onClick={() => handleConfirmarExclusao(p.id)}>Excluir</button>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <p>Nenhum plantão registrado ainda.</p>
+        <p className="nenhum-plantao">Nenhum plantão registrado ainda.</p>
       )}
 
       <button className="btn-cadastrar-medico" onClick={() => navigate("/medicos")}>

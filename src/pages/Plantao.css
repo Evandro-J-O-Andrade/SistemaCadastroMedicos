@@ -71,7 +71,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  grid-column: 1 / -1;
+  grid-column: 1/ -1;
 }
 
 .data-hora-container label {
@@ -251,15 +251,18 @@
   display: flex;
   gap: 15px;
   align-items: flex-start;
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
+  flex-wrap: wrap; 
 }
 
 .data-hora-wrapper label {
+  width: auto;
   flex: 1;
+  min-width: 90px;
 }
 
 .data-hora-wrapper input {
-  padding: 8px 10px;
+  padding: 11px 10px;
   font-size: 13px;
   border-radius: 10px;
 }
@@ -280,5 +283,367 @@
 @media (max-width: 500px) {
   .data-hora-wrapper {
     flex-direction: column;
+  }
+}
+/* Mensagens dinâmicas */
+.mensagem-plantao {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 15px auto;
+  max-width: 400px;
+  transition: opacity 0.3s ease;
+}
+
+.mensagem-plantao.sucesso {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.mensagem-plantao.erro {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.mensagem-plantao.alerta {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+}
+.mensagem-global {
+  text-align: center;
+  margin: 15px 0;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.mensagem-global.sucesso {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.mensagem-global.erro {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+.confirmacao-botoes {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.btn-confirmar {
+  background-color: #d9534f;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.btn-confirmar:hover {
+  background-color: #c9302c;
+}
+
+.btn-cancelar {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.btn-cancelar:hover {
+  background-color: #5a6268;
+}
+.confirmacao-botoes {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.btn-confirmar {
+  background-color: #d9534f;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.btn-confirmar:hover {
+  background-color: #c9302c;
+}
+
+.btn-cancelar {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.btn-cancelar:hover {
+  background-color: #5a6268;
+}
+/* Container da mensagem global */
+.mensagem-global {
+  text-align: center;
+  margin: 15px 0;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* Cores */
+.mensagem-global.sucesso {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.mensagem-global.erro {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.mensagem-global.alerta {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+}
+
+/* Botões da confirmação */
+.botoes-confirmacao {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.btn-confirmar {
+  background-color: #4caf50;
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.3s;
+}
+
+.btn-confirmar:hover {
+  background-color: #3d8b40;
+}
+
+.btn-cancelar {
+  background-color: #ff5c5c;
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.3s;
+}
+
+.btn-cancelar:hover {
+  background-color: #e04343;
+}
+.data-hora-wrapper label {
+  flex: 1;
+  display: block; /* garante que label não atrapalhe clique */
+}
+
+.data-hora-wrapper input {
+  width: 100%;
+  cursor: pointer; /* deixa claro que dá para clicar */
+}
+/* Wrapper do campo de médico com lupa */
+.medico-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Campo de pesquisa */
+.medico-wrapper input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.medico-wrapper input:focus {
+  border-color: #6c63ff;
+  box-shadow: 0 0 8px rgba(108, 99, 255, 0.25);
+  outline: none;
+}
+
+/* Botão da lupa */
+.medico-lupa-btn {
+  padding: 10px 12px;
+  background-color: #6c63ff;
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.2s;
+}
+
+.medico-lupa-btn:hover {
+  background-color: #5848c2;
+}
+
+/* Lista suspensa de médicos */
+.lista-medicos {
+  position: absolute;
+  top: 48px; /* logo abaixo do input e botão */
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 20;
+  font-size: 14px;
+}
+
+/* Item da lista */
+.lista-medicos div {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.lista-medicos div:hover {
+  background-color: #f0f0ff;
+}
+
+/* Responsividade */
+@media (max-width: 500px) {
+  .medico-wrapper {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .lista-medicos {
+    top: 60px;
+    max-height: 150px;
+  }
+}
+.lupa-wrapper {
+  position: relative;
+}
+
+.lupa-wrapper .lista-medicos {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  z-index: 100;
+}
+/* Wrapper do campo de médico com seta */
+.medico-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Input de médico */
+.medico-wrapper input {
+  width: 100%;
+  padding: 10px 40px 10px 12px; /* espaço para a seta à direita */
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.medico-wrapper input:focus {
+  border-color: #6c63ff;
+  box-shadow: 0 0 8px rgba(108, 99, 255, 0.25);
+  outline: none;
+}
+
+/* Ícone da seta dentro do input */
+.medico-wrapper i.fas.fa-chevron-down {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #6c63ff;
+  font-size: 16px;
+  transition: transform 0.2s ease;
+}
+
+.medico-wrapper i.fas.fa-chevron-down:hover {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* Lista suspensa de médicos */
+.lista-medicos {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 20;
+  font-size: 14px;
+}
+
+/* Item da lista */
+.lista-medicos div {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.lista-medicos div:hover {
+  background-color: #f0f0ff;
+}
+
+/* Responsividade */
+@media (max-width: 500px) {
+  .medico-wrapper input {
+    padding: 10px 35px 10px 12px;
   }
 }
