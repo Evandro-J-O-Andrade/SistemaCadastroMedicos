@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 import { jsPDF } from "jspdf";
@@ -6,7 +6,6 @@ import "jspdf-autotable";
 import * as XLSX from "xlsx";
 
 import "./Relatorios.css";
-import medicos from "./MedicosData";
 
 import GraficoBarra from "./GraficoBarra";
 import GraficoPizza from "./GraficoPizza";
@@ -40,28 +39,8 @@ ChartJS.register(
 
 dayjs.locale("pt-br");
 
-const ESPECIALIDADES = [
-  "Clínico",
-  "Pediátrico",
-  "Emergencista",
-  "Cinderela",
-  "Visitador",
-  "Fisioterapeuta",
-  "Nutricionista",
-];
-
-const CORES_ESPECIALIDADE = {
-  Emergencista: "#FF0000",
-  Pediátrico: "#FFC0CB",
-  Clínico: "#09098fff",
-  Visitador: "#008000",
-  Cinderela: "#800080",
-  Fisioterapeuta: "#FFA500",
-  Nutricionista: "#00CED1",
-};
-
-const CHART_HEIGHT = 400;
-const CHART_WIDTH = 600;
+const CHART_HEIGHT = 200;
+const CHART_WIDTH = 300;
 
 const hojeYYYYMMDD = () => {
   const d = new Date();
@@ -84,94 +63,90 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
   const [crmQuery, setCrmQuery] = useState("");
   const [tipoGrafico, setTipoGrafico] = useState("pizza");
   const [visao, setVisao] = useState("profissional");
+
+  const [medicosData, setMedicosData] = useState([]);
   const [plantoes, setPlantoes] = useState([]);
-  const [carregado, setCarregado] = useState(false);
   const [linhas, setLinhas] = useState([]);
   const [gerado, setGerado] = useState(false);
 
   const relatoriosRef = useRef(null);
-  const graficoRef = useRef(null);
+  const graficoRefs = useRef({});
 
-  const carregarProfissionais = () => {
-    try {
-      const raw = localStorage.getItem("plantaoData");
-      const arr = raw ? JSON.parse(raw) : [];
-      setPlantoes(Array.isArray(arr) ? arr : []);
-      setCarregado(true);
-      setGerado(false);
-    } catch {
-      setPlantoes([]);
-      setCarregado(true);
-      setGerado(false);
-    }
+  // Puxa médicos cadastrados do localStorage
+  useEffect(() => {
+    const dados = JSON.parse(localStorage.getItem("medicos") || "[]");
+    setMedicosData(Array.isArray(dados) ? dados : []);
+  }, []);
+
+  // Puxa plantões do localStorage
+  useEffect(() => {
+    const dados = JSON.parse(localStorage.getItem("plantaoData") || "[]");
+    setPlantoes(Array.isArray(dados) ? dados : []);
+  }, []);
+
+  const CORES_ESPECIALIDADE = {
+    Emergencista: "#FF0000",
+    Pediátrico: "#FFC0CB",
+    Clínico: "#09098fff",
+    Visitador: "#008000",
+    Cinderela: "#800080",
+    Fisioterapeuta: "#FFA500",
+    Nutricionista: "#00CED1",
   };
 
-  const gerarRelatorio = () => {
-    if (!carregado) carregarProfissionais();
-
+  // Filtra e agrupa os dados para o relatório
+  const filtrarRelatorio = () => {
     const inicio = new Date(toISO(dataDe, horaDe));
     const fim = new Date(toISO(dataAte, horaAte));
     const nomeBusca = medicoQuery.trim().toLowerCase();
     const crmBusca = crmQuery.trim();
 
-    const filtrados = plantoes.filter((p) => {
-      const data = p.data || hojeYYYYMMDD();
-      const hora = p.horaInicio || "00:00";
-      const dt = new Date(toISO(data, hora));
+    // Combina dados do plantão com dados do médico
+    const dadosCompletos = medicosData.map((m) => {
+      const plantao = plantoes.find(
+        (p) =>
+          p.medico === m.nome &&
+          new Date(toISO(p.data || hojeYYYYMMDD(), p.hora || "00:00")) >= inicio &&
+          new Date(toISO(p.data || hojeYYYYMMDD(), p.hora || "00:00")) <= fim
+      );
 
-      const okPeriodo = dt >= inicio && dt <= fim;
-      const okEsp = !especialidade || (p.especialidade || "").toLowerCase() === especialidade.toLowerCase();
-      const okMedico = !nomeBusca || (p.medico || "").toLowerCase().includes(nomeBusca);
-      const okCrm =
-        !crmBusca ||
-        (p.crm || medicos.find((m) => m.nome === p.medico)?.crm || "").includes(crmBusca);
-      const okHorario = !horario || (horario === "7h-19h" ? p.turno === "Diurno" : p.turno === "Noturno");
-
-      return okPeriodo && okEsp && okMedico && okCrm && okHorario;
+      return {
+        medico: m.nome,
+        crm: m.crm || "—",
+        especialidade: m.especialidade || "—",
+        data: plantao?.data || "—",
+        hora: plantao?.hora || "—",
+        turno: plantao?.turno || "—",
+        quantidade: plantao?.quantidade || 0,
+      };
     });
 
-    const mapa = new Map();
+    // Aplica filtros
+    const filtrados = dadosCompletos.filter((p) => {
+      const okEsp = !especialidade || p.especialidade.toLowerCase() === especialidade.toLowerCase();
+      const okMedico = !nomeBusca || p.medico.toLowerCase().includes(nomeBusca);
+      const okCrm = !crmBusca || p.crm.includes(crmBusca);
+      const okHorario =
+        !horario ||
+        (horario === "7h-19h" ? p.turno === "Diurno" : p.turno === "Noturno");
+
+      return okEsp && okMedico && okCrm && okHorario;
+    });
+
+    // Agrupa por médico ou especialidade
+    const agrupados = new Map();
     filtrados.forEach((p) => {
-      const q = Number(p.quantidade || p.atendimentos || 0);
-      const key = `${p.medico || "—"}||${p.especialidade || "—"}||${p.data}`;
-      mapa.set(key, (mapa.get(key) || 0) + q);
+      const key = visao === "profissional" ? p.medico : p.especialidade;
+      const prev = agrupados.get(key) || [];
+      agrupados.set(key, [...prev, p]);
     });
 
-    const arr = Array.from(mapa.entries()).map(([k, total]) => {
-      const [med, esp, data] = k.split("||");
-      const crm =
-        filtrados.find((f) => f.medico === med)?.crm ||
-        medicos.find((m) => m.nome === med)?.crm ||
-        "—";
-      return { medico: med, especialidade: esp, data, total, crm };
+    const arr = Array.from(agrupados.entries()).map(([chave, items]) => {
+      const total = items.reduce((acc, p) => acc + Number(p.quantidade || 0), 0);
+      return { chave, items, total };
     });
 
-    arr.sort((a, b) => b.total - a.total);
     setLinhas(arr);
-    setGerado(true);
-  };
-
-  const gerarRelatorioFake = () => {
-    if (!carregado) carregarProfissionais();
-
-    const fake = [];
-    medicos.forEach((medico) => {
-      ESPECIALIDADES.forEach((esp) => {
-        const total = Math.floor(Math.random() * 10) + 1;
-        const turno = Math.random() > 0.5 ? "Diurno" : "Noturno";
-        const crmFake = medico.crm || String(Math.floor(Math.random() * 900000) + 100000);
-        fake.push({
-          medico: medico.nome,
-          especialidade: esp,
-          data: hojeYYYYMMDD(),
-          total,
-          turno,
-          crm: crmFake,
-        });
-      });
-    });
-
-    setLinhas(fake);
     setGerado(true);
   };
 
@@ -186,53 +161,11 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
     setGerado(false);
   };
 
-  const { labels, valores } = useMemo(() => {
-    if (!gerado || linhas.length === 0) return { labels: [], valores: [] };
-
-    if (visao === "especialidade") {
-      const m = new Map();
-      linhas.forEach((l) => m.set(l.especialidade, (m.get(l.especialidade) || 0) + l.total));
-      return { labels: Array.from(m.keys()), valores: Array.from(m.values()) };
-    } else {
-      const m = new Map();
-      linhas.forEach((l) => m.set(l.medico, (m.get(l.medico) || 0) + l.total));
-      return { labels: Array.from(m.keys()), valores: Array.from(m.values()) };
-    }
-  }, [linhas, visao, gerado]);
-
-  const chartData = useMemo(() => {
-    const backgroundColors = labels.map((label) => {
-      if (visao === "especialidade") return CORES_ESPECIALIDADE[label] || "#808080";
-      return "#36A2EB";
-    });
-
-    return {
-      labels,
-      datasets: [
-        {
-          label:
-            visao === "especialidade"
-              ? "Atendimentos por Especialidade"
-              : "Atendimentos por Profissional",
-          data: valores,
-          fill: tipoGrafico === "area",
-          backgroundColor: tipoGrafico === "linha" ? "transparent" : backgroundColors,
-          borderColor: backgroundColors,
-          borderWidth: 2,
-          tension: tipoGrafico === "linha" || tipoGrafico === "area" ? 0.4 : 0,
-        },
-      ],
-    };
-  }, [labels, valores, visao, tipoGrafico]);
-
-  const empty = gerado && linhas.length === 0;
-
   const gerarPDF = async () => {
     if (!linhas || linhas.length === 0) return alert("Não há dados para gerar o PDF.");
 
     const pdf = new jsPDF("p", "mm", "a4");
     const margem = 10;
-
     const usuarioLogado = usuarioAtual?.nome || "Usuário";
     const empresa = {
       nome: empresaAtual?.nome || "Instituto Alpha Para Medicina",
@@ -258,7 +191,6 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
     };
 
     const logoBase64 = await carregarLogoBase64(empresa.logo);
-
     if (logoBase64) pdf.addImage(logoBase64, "PNG", margem, 10, 40, 20);
 
     pdf.setFontSize(16);
@@ -269,51 +201,89 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
     pdf.text(`Período: ${dataDe} ${horaDe} até ${dataAte} ${horaAte}`, margem, 50);
     pdf.text(`Gerado em: ${dayjs().format("DD/MM/YYYY HH:mm")}`, margem, 56);
 
-    const tabela = linhas.map((l) => [l.medico, l.crm || "—", l.especialidade, l.data, l.total]);
-    pdf.autoTable({
-      head: [["Médico", "CRM", "Especialidade", "Data", "Total Atendimentos"]],
-      body: tabela,
-      startY: 60,
-      margin: { left: margem, right: margem },
-      headStyles: { fillColor: [22, 160, 133] },
-      styles: { fontSize: 10 },
-    });
+    let yPos = 60;
 
-    const total = linhas.reduce((acc, l) => acc + Number(l.total), 0);
-    pdf.setFontSize(12);
-    pdf.text(`Total de atendimentos: ${total}`, margem, pdf.lastAutoTable.finalY + 10);
+    for (const grupo of linhas) {
+      pdf.setFontSize(14);
+      pdf.text(`${visao === "profissional" ? "Médico" : "Especialidade"}: ${grupo.chave}`, margem, yPos);
+      yPos += 6;
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
+      const tabela = grupo.items.map((l) => [
+        l.medico,
+        l.crm || "—",
+        l.especialidade,
+        l.data,
+        l.quantidade,
+      ]);
 
-    const canvasGrafico =
-      graficoRef.current?.querySelector("canvas") || document.querySelector(".relatorios-grafico canvas");
-    if (canvasGrafico) {
-      const imgData = canvasGrafico.toDataURL("image/png");
-      const yPos = pdf.lastAutoTable.finalY + 20;
-      const larguraPdf = pdf.internal.pageSize.getWidth() - 2 * margem;
-      const alturaPdf = (canvasGrafico.height * larguraPdf) / canvasGrafico.width;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", margem, yPos, larguraPdf, alturaPdf);
-    } else {
-      console.warn("Canvas do gráfico não encontrado.");
+      pdf.autoTable({
+        head: [["Médico", "CRM", "Especialidade", "Data", "Total Atendimentos"]],
+        body: tabela,
+        startY: yPos,
+        margin: { left: margem, right: margem },
+        headStyles: { fillColor: [22, 160, 133] },
+        styles: { fontSize: 10 },
+      });
+
+      yPos = pdf.lastAutoTable.finalY + 10;
+
+      const canvasGrafico = graficoRefs.current[grupo.chave]?.querySelector("canvas");
+      if (canvasGrafico) {
+        const imgData = canvasGrafico.toDataURL("image/png");
+        const larguraPdf = pdf.internal.pageSize.getWidth() - 2 * margem;
+        const alturaPdf = (canvasGrafico.height * larguraPdf) / canvasGrafico.width;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", margem, 20, larguraPdf, alturaPdf);
+        yPos = 10;
+      }
     }
 
     pdf.save(`relatorio_${dayjs().format("YYYYMMDD_HHmm")}.pdf`);
   };
 
-  const exportExcel = (linhas) => {
-    const ws = XLSX.utils.json_to_sheet(
-      linhas.map((l) => ({
-        Médico: l.medico,
-        CRM: l.crm || "—",
-        Especialidade: l.especialidade,
-        Data: l.data,
-        "Total Atendimentos": l.total,
-      }))
-    );
+  const exportExcel = () => {
+    const dados = [];
+    linhas.forEach((grupo) => {
+      grupo.items.forEach((l) => {
+        dados.push({
+          Médico: l.medico,
+          CRM: l.crm || "—",
+          Especialidade: l.especialidade,
+          Data: l.data,
+          "Total Atendimentos": l.quantidade,
+        });
+      });
+    });
+
+    const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Relatório");
     XLSX.writeFile(wb, `relatorio_${dayjs().format("YYYYMMDD_HHmm")}.xlsx`);
+  };
+
+  const gerarChartData = (grupo) => {
+    const labels = grupo.items.map((i) => i.medico);
+    const valores = grupo.items.map((i) => i.quantidade);
+
+    const backgroundColors = labels.map((label) => {
+      if (visao === "especialidade") return CORES_ESPECIALIDADE[label] || "#808080";
+      return "#36A2EB";
+    });
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: visao === "especialidade" ? "Atendimentos por Especialidade" : "Atendimentos por Profissional",
+          data: valores,
+          fill: tipoGrafico === "area",
+          backgroundColor: tipoGrafico === "linha" ? "transparent" : backgroundColors,
+          borderColor: backgroundColors,
+          borderWidth: 2,
+          tension: tipoGrafico === "linha" || tipoGrafico === "area" ? 0.4 : 0,
+        },
+      ],
+    };
   };
 
   return (
@@ -350,7 +320,7 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
             <label>Especialidade:</label>
             <select value={especialidade} onChange={(e) => setEspecialidade(e.target.value)}>
               <option value="">Todas</option>
-              {ESPECIALIDADES.map((esp) => (
+              {[...new Set(medicosData.map((m) => m.especialidade))].map((esp) => (
                 <option key={esp} value={esp}>
                   {esp}
                 </option>
@@ -363,11 +333,10 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
               list="medicos"
               value={medicoQuery}
               onChange={(e) => setMedicoQuery(e.target.value)}
-              style={{ width: "100%" }}
               placeholder="Todos"
             />
             <datalist id="medicos">
-              {medicos.map((m) => (
+              {medicosData.map((m) => (
                 <option key={m.id} value={m.nome} />
               ))}
             </datalist>
@@ -400,18 +369,18 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
         </div>
 
         <div className="grid-3" style={{ marginTop: 12 }}>
-          <button onClick={gerarRelatorio}>Gerar Relatório</button>
+          <button onClick={filtrarRelatorio}>Gerar Relatório</button>
           <button onClick={limpar}>Limpar</button>
           <button onClick={gerarPDF}>PDF</button>
-          <button onClick={() => exportExcel(linhas)}>Excel</button>
-          <button onClick={gerarRelatorioFake}>Relatório Fake</button>
+          <button onClick={exportExcel}>Excel</button>
         </div>
       </section>
 
-      {/* TABELA */}
-      {empty && <p>Sem dados para este filtro.</p>}
-      {linhas.length > 0 && (
-        <section className="relatorios-tabela card">
+      {/* CARDS E GRÁFICOS */}
+      {gerado && linhas.length === 0 && <p>Sem dados para este filtro.</p>}
+      {linhas.map((grupo) => (
+        <section key={grupo.chave} className="relatorios-tabela card" ref={(el) => (graficoRefs.current[grupo.chave] = el)}>
+          <h3>{visao === "profissional" ? `Médico: ${grupo.chave}` : `Especialidade: ${grupo.chave}`}</h3>
           <table>
             <thead>
               <tr>
@@ -423,32 +392,25 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
               </tr>
             </thead>
             <tbody>
-              {linhas.map((l, i) => (
+              {grupo.items.map((l, i) => (
                 <tr key={i}>
                   <td>{l.medico}</td>
                   <td>{l.crm || "—"}</td>
                   <td>{l.especialidade}</td>
                   <td>{l.data}</td>
-                  <td>{l.total}</td>
+                  <td>{l.quantidade}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </section>
-      )}
-
-      {/* GRÁFICO */}
-      {linhas.length > 0 && (
-        <section className="relatorios-grafico card" ref={graficoRef}>
-          <div className="total-atendimentos">
-            Total de atendimentos: {valores.reduce((a, b) => a + b, 0)}
+          <div className="relatorios-grafico">
+            {tipoGrafico === "pizza" && <GraficoPizza data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+            {tipoGrafico === "barra" && <GraficoBarra data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+            {tipoGrafico === "linha" && <GraficoLinha data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+            {tipoGrafico === "area" && <GraficoArea data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
           </div>
-          {tipoGrafico === "pizza" && <GraficoPizza data={chartData} height={CHART_HEIGHT} width={CHART_WIDTH} />}
-          {tipoGrafico === "barra" && <GraficoBarra data={chartData} height={CHART_HEIGHT} width={CHART_WIDTH} />}
-          {tipoGrafico === "linha" && <GraficoLinha data={chartData} height={CHART_HEIGHT} width={CHART_WIDTH} />}
-          {tipoGrafico === "area" && <GraficoArea data={chartData} height={CHART_HEIGHT} width={CHART_WIDTH} />}
         </section>
-      )}
+      ))}
     </div>
   );
 }
