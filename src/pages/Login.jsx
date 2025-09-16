@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import emailjs from "emailjs-com"; // só necessário no Netlify
+import emailjs from "emailjs-com"; // necessário apenas no Netlify
 import LogoAlpha from "../img/Logo_Alpha.png";
 import "./Login.css";
 
@@ -14,6 +14,10 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
   const navigate = useNavigate();
 
   const isLocal = window.location.hostname === "localhost"; // detecta WAMP interno
+  const isNetlify = window.location.hostname === "gestaomedicaalpha.netlify.app"; // detecta Netlify
+
+  // Define o endpoint PHP para WAMP local
+  const phpUrl = "http://localhost/sistemaCadastroMedicos/backend/enviar_email.php";
 
   // LOGIN
   const handleLogin = (e) => {
@@ -45,8 +49,6 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
   const handleRecuperarSenha = async (e) => {
     e.preventDefault();
 
-    if (!usuarioRecuperacao) return;
-
     const usuarios = JSON.parse(localStorage.getItem("usuarios") || "[]");
     const usuarioExiste = usuarios.some(
       (u) => u.usuario.toLowerCase() === usuarioRecuperacao.toLowerCase()
@@ -61,24 +63,15 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
 
     try {
       if (isLocal) {
-        // WAMP interno - PHP
+        // WAMP local - PHP
         const formData = new FormData();
         formData.append("usuario", usuarioRecuperacao);
 
-        const response = await fetch(
-          "http://localhost/backend/enviar_email.php",
-          { method: "POST", body: formData }
-        );
-
-        if (!response.ok) throw new Error("Falha na conexão com o servidor.");
+        const response = await fetch(phpUrl, { method: "POST", body: formData });
         const result = await response.json();
-
-        if (result.status === "success") {
-          alert("Pedido de recuperação enviado com sucesso!");
-        } else {
-          alert("Erro: " + result.message);
-        }
-      } else {
+        if (result.status === "success") alert("Pedido de recuperação enviado com sucesso!");
+        else alert("Erro: " + result.message);
+      } else if (isNetlify) {
         // Netlify - EmailJS
         await emailjs.send(
           "seu_service_id",
@@ -87,10 +80,11 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
           "seu_user_id"
         );
         alert("Pedido de recuperação enviado com sucesso!");
+      } else {
+        alert("Ambiente não configurado para recuperação de senha.");
       }
     } catch (err) {
-      console.error(err);
-      alert("Erro ao enviar: " + (err.message || "Erro desconhecido"));
+      alert("Erro ao enviar: " + (err.message || err));
     }
 
     setUsuarioRecuperacao("");
@@ -100,10 +94,12 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
 
   return (
     <div className="login-page">
+      {/* Lado esquerdo - Logo maior */}
       <div className="login-left">
         <img src={LogoAlpha} alt="Logo do Sistema" className="login-logo" />
       </div>
 
+      {/* Lado direito - Formulário */}
       <div className="login-right">
         {!recuperarSenha ? (
           <form onSubmit={handleLogin} className="login-form">
