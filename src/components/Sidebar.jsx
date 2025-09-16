@@ -2,8 +2,13 @@ import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { FaHome, FaUserMd, FaCalendarAlt, FaChartBar, FaFilter, FaUserPlus } from 'react-icons/fa';
 
+// ✅ Importação das imagens diretamente do React
+import AdminImg from "../img/admin.jpg";
+import SuporteImg from "../img/suporte.png";
+import UsuarioImg from "../img/usuario.png";
+
 function Sidebar({ usuarioAtual }) {
-  const [collapsed, setCollapsed] = useState(false); // controla se a sidebar está colapsada
+  const [collapsed, setCollapsed] = useState(false);
 
   if (!usuarioAtual) return null;
 
@@ -11,11 +16,11 @@ function Sidebar({ usuarioAtual }) {
   const getUserImage = (role) => {
     switch (role) {
       case "admin":
-        return "./src/img/admin.jpg";
+        return AdminImg;
       case "suporte":
-        return "./src/img/suporte.png";
+        return SuporteImg;
       default:
-        return "./src/img/usuario.png";
+        return UsuarioImg;
     }
   };
 
