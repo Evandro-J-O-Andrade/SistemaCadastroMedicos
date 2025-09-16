@@ -45,6 +45,8 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
   const handleRecuperarSenha = async (e) => {
     e.preventDefault();
 
+    if (!usuarioRecuperacao) return;
+
     const usuarios = JSON.parse(localStorage.getItem("usuarios") || "[]");
     const usuarioExiste = usuarios.some(
       (u) => u.usuario.toLowerCase() === usuarioRecuperacao.toLowerCase()
@@ -64,12 +66,18 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
         formData.append("usuario", usuarioRecuperacao);
 
         const response = await fetch(
-          "http://localhost/seusite/enviar_email.php",
+          "http://localhost/backend/enviar_email.php",
           { method: "POST", body: formData }
         );
+
+        if (!response.ok) throw new Error("Falha na conexão com o servidor.");
         const result = await response.json();
-        if (result.status === "success") alert("Pedido de recuperação enviado com sucesso!");
-        else alert("Erro: " + result.message);
+
+        if (result.status === "success") {
+          alert("Pedido de recuperação enviado com sucesso!");
+        } else {
+          alert("Erro: " + result.message);
+        }
       } else {
         // Netlify - EmailJS
         await emailjs.send(
@@ -81,7 +89,8 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
         alert("Pedido de recuperação enviado com sucesso!");
       }
     } catch (err) {
-      alert("Erro ao enviar: " + err.message);
+      console.error(err);
+      alert("Erro ao enviar: " + (err.message || "Erro desconhecido"));
     }
 
     setUsuarioRecuperacao("");
@@ -91,12 +100,10 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
 
   return (
     <div className="login-page">
-      {/* Lado esquerdo - Logo maior */}
       <div className="login-left">
         <img src={LogoAlpha} alt="Logo do Sistema" className="login-logo" />
       </div>
 
-      {/* Lado direito - Formulário */}
       <div className="login-right">
         {!recuperarSenha ? (
           <form onSubmit={handleLogin} className="login-form">
