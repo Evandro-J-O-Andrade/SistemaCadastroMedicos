@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import emailjs from "emailjs-com"; // necessário apenas no Netlify
 import LogoAlpha from "../img/Logo_Alpha.png";
 import "./Login.css";
 
@@ -13,11 +12,9 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const isLocal = window.location.hostname === "localhost"; // detecta WAMP interno
-  const isNetlify = window.location.hostname === "gestaomedicaalpha.netlify.app"; // detecta Netlify
-
-  // Endpoint PHP para WAMP local
+  const isLocal = window.location.hostname === "localhost";
   const phpUrl = "http://localhost/sistemaCadastroMedicos/backend/enviar_email.php";
+  const netlifyApiUrl = "/api/enviarEmail"; // Função serverless
 
   // LOGIN
   const handleLogin = (e) => {
@@ -48,7 +45,6 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
   // RECUPERAR SENHA
   const handleRecuperarSenha = async (e) => {
     e.preventDefault();
-
     const usuarios = JSON.parse(localStorage.getItem("usuarios") || "[]");
     const usuarioExiste = usuarios.some(
       (u) => u.usuario.toLowerCase() === usuarioRecuperacao.toLowerCase()
@@ -63,26 +59,23 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
 
     try {
       if (isLocal) {
-        // WAMP local - PHP
         const formData = new FormData();
         formData.append("usuario", usuarioRecuperacao);
 
         const response = await fetch(phpUrl, { method: "POST", body: formData });
         const result = await response.json();
-        if (result.status === "success")
-          alert("Pedido de recuperação enviado com sucesso!");
+        if (result.status === "success") alert("Pedido de recuperação enviado com sucesso!");
         else alert("Erro: " + result.message);
-      } else if (isNetlify) {
-        // Netlify - EmailJS
-        await emailjs.send(
-          "service_trkfvyq",     // Service ID
-          "template_9dfcv64",    // Template ID
-          { usuario: usuarioRecuperacao },
-          "X7aajxkKsYymYEHI1"    // Public Key
-        );
-        alert("Pedido de recuperação enviado com sucesso!");
       } else {
-        alert("Ambiente não configurado para recuperação de senha.");
+        // Netlify Serverless
+        const response = await fetch(netlifyApiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario: usuarioRecuperacao }),
+        });
+        const result = await response.json();
+        if (result.status === "success") alert(result.message);
+        else alert("Erro: " + result.message);
       }
     } catch (err) {
       alert("Erro ao enviar: " + (err.message || err));
@@ -95,12 +88,9 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
 
   return (
     <div className="login-page">
-      {/* Lado esquerdo - Logo maior */}
       <div className="login-left">
         <img src={LogoAlpha} alt="Logo do Sistema" className="login-logo" />
       </div>
-
-      {/* Lado direito - Formulário */}
       <div className="login-right">
         {!recuperarSenha ? (
           <form onSubmit={handleLogin} className="login-form">
@@ -123,10 +113,7 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
             />
             <button type="submit" className="login-btn">Entrar</button>
             {erro && <p className="login-erro">Usuário ou senha incorretos!</p>}
-            <p
-              className="recuperar-senha"
-              onClick={() => setRecuperarSenha(true)}
-            >
+            <p className="recuperar-senha" onClick={() => setRecuperarSenha(true)}>
               Esqueci minha senha
             </p>
           </form>
@@ -144,10 +131,7 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
             <button type="submit" className="login-btn" disabled={loading}>
               {loading ? "Enviando..." : "Enviar"}
             </button>
-            <p
-              className="recuperar-senha"
-              onClick={() => setRecuperarSenha(false)}
-            >
+            <p className="recuperar-senha" onClick={() => setRecuperarSenha(false)}>
               Voltar ao login
             </p>
           </form>
