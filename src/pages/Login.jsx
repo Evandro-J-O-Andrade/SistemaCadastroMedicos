@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import LogoAlpha from "../img/Logo_Alpha.png";
+import emailjs from "emailjs-com";
+import LogoAlpha from "../img/Logo_Alpha.png"; // imagem estática na pasta src/img
 import "./Login.css";
 
 export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
@@ -13,8 +14,9 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
   const navigate = useNavigate();
 
   const isLocal = window.location.hostname === "localhost";
+  const isNetlify = window.location.hostname === "gestaomedicaalpha.netlify.app";
+
   const phpUrl = "http://localhost/sistemaCadastroMedicos/backend/enviar_email.php";
-  const netlifyApiUrl = "/api/enviarEmail"; // Função serverless
 
   // LOGIN
   const handleLogin = (e) => {
@@ -64,18 +66,19 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
 
         const response = await fetch(phpUrl, { method: "POST", body: formData });
         const result = await response.json();
-        if (result.status === "success") alert("Pedido de recuperação enviado com sucesso!");
+        if (result.status === "success")
+          alert("Pedido de recuperação enviado com sucesso!");
         else alert("Erro: " + result.message);
+      } else if (isNetlify) {
+        await emailjs.send(
+          "service_trkfvyq",
+          "template_9dfcv64",
+          { usuario: usuarioRecuperacao },
+          "X7aajxkKsYymYEHI1"
+        );
+        alert("Pedido de recuperação enviado com sucesso!");
       } else {
-        // Netlify Serverless
-        const response = await fetch(netlifyApiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ usuario: usuarioRecuperacao }),
-        });
-        const result = await response.json();
-        if (result.status === "success") alert(result.message);
-        else alert("Erro: " + result.message);
+        alert("Ambiente não configurado para recuperação de senha.");
       }
     } catch (err) {
       alert("Erro ao enviar: " + (err.message || err));
@@ -88,9 +91,12 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
 
   return (
     <div className="login-page">
+      {/* Lado esquerdo - Logo maior */}
       <div className="login-left">
         <img src={LogoAlpha} alt="Logo do Sistema" className="login-logo" />
       </div>
+
+      {/* Lado direito - Formulário */}
       <div className="login-right">
         {!recuperarSenha ? (
           <form onSubmit={handleLogin} className="login-form">
