@@ -16,7 +16,7 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
   const isLocal = window.location.hostname === "localhost"; // detecta WAMP interno
   const isNetlify = window.location.hostname === "gestaomedicaalpha.netlify.app"; // detecta Netlify
 
-  // Define o endpoint PHP para WAMP local
+  // Endpoint PHP para WAMP local
   const phpUrl = "http://localhost/sistemaCadastroMedicos/backend/enviar_email.php";
 
   // LOGIN
@@ -69,15 +69,16 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
 
         const response = await fetch(phpUrl, { method: "POST", body: formData });
         const result = await response.json();
-        if (result.status === "success") alert("Pedido de recuperação enviado com sucesso!");
+        if (result.status === "success")
+          alert("Pedido de recuperação enviado com sucesso!");
         else alert("Erro: " + result.message);
       } else if (isNetlify) {
         // Netlify - EmailJS
         await emailjs.send(
-          "seu_service_id",
-          "seu_template_id",
+          "service_trkfvyq",     // Service ID
+          "template_9dfcv64",    // Template ID
           { usuario: usuarioRecuperacao },
-          "seu_user_id"
+          "X7aajxkKsYymYEHI1"    // Public Key
         );
         alert("Pedido de recuperação enviado com sucesso!");
       } else {
