@@ -327,12 +327,21 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
               ))}
             </select>
           </div>
+
           <div className="field">
             <label>Médico:</label>
             <input
               list="medicos"
               value={medicoQuery}
-              onChange={(e) => setMedicoQuery(e.target.value)}
+              onChange={(e) => {
+                setMedicoQuery(e.target.value);
+                const medicoEncontrado = medicosData.find(
+                  (m) => m.nome.toLowerCase() === e.target.value.toLowerCase()
+                );
+                if (medicoEncontrado) {
+                  setCrmQuery(medicoEncontrado.crm || "");
+                }
+              }}
               placeholder="Todos"
             />
             <datalist id="medicos">
@@ -341,15 +350,17 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
               ))}
             </datalist>
           </div>
+
           <div className="field">
             <label>CRM:</label>
             <input
               type="text"
               value={crmQuery}
               onChange={(e) => setCrmQuery(e.target.value)}
-              placeholder="Todos"
+              placeholder="Digite ou selecione um médico"
             />
           </div>
+
           <div className="field">
             <label>Visão:</label>
             <select value={visao} onChange={(e) => setVisao(e.target.value)}>
@@ -357,6 +368,7 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
               <option value="especialidade">Especialidade</option>
             </select>
           </div>
+
           <div className="field">
             <label>Tipo de Gráfico:</label>
             <select value={tipoGrafico} onChange={(e) => setTipoGrafico(e.target.value)}>
@@ -378,39 +390,52 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
 
       {/* CARDS E GRÁFICOS */}
       {gerado && linhas.length === 0 && <p>Sem dados para este filtro.</p>}
-      {linhas.map((grupo) => (
-        <section key={grupo.chave} className="relatorios-tabela card" ref={(el) => (graficoRefs.current[grupo.chave] = el)}>
-          <h3>{visao === "profissional" ? `Médico: ${grupo.chave}` : `Especialidade: ${grupo.chave}`}</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Médico</th>
-                <th>CRM</th>
-                <th>Especialidade</th>
-                <th>Data</th>
-                <th>Total Atendimentos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grupo.items.map((l, i) => (
-                <tr key={i}>
-                  <td>{l.medico}</td>
-                  <td>{l.crm || "—"}</td>
-                  <td>{l.especialidade}</td>
-                  <td>{l.data}</td>
-                  <td>{l.quantidade}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="relatorios-grafico">
-            {tipoGrafico === "pizza" && <GraficoPizza data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
-            {tipoGrafico === "barra" && <GraficoBarra data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
-            {tipoGrafico === "linha" && <GraficoLinha data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
-            {tipoGrafico === "area" && <GraficoArea data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
-          </div>
-        </section>
-      ))}
+
+      {visao === "profissional" ? (
+        <div className="cards-profissionais">
+          {linhas.map((grupo) => (
+            <div key={grupo.chave} className="relatorios-tabela card">
+              <h3>Médico: {grupo.chave}</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Médico</th>
+                    <th>CRM</th>
+                    <th>Especialidade</th>
+                    <th>Data</th>
+                    <th>Total Atendimentos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grupo.items.map((l, i) => (
+                    <tr key={i}>
+                      <td>{l.medico}</td>
+                      <td>{l.crm || "—"}</td>
+                      <td>{l.especialidade}</td>
+                      <td>{l.data}</td>
+                      <td>{l.quantidade}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="graficos">
+          {linhas.map((grupo) => (
+            <div key={grupo.chave} className="relatorios-tabela card" ref={(el) => (graficoRefs.current[grupo.chave] = el)}>
+              <h3>Especialidade: {grupo.chave}</h3>
+              <div className="relatorios-grafico">
+                {tipoGrafico === "pizza" && <GraficoPizza data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+                {tipoGrafico === "barra" && <GraficoBarra data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+                {tipoGrafico === "linha" && <GraficoLinha data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+                {tipoGrafico === "area" && <GraficoArea data={gerarChartData(grupo)} height={CHART_HEIGHT} width={CHART_WIDTH} />}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

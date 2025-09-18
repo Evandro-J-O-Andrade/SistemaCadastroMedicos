@@ -249,10 +249,11 @@
 /* Container Data/Hora + Aviso */
 .data-hora-wrapper {
   display: flex;
-  gap: 15px;
+  gap: 10px;
   align-items: flex-start;
-  grid-column: 2 / -1;
+  grid-column: 3/ -1;
   flex-wrap: wrap; 
+  margin-top: -20px;
 }
 
 .data-hora-wrapper label {
@@ -261,11 +262,6 @@
   min-width: 90px;
 }
 
-.data-hora-wrapper input {
-  padding: 11px 10px;
-  font-size: 13px;
-  border-radius: 10px;
-}
 
 /* Aviso de conflito abaixo da Data/Hora */
 .aviso-conflito {
@@ -473,12 +469,17 @@
   background-color: #e04343;
 }
 .data-hora-wrapper label {
-  flex: 1;
+  flex:1;
   display: block; /* garante que label não atrapalhe clique */
 }
 
 .data-hora-wrapper input {
-  width: 100%;
+    width: 100%;       /* ocupa todo o espaço disponível do wrapper */
+  min-width: 120px;  /* largura mínima para caber a data/hora */
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+  box-sizing: border-box; /* evita que padding quebre o tamanho */
   cursor: pointer; /* deixa claro que dá para clicar */
 }
 /* Wrapper do campo de médico com lupa */
@@ -487,17 +488,20 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  
 }
 
 /* Campo de pesquisa */
 .medico-wrapper input {
-  flex: 1;
+  flex: 1;           /* faz o input ocupar o máximo possível */
+  min-width: 150px;  /* largura mínima para não ficar muito pequeno */
   padding: 10px 12px;
-  border: 1px solid #ccc;
   border-radius: 12px;
+  border: 1px solid #ccc;
   font-size: 14px;
-  transition: all 0.3s ease;
+  box-sizing: border-box;
 }
+
 
 .medico-wrapper input:focus {
   border-color: #6c63ff;
@@ -507,7 +511,7 @@
 
 /* Botão da lupa */
 .medico-lupa-btn {
-  padding: 10px 12px;
+  padding: 10px 14px;
   background-color: #6c63ff;
   border: none;
   border-radius: 12px;
@@ -560,24 +564,82 @@
     max-height: 150px;
   }
 }
+/* Wrapper do input de lupa */
 .lupa-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.lupa-wrapper .lista-medicos {
+/* Input de busca */
+.lupa-wrapper input {
+  padding: 8px 35px 8px 10px; /* espaço extra à direita para a lupa */
+  border: 1px solid #ccc;
+  border-radius: 13px;
+  width: 100%;
+  height: 43px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+/* Hover e foco no input */
+.lupa-wrapper input:focus {
+  border-color: #6c63ff;
+  box-shadow: 0 0 5px rgba(108, 99, 255, 0.5);
+  outline: none;
+}
+
+/* Ícone da lupa */
+.lupa-wrapper i.fas.fa-search {
+  position: absolute;
+  right: 10px; /* ajusta pra mais pra direita ou esquerda */
+  cursor: pointer;
+  color: #888;
+  transition: color 0.3s, transform 0.2s;
+}
+
+/* Efeito hover na lupa */
+.lupa-wrapper i.fas.fa-search:hover {
+  color: #6c63ff;
+  transform: scale(1.2);
+}
+
+/* Lista de médicos (dropdown) */
+.lista-medicos {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  max-height: 200px;
+  max-height: 150px;
   overflow-y: auto;
   background: #fff;
   border: 1px solid #ccc;
   border-radius: 6px;
-  z-index: 100;
+  z-index: 10;
+  margin-top: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
+/* Cada item da lista */
+.lista-medicos div {
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+/* Hover nos itens da lista */
+.lista-medicos div:hover {
+  background: #f0f0ff;
+}
+
+
+
+
 /* Wrapper do campo de médico com seta */
 .medico-wrapper {
+ display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%; /* ocupa todo o espaço disponível do container */
   position: relative;
   width: 100%;
 }
@@ -585,6 +647,7 @@
 /* Input de médico */
 .medico-wrapper input {
   width: 100%;
+  min-width: 150px;
   padding: 10px 40px 10px 12px; /* espaço para a seta à direita */
   border: 1px solid #ccc;
   border-radius: 12px;
@@ -646,4 +709,13 @@
   .medico-wrapper input {
     padding: 10px 35px 10px 12px;
   }
+}
+#tabela-container {
+  display: block !important;
+  overflow: visible !important;
+}
+
+#tabela-medicos {
+  display: table !important;
+  width: 100%;
 }

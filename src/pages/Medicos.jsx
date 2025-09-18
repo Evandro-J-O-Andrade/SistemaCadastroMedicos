@@ -4,7 +4,7 @@ import "./Medicos.css";
 
 function Medicos() {
   const navigate = useNavigate();
-  const [medicos, setMedicos] = useState([]); // tabela exibida
+  const [medicos, setMedicos] = useState([]);
   const [form, setForm] = useState({
     id: null,
     nome: "",
@@ -13,6 +13,7 @@ function Medicos() {
     observacao: "",
   });
   const [mensagem, setMensagem] = useState("");
+  const [erroCampos, setErroCampos] = useState({}); // para marcar campos vermelhos
   const [pesquisa, setPesquisa] = useState({
     nome: "",
     especialidade: "",
@@ -28,29 +29,45 @@ function Medicos() {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    // Remove erro ao digitar
+    if (erroCampos[e.target.name]) {
+      setErroCampos({ ...erroCampos, [e.target.name]: false });
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.nome || !form.especialidade) {
-      alert("Nome e Especialidade são obrigatórios!");
+    let camposFaltando = {};
+
+    if (!form.nome) camposFaltando.nome = true;
+    if (!form.especialidade) camposFaltando.especialidade = true;
+    if (!form.crm) camposFaltando.crm = true;
+
+    if (Object.keys(camposFaltando).length > 0) {
+      setErroCampos(camposFaltando);
+      setMensagem("Preencha todos os campos obrigatórios (CRM, Nome e Especialidade)!");
+      setTimeout(() => setMensagem(""), 3000);
       return;
     }
 
     const todosMedicos = JSON.parse(localStorage.getItem("medicos") || "[]");
-    let novosMedicos;
 
+    // Verifica CRM único
+    if (!form.id) {
+      const existeCRM = todosMedicos.some((m) => m.crm === form.crm);
+      if (existeCRM) {
+        setErroCampos({ crm: true });
+        setMensagem("CRM já cadastrado! Escolha outro.");
+        setTimeout(() => setMensagem(""), 3000);
+        return;
+      }
+    }
+
+    let novosMedicos;
     if (form.id) {
       novosMedicos = todosMedicos.map((m) => (m.id === form.id ? { ...form } : m));
       setMensagem("Médico atualizado com sucesso!");
     } else {
-      if (form.crm) {
-        const existeCRM = todosMedicos.some((m) => m.crm === form.crm);
-        if (existeCRM) {
-          alert("CRM já cadastrado!");
-          return;
-        }
-      }
       const novoMedico = { ...form, id: Date.now() + Math.random() };
       novosMedicos = [...todosMedicos, novoMedico];
       setMensagem("Médico cadastrado com sucesso!");
@@ -58,6 +75,7 @@ function Medicos() {
 
     localStorage.setItem("medicos", JSON.stringify(novosMedicos));
     setForm({ id: null, nome: "", especialidade: "", crm: "", observacao: "" });
+    setErroCampos({});
     setTimeout(() => setMensagem(""), 3000);
   };
 
@@ -67,9 +85,7 @@ function Medicos() {
   };
 
   const handleExcluir = (id) => {
-    const confirmado = window.confirm(
-      "Tem certeza que deseja excluir este médico cadastrado?"
-    );
+    const confirmado = window.confirm("Tem certeza que deseja excluir este médico?");
     if (!confirmado) return;
 
     const todosMedicos = JSON.parse(localStorage.getItem("medicos") || "[]");
@@ -127,10 +143,37 @@ function Medicos() {
       {mensagem && <p className="mensagem-sucesso">{mensagem}</p>}
 
       <form id="medicos-form" onSubmit={handleSubmit}>
-        <input type="text" name="nome" placeholder="Nome do médico" value={form.nome} onChange={handleChange} />
-        <input type="text" name="especialidade" placeholder="Especialidade" value={form.especialidade} onChange={handleChange} />
-        <input type="text" name="crm" placeholder="CRM (opcional)" value={form.crm} onChange={handleChange} />
-        <input type="text" name="observacao" placeholder="Observação" value={form.observacao} onChange={handleChange} />
+        <input
+          type="text"
+          name="nome"
+          placeholder="Nome do médico"
+          value={form.nome}
+          onChange={handleChange}
+          className={erroCampos.nome ? "campo-erro" : ""}
+        />
+        <input
+          type="text"
+          name="especialidade"
+          placeholder="Especialidade"
+          value={form.especialidade}
+          onChange={handleChange}
+          className={erroCampos.especialidade ? "campo-erro" : ""}
+        />
+        <input
+          type="text"
+          name="crm"
+          placeholder="CRM (Se não for fornecido o CRM digite qualquer coisa pra valida de pois atualize o cadastro!)"
+          value={form.crm}
+          onChange={handleChange}
+          className={erroCampos.crm ? "campo-erro" : ""}
+        />
+        <input
+          type="text"
+          name="observacao"
+          placeholder="Observação"
+          value={form.observacao}
+          onChange={handleChange}
+        />
         <button type="submit" className="btn">{form.id ? "Atualizar Médico" : "Cadastrar Médico"}</button>
         <button type="button" className="btn" onClick={() => navigate("/cadastro-lote")}>Cadastrar em Lote</button>
       </form>
@@ -178,10 +221,12 @@ function Medicos() {
           </tbody>
         </table>
 
-        <div id="paginacao-container">
-          <button onClick={handlePaginaAnterior} className="btn">Página Anterior</button>
-          <button onClick={handleProximaPagina} className="btn">Próxima Página</button>
-        </div>
+        {medicos.length > 0 && (
+          <div id="paginacao-container">
+            <button onClick={handlePaginaAnterior} className="btn">Página Anterior</button>
+            <button onClick={handleProximaPagina} className="btn">Próxima Página</button>
+          </div>
+        )}
       </div>
     </div>
   );
