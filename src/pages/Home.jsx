@@ -11,7 +11,7 @@ export default function Home() {
   const [atendimentosHoje, setAtendimentosHoje] = useState(0); 
   const [mediaMensal, setMediaMensal] = useState(0);           
   const [medicosCadastrados, setMedicosCadastrados] = useState(0); 
-  const [especialidades, setEspecialidades] = useState(0);         
+    const [especialidades, setEspecialidades] = useState(0);       
 
   // Novidades do sistema
   const novidades = [

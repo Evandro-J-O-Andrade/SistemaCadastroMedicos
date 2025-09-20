@@ -19,7 +19,7 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* Controles */
+/* Grid de controles */
 .relatorios-controles .grid-3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -41,6 +41,25 @@
   border: 1px solid #ccc;
   box-sizing: border-box;
   margin-bottom: 4px;
+}
+
+/* Input com lupa */
+.input-lupa {
+  position: relative;
+}
+
+.input-lupa input {
+  padding-right: 30px;
+}
+
+.input-lupa .lupa {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  pointer-events: none;
+  color: #888;
 }
 
 /* Botões */
@@ -79,45 +98,26 @@
 /* Container do gráfico */
 .relatorios-grafico {
   width: 100%;
-  max-width: 100%;       /* aumenta a largura máxima */
-  min-height: 100%;      /* garante altura mínima */
-  margin: 0 auto;         /* centraliza horizontalmente */
+  max-width: 100%;
+  min-height: 100%;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 15px 0;
 }
+
 .relatorios-grafico canvas {
-  width: 100% !important;  /* largura proporcional ao container */
-  height: auto !important; /* altura proporcional ao container */
-  max-height: 600px;       /* altura máxima */
-}
-
-/* Select para escolher gráfico */
-.tipo-grafico-select {
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.tipo-grafico-select label {
-  font-weight: bold;
-}
-
-/* Exibe total de atendimentos no topo do gráfico */
-.total-atendimentos {
-  font-weight: bold;
-  margin-bottom: 10px;
-  font-size: 16px;
-  color: #4a90e2;
+  width: 100% !important;
+  height: auto !important;
+  max-height: 600px;
 }
 
 /* Responsividade */
 @media screen and (max-width: 768px) {
   .relatorios-controles .grid-3 {
-    grid-template-columns: 1fr; /* coluna única */
+    grid-template-columns: 1fr;
   }
 
   .field {
@@ -125,6 +125,16 @@
   }
 
   .relatorios-grafico {
-    max-width: 100%; /* full width em telas pequenas */
+    max-width: 100%;
   }
+}
+/* Aumenta a largura do datalist no input de médico */
+input[list="medicos"] {
+  width: 100%; /* ocupa todo o campo */
+}
+
+/* Para navegadores que exibem o dropdown muito estreito */
+datalist option {
+  font-size: 14px;
+  padding: 4px 8px;
 }

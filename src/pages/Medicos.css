@@ -107,16 +107,13 @@
 /* Container da tabela */
 #tabela-container {
   overflow-x: auto;
-  
 }
 
 /* Tabela de médicos */
 #tabela-medicos {
   width: 100%;
   border-collapse: collapse;
-    
-  
- }
+}
 
 #tabela-medicos th,
 #tabela-medicos td {
@@ -142,7 +139,7 @@
 
 /* Botões de ação da tabela */
 .btn-editar {
-  display: flex; /* Organiza os botões lado a lado */
+  display: flex;
   padding: 5px 13px;
   border-radius: 6px;
   background: #f59e0b;
@@ -151,7 +148,6 @@
   cursor: pointer;
   margin-right: 5px;
   margin: 10px;
-
 }
 
 .btn-editar:hover {
@@ -159,7 +155,7 @@
 }
 
 .btn-excluir {
-  display: flex; /* Organiza os botões lado a lado */
+  display: flex;
   padding: 5px 10px;
   border-radius: 6px;
   background: #ef4444;
@@ -194,6 +190,7 @@
 #paginacao-container .btn:hover {
   background: #2563eb;
 }
+
 /* Campo com erro */
 .campo-erro {
   border: 2px solid red !important;
@@ -211,4 +208,75 @@
     border-color: transparent;
     background-color: white;
   }
+}
+
+/* Especialidade + CRM lado a lado */
+.linha-especialidade-crm {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* CRM menor */
+.linha-especialidade-crm input[name="crm"] {
+  flex: 0.3; /* Diminuí um pouco em relação ao CRM */
+}
+
+/* Input com lupa */
+.input-com-lupa {
+  position: relative;
+  flex: 1;
+}
+
+.input-com-lupa input {
+  width: 100%;
+  padding-right: 35px; /* espaço para a lupa */
+}
+
+.btn-lupa {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #333;
+  font-size: 16px;
+}
+
+.btn-lupa:hover {
+  color: #3b82f6;
+}
+
+/* Lista suspensa */
+/* Lista suspensa */
+.lista-suspensa {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #f5f5f5; /* fundo levemente cinza */
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  z-index: 10;
+  margin-top: 2px;
+}
+
+.lista-suspensa li {
+  padding: 8px 10px;
+  cursor: pointer;
+  background: #f5f5f5; /* fundo padrão */
+}
+
+.lista-suspensa li:hover {
+  background-color: #7ab0d4; /* fundo azul claro no hover */
+}
+
+.lista-vazia {
+  padding: 8px 10px;
+  color: #999;
+  font-style: italic;
 }
