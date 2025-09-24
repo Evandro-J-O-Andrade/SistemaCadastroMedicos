@@ -5,16 +5,20 @@ import * as XLSX from "xlsx";
 import Chart from "chart.js/auto";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
-
+import GraficoBarra from "./GraficoBarra.jsx";
+import GraficoPizza from "./GraficoPizza.jsx";
+import GraficoLinha from "./GraficoLinha.jsx";
+import GraficoArea from "./GraficoArea.jsx";
 import "./Relatorios.css";
 
 dayjs.locale("pt-br");
 
-export default function Relatorios({ usuarioAtual, empresaAtual }) {
+export default function Relatorios() {
   const hoje = dayjs().format("YYYY-MM-DD");
 
   const [plantoes, setPlantoes] = useState([]);
   const [medicosData, setMedicosData] = useState([]);
+
   const [medicoQuery, setMedicoQuery] = useState("");
   const [crmQuery, setCrmQuery] = useState("");
   const [especialidade, setEspecialidade] = useState("");
@@ -27,6 +31,10 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
   const [linhas, setLinhas] = useState([]);
   const [gerado, setGerado] = useState(false);
   const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
+  const [ordem, setOrdem] = useState("alfabetica");
+
+  const [mensagemGlobal, setMensagemGlobal] = useState("");
+  const [tipoMensagem, setTipoMensagem] = useState(""); // 'erro' ou 'sucesso'
 
   const graficoRefs = useRef({});
   const inputRef = useRef();
@@ -41,6 +49,11 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
     Nutricionista: "#00CED1",
   };
 
+  const normalizeString = (str) => {
+    if (!str) return "";
+    return str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  };
+
   useEffect(() => {
     const dadosMedicos = JSON.parse(localStorage.getItem("medicos") || "[]");
     setMedicosData(Array.isArray(dadosMedicos) ? dadosMedicos : []);
@@ -49,20 +62,30 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
     setPlantoes(Array.isArray(dadosPlantoes) ? dadosPlantoes : []);
   }, []);
 
-  const handleMedicoChange = (value) => {
-    setMedicoQuery(value);
-    const medico = medicosData.find(
-      (m) => m.nome.toLowerCase() === value.toLowerCase()
-    );
-    setCrmQuery(medico?.crm || "");
-    setMostrarListaMedicos(true);
+  const parsePlantaoDate = (dataStr, horaStr) => {
+    if (!dataStr) return null;
+    if (dataStr.includes("-")) return new Date(`${dataStr}T${horaStr || "00:00"}`);
+    const [dia, mes, ano] = dataStr.split("/");
+    return new Date(`${ano}-${mes}-${dia}T${horaStr || "00:00"}`);
   };
 
-  const medicosComPlantao = medicosData.filter((m) =>
-    plantoes.some((p) => p.nome === m.nome)
-  );
-
   const filtrarRelatorio = () => {
+    setMensagemGlobal(""); // limpa mensagem anterior
+
+    // Se filtro de médico preenchido e não encontrado mostra aviso
+    if (medicoQuery.trim()) {
+      const encontrouMedico = medicosData.some(
+        (m) => normalizeString(m.nome) === normalizeString(medicoQuery.trim())
+      );
+      if (!encontrouMedico) {
+        setMensagemGlobal("⚠️ Médico não encontrado no sistema.");
+        setTipoMensagem("erro");
+        setLinhas([]);
+        setGerado(false);
+        return;
+      }
+    }
+
     const nomeBusca = medicoQuery.trim().toLowerCase();
     const crmBusca = crmQuery.trim();
 
@@ -75,42 +98,72 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
         data: p.data,
         hora: p.hora,
         turno: p.turno || "—",
-        quantidade: p.quantidade || 0,
+        quantidade: Number(p.quantidade) || 0,
       };
     });
+
+    const inicio = parsePlantaoDate(dataDe || hoje, horaDe || "07:00");
+    const fim = parsePlantaoDate(dataAte || hoje, horaAte || "19:00");
 
     let filtrados = dadosCompletos.filter((p) => {
       const okEsp = !especialidade || p.especialidade.toLowerCase() === especialidade.toLowerCase();
       const okMed = !nomeBusca || p.medico.toLowerCase().includes(nomeBusca);
       const okCrm = !crmBusca || p.crm.includes(crmBusca);
+      const registro = parsePlantaoDate(p.data, p.hora);
 
-      let okDataHora = true;
-      const registro = new Date(`${p.data}T${p.hora}`);
+      if (!registro) return false;
 
-      // Data/Hora Início
-      if (dataDe || horaDe) {
-        const inicioData = dataDe || p.data;
-        const inicioHora = horaDe || "00:00";
-        const inicio = new Date(`${inicioData}T${inicioHora}:00`);
-        if (registro < inicio) okDataHora = false;
-      }
+      let okDataHora = false;
+      if (horaDe === "07:00" && horaAte === "19:00") {
+        okDataHora = registro >= inicio && registro <= fim;
+      } else if (horaDe === "19:00" && horaAte === "07:00") {
+        const horaRegistro = registro.getHours() * 60 + registro.getMinutes();
+        const limInicio = 19 * 60;
+        const limFim = 7 * 60;
 
-      // Data/Hora Fim
-      if (dataAte || horaAte) {
-        const fimData = dataAte || p.data;
-        const fimHora = horaAte || "23:59";
-        const fim = new Date(`${fimData}T${fimHora}:59`);
-        if (registro > fim) okDataHora = false;
+        const dataRegistro = new Date(registro);
+        dataRegistro.setHours(0, 0, 0, 0);
+
+        if (registro >= inicio && horaRegistro >= limInicio) {
+          okDataHora = true;
+        } else {
+          const inicioDiaSeguinte = new Date(dataRegistro);
+          inicioDiaSeguinte.setDate(inicioDiaSeguinte.getDate() + 1);
+          inicioDiaSeguinte.setHours(0, 0, 0, 0);
+          const fimTurno = new Date(inicioDiaSeguinte);
+          fimTurno.setHours(7, 0, 0, 0);
+          if (registro >= inicioDiaSeguinte && registro <= fimTurno && horaRegistro <= limFim) {
+            okDataHora = true;
+          }
+        }
+      } else {
+        okDataHora = registro >= inicio && registro <= fim;
       }
 
       return okEsp && okMed && okCrm && okDataHora;
     });
 
+    if (filtrados.length === 0) {
+      setMensagemGlobal("⚠️ Nenhum dado encontrado com os filtros selecionados.");
+      setTipoMensagem("erro");
+      setLinhas([]);
+      setGerado(false);
+      return;
+    } else {
+      setMensagemGlobal("");
+    }
+
+    if (ordem === "alfabetica") {
+      filtrados.sort((a, b) => a.medico.localeCompare(b.medico));
+    } else if (ordem === "ultimo") {
+      filtrados.sort((a, b) => parsePlantaoDate(b.data, b.hora) - parsePlantaoDate(a.data, a.hora));
+    }
+
     const agrupados = {};
     filtrados.forEach((p) => {
       const chavePrincipal = visao === "profissional" ? p.medico : p.especialidade;
       if (!agrupados[chavePrincipal]) agrupados[chavePrincipal] = {};
-      const mesAno = dayjs(p.data).format("MM/YYYY");
+      const mesAno = dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("MM/YYYY");
       if (!agrupados[chavePrincipal][mesAno]) agrupados[chavePrincipal][mesAno] = [];
       agrupados[chavePrincipal][mesAno].push(p);
     });
@@ -125,10 +178,19 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
 
     setLinhas(linhasAgrupadas);
     setGerado(true);
+    setTipoMensagem("sucesso");
 
     setTimeout(() => {
       linhasAgrupadas.forEach((grupo) => gerarGrafico(grupo));
     }, 100);
+  };
+
+  const limparResultados = () => {
+    setLinhas([]);
+    setGerado(false);
+    graficoRefs.current = {};
+    setMensagemGlobal("");
+    setTipoMensagem("");
   };
 
   const limpar = () => {
@@ -141,17 +203,20 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
     setHoraAte("19:00");
     setVisao("profissional");
     setTipoGrafico("barra");
-    setLinhas([]);
-    setGerado(false);
+    setOrdem("alfabetica");
+    limparResultados();
     setMostrarListaMedicos(false);
-    graficoRefs.current = {};
   };
 
   const gerarChartData = (grupo) => {
-    const labels = grupo.meses.flatMap((mes) => mes.items.map((i) => i.data));
+    const labels = grupo.meses.flatMap((mes) =>
+      mes.items.map((i) => `${dayjs(i.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY")} ${dayjs(i.hora, "HH:mm").format("HH:mm")}`)
+    );
     const data = grupo.meses.flatMap((mes) => mes.items.map((i) => Number(i.quantidade)));
-    const backgroundColor = labels.map(() => "#36A2EB");
-    return { labels, datasets: [{ label: "Quantidade", data, backgroundColor }] };
+    const backgroundColor = grupo.meses.flatMap((mes) =>
+      mes.items.map((i) => CORES_ESPECIALIDADE[i.especialidade] || "#36A2EB")
+    );
+    return { labels, datasets: [{ label: "Quantidade de Atendimentos", data, backgroundColor }] };
   };
 
   const gerarGrafico = (grupo) => {
@@ -170,34 +235,36 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
     doc.setFontSize(18);
     doc.text("DASHBOARD DE GESTÃO DE PRODUTIVIDADE MÉDICA", 14, 22);
 
-    linhas.forEach((grupo, idx) => {
-      grupo.meses.forEach((mes, midx) => {
+    let yPos = 35;
+    linhas.forEach((grupo) => {
+      grupo.meses.forEach((mes) => {
         doc.setFontSize(14);
-        doc.text(
-          `${visao === "profissional" ? "Médico" : "Especialidade"}: ${grupo.chave} - ${mes.mes} (Total: ${mes.totalMes})`,
-          14,
-          35 + (idx + midx) * 10
-        );
+        doc.text(`${visao === "profissional" ? "Médico" : "Especialidade"}: ${grupo.chave} - ${mes.mes} (Total: ${mes.totalMes})`, 14, yPos);
         const tableData = mes.items.map((p) => [
           p.medico,
           p.crm,
           p.especialidade,
-          p.data,
-          p.hora,
+          dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY"),
+          dayjs(p.hora, "HH:mm").format("HH:mm"),
           p.quantidade,
         ]);
         doc.autoTable({
           head: [["Médico", "CRM", "Especialidade", "Data", "Hora", "Quantidade"]],
           body: tableData,
-          startY: 40 + (idx + midx) * 10,
+          startY: yPos + 10,
         });
+        yPos += 10 + 10 * (mes.items.length + 2);
       });
     });
 
-    doc.save(`relatorio_${dayjs().format("YYYYMMDD_HHmm")}.pdf`);
+    doc.save(`relatorio_${dayjs().format("DDMMYYYY_HHmm")}.pdf`);
   };
 
   const exportExcel = () => {
+    if (!linhas.length) {
+      alert("Não há dados para exportar o Excel.");
+      return;
+    }
     const wb = XLSX.utils.book_new();
     linhas.forEach((grupo) => {
       grupo.meses.forEach((mes) => {
@@ -207,8 +274,8 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
             p.medico,
             p.crm,
             p.especialidade,
-            p.data,
-            p.hora,
+            dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY"),
+            dayjs(p.hora, "HH:mm").format("HH:mm"),
             p.quantidade,
           ]),
         ];
@@ -225,7 +292,15 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
         <h1>DASHBOARD DE GESTÃO DE PRODUTIVIDADE MÉDICA</h1>
       </div>
 
+      {/* Mensagem global com estilo semelhante à página Plantao */}
+      {mensagemGlobal && (
+        <div className={`mensagem-global ${tipoMensagem}`}>
+          <p>{mensagemGlobal}</p>
+        </div>
+      )}
+
       <div className="relatorios-controles card">
+        {/* CONTROLES DE FILTRO */}
         <div className="grid-3">
           <div className="field">
             <label>Visão</label>
@@ -234,14 +309,17 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
               <option value="especialidade">Especialidade</option>
             </select>
           </div>
+
           <div className="field">
             <label>Tipo de Gráfico</label>
             <select value={tipoGrafico} onChange={(e) => setTipoGrafico(e.target.value)}>
               <option value="barra">Barra</option>
-              <option value="line">Linha</option>
+              <option value="linha">Linha</option>
               <option value="pizza">Pizza</option>
+              <option value="area">Área</option>
             </select>
           </div>
+
           <div className="field">
             <label>Intervalo</label>
             <select
@@ -254,6 +332,7 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
             >
               <option value="07:00-19:00">7h-19h</option>
               <option value="19:00-07:00">19h-7h</option>
+              <option value="00:00-23:59">00h-23h59 (completo)</option>
             </select>
           </div>
         </div>
@@ -263,8 +342,10 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
             <label>Especialidade</label>
             <select value={especialidade} onChange={(e) => setEspecialidade(e.target.value)}>
               <option value="">Todas</option>
-              {[...new Set(medicosComPlantao.map((m) => m.especialidade))].map((esp) => (
-                <option key={esp} value={esp}>{esp}</option>
+              {[...new Set(medicosData.map((m) => m.especialidade))].map((esp) => (
+                <option key={esp} value={esp}>
+                  {esp}
+                </option>
               ))}
             </select>
           </div>
@@ -275,19 +356,10 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
               <input
                 ref={inputRef}
                 value={medicoQuery}
-                onChange={(e) => handleMedicoChange(e.target.value)}
+                onChange={(e) => setMedicoQuery(e.target.value)}
                 placeholder="Todos"
                 onFocus={() => setMostrarListaMedicos(true)}
-                onBlur={() => {
-                  const lista = medicosComPlantao.filter((m) =>
-                    m.nome.toLowerCase().includes(medicoQuery.toLowerCase())
-                  );
-                  if (lista.length > 0) {
-                    setMedicoQuery(lista[0].nome);
-                    setCrmQuery(lista[0].crm || "");
-                  }
-                  setMostrarListaMedicos(false);
-                }}
+                onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)}
               />
               <span
                 style={{ cursor: "pointer", marginLeft: "5px" }}
@@ -300,18 +372,22 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
                 🔍
               </span>
               {mostrarListaMedicos && (
-                <div style={{
-                  border: "1px solid #ccc",
-                  maxHeight: "200px",
-                  overflowY: "auto",
-                  background: "#fff",
-                  position: "absolute",
-                  top: "30px",
-                  width: "200px",
-                  zIndex: 10
-                }}>
-                  {medicosComPlantao
-                    .filter((m) => m.nome.toLowerCase().includes(medicoQuery.toLowerCase()))
+                <div
+                  style={{
+                    border: "1px solid #ccc",
+                    maxHeight: "200px",
+                    overflowY: "auto",
+                    background: "#fff",
+                    position: "absolute",
+                    top: "30px",
+                    width: "200px",
+                    zIndex: 10,
+                  }}
+                >
+                  {medicosData
+                    .filter((m) =>
+                      m.nome.toLowerCase().includes(medicoQuery.toLowerCase())
+                    )
                     .map((m) => (
                       <div
                         key={m.id}
@@ -342,6 +418,7 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
             <input type="date" value={dataDe} onChange={(e) => setDataDe(e.target.value)} />
             <input type="time" value={horaDe} onChange={(e) => setHoraDe(e.target.value)} />
           </div>
+
           <div className="field">
             <label>Data/Hora Fim</label>
             <input type="date" value={dataAte} onChange={(e) => setDataAte(e.target.value)} />
@@ -349,16 +426,44 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
           </div>
         </div>
 
-        <div className="botoes-relatorio" style={{ marginTop: "15px", display: "flex", gap: "20px" }}>
-          <button style={{ fontSize: "16px", padding: "10px 60px" }} onClick={filtrarRelatorio}>Gerar Relatórios</button>
-          <button style={{ fontSize: "16px", padding: "10px 100px" }} onClick={limpar}>Limpar</button>
-          <button style={{ fontSize: "16px", padding: "10px 115px" }} onClick={gerarPDF}>PDF</button>
-          <button style={{ fontSize: "16px", padding: "10px 115px" }} onClick={exportExcel}>Excel</button>
+        <div className="grid-3" style={{ marginTop: "10px" }}>
+          <div className="field">
+            <label>Ordenar por</label>
+            <select value={ordem} onChange={(e) => setOrdem(e.target.value)}>
+              <option value="alfabetica">Alfabética</option>
+              <option value="ultimo">Último Atendimento</option>
+            </select>
+          </div>
+        </div>
+
+        <div
+          className="botoes-relatorio"
+          style={{ marginTop: "15px", display: "flex", gap: "20px" }}
+        >
+          <button
+            style={{ fontSize: "16px", padding: "10px 60px" }}
+            onClick={() => {
+              limparResultados();
+              filtrarRelatorio();
+            }}
+          >
+            Gerar Relatórios
+          </button>
+          <button style={{ fontSize: "16px", padding: "10px 100px" }} onClick={limpar}>
+            Limpar
+          </button>
+          <button style={{ fontSize: "16px", padding: "10px 115px" }} onClick={gerarPDF}>
+            Exportar PDF
+          </button>
+          <button style={{ fontSize: "16px", padding: "10px 115px" }} onClick={exportExcel}>
+            Exportar Excel
+          </button>
         </div>
       </div>
 
       {gerado && (
         <section className="relatorios-tabela">
+          {linhas.length === 0 && <p>Nenhum dado encontrado com os filtros selecionados.</p>}
           {linhas.map((grupo) => (
             <div key={grupo.chave} className="grupo-relatorio card">
               <h3>{grupo.chave}</h3>
@@ -392,7 +497,10 @@ export default function Relatorios({ usuarioAtual, empresaAtual }) {
                 </div>
               ))}
               <div className="relatorios-grafico">
-                <canvas ref={(el) => (graficoRefs.current[grupo.chave] = el)} />
+                {tipoGrafico === "barra" && <GraficoBarra data={gerarChartData(grupo)} />}
+                {tipoGrafico === "linha" && <GraficoLinha data={gerarChartData(grupo)} />}
+                {tipoGrafico === "pizza" && <GraficoPizza data={gerarChartData(grupo)} />}
+                {tipoGrafico === "area" && <GraficoArea data={gerarChartData(grupo)} />}
               </div>
             </div>
           ))}

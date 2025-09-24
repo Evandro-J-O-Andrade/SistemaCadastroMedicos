@@ -4,6 +4,11 @@ import { FaSearch } from "react-icons/fa";
 import { especialidades, ordenarEspecialidades } from "../api/especialidades";
 import "./Medicos.css";
 
+const normalizeString = (str) => {
+  if (!str) return "";
+  return str.toUpperCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
+
 function Medicos() {
   const navigate = useNavigate();
   const [medicos, setMedicos] = useState([]);
@@ -31,7 +36,6 @@ function Medicos() {
     setMedicos([]);
   }, []);
 
-  // Fecha lista ao clicar fora
   useEffect(() => {
     const handleClickFora = (event) => {
       if (inputRef.current && !inputRef.current.contains(event.target)) {
@@ -43,7 +47,10 @@ function Medicos() {
   }, []);
 
   const handleChange = (e) => {
-    const valor = e.target.value.toUpperCase(); // Força maiúsculas
+    let valor = e.target.value.toUpperCase();
+    if (e.target.name === "nome") {
+      valor = normalizeString(valor); // Normaliza nome
+    }
     setForm({ ...form, [e.target.name]: valor });
     if (erroCampos[e.target.name]) {
       setErroCampos({ ...erroCampos, [e.target.name]: false });
@@ -79,7 +86,6 @@ function Medicos() {
       }
     }
 
-    // Atualiza contador de cadastros da especialidade
     const espIndex = especialidades.findIndex(
       (e) => e.nome === form.especialidade
     );
@@ -94,7 +100,13 @@ function Medicos() {
       );
       setMensagem("Médico atualizado com sucesso!");
     } else {
-      const novoMedico = { ...form, id: Date.now() + Math.random() };
+      let novoId = 1;
+      if (todosMedicos.length > 0) {
+        const ids = todosMedicos.map((m) => m.idMedico || 0);
+        novoId = Math.max(...ids) + 1;
+      }
+
+      const novoMedico = { ...form, idMedico: novoId, id: Date.now() + Math.random() };
       novosMedicos = [...todosMedicos, novoMedico];
       setMensagem("Médico cadastrado com sucesso!");
     }
@@ -130,11 +142,9 @@ function Medicos() {
     const filtrados = todosMedicos.filter((m) => {
       return (
         (!pesquisa.nome ||
-          m.nome.toLowerCase().includes(pesquisa.nome.toLowerCase())) &&
+          normalizeString(m.nome).includes(normalizeString(pesquisa.nome))) &&
         (!pesquisa.especialidade ||
-          m.especialidade
-            .toLowerCase()
-            .includes(pesquisa.especialidade.toLowerCase())) &&
+          normalizeString(m.especialidade).includes(normalizeString(pesquisa.especialidade))) &&
         (!pesquisa.crm || m.crm.toLowerCase().includes(pesquisa.crm.toLowerCase()))
       );
     });
@@ -172,11 +182,10 @@ function Medicos() {
     }
   };
 
-  // Especialidades filtradas para autocomplete
   const especialidadesFiltradas = ordenarEspecialidades(especialidades).filter(
     (item) =>
       filtro
-        ? item.nome.toUpperCase().includes(filtro.toUpperCase())
+        ? normalizeString(item.nome).includes(normalizeString(filtro))
         : true
   );
 
