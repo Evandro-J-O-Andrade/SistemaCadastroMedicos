@@ -1,13 +1,16 @@
 /* Container geral do relatório */
 .relatorios-wrap {
-  padding: 20px;
+  padding: 2px;
   font-family: Arial, sans-serif;
 }
 
 /* Header */
 .relatorios-header h1 {
   text-align: center;
+  color: #ebe5e5;
   margin-bottom: 20px;
+  height: 50px;
+  background-color:black;
 }
 
 /* Cartão */
@@ -137,4 +140,14 @@ input[list="medicos"] {
 datalist option {
   font-size: 14px;
   padding: 4px 8px;
+}
+.botoes-relatorio {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.botoes-relatorio button {
+  flex: 1 2 160px;
+  min-width: 100px;
 }

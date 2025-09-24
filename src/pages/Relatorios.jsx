@@ -13,6 +13,77 @@ import "./Relatorios.css";
 
 dayjs.locale("pt-br");
 
+function CardMedico({ medico, meses }) {
+  const totalAtendimentos = meses.reduce((acc, m) => acc + m.totalMes, 0);
+  const allItems = meses.flatMap((m) => m.items);
+  allItems.sort((a, b) => new Date(`${a.data}T${a.hora}`) - new Date(`${b.data}T${b.hora}`));
+  const primeiroAtendimento = allItems.length ? `${dayjs(allItems[0].data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY")} ${allItems[0].hora}` : "—";
+  const ultimoAtendimento = allItems.length ? `${dayjs(allItems[allItems.length - 1].data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY")} ${allItems[allItems.length - 1].hora}` : "—";
+
+  // Ajuste os valores fixos abaixo para seus dados reais
+  const tempoMedioEspera = "17 Minuto(s)";
+  const tempoMedioAtendimento = "5 Minuto(s)";
+  const tempoTotalIntervalo = "300 Minuto(s)";
+  const qtdOutrosAtendimentos = Math.round(totalAtendimentos * 0.8);
+  const especialidade = allItems.length ? allItems[0].especialidade : "—";
+
+  return (
+    <div
+      style={{
+        border: "1px solid #1f4e78",
+        borderRadius: 8,
+        padding: 20,
+        margin: 10,
+        maxWidth: 350,
+        backgroundColor: "#F7FBFF",
+        color: "#003366",
+        fontSize: 13,
+        textAlign: "center",
+        fontFamily: "Arial, sans-serif",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <h2 style={{ fontWeight: "700", fontSize: 18, marginBottom: 15 }}>{medico}</h2>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "space-around" }}>
+        <div>
+          <strong>ATENDIMENTOS</strong>
+          <div>{totalAtendimentos}</div>
+        </div>
+        <div>
+          <strong>PRIMEIRO ATENDIMENTO</strong>
+          <div>{primeiroAtendimento}</div>
+        </div>
+        <div>
+          <strong>ÚLTIMO ATENDIMENTO</strong>
+          <div>{ultimoAtendimento}</div>
+        </div>
+        <div>
+          <strong>TEMPO MÉDIO DE ESPERA POR ATENDIMENTO</strong>
+          <div>{tempoMedioEspera}</div>
+        </div>
+        <div>
+          <strong>TEMPO MÉDIO POR ATENDIMENTO</strong>
+          <div>{tempoMedioAtendimento}</div>
+        </div>
+        <div>
+          <strong>TEMPO TOTAL DE INTERVALO</strong>
+          <div>{tempoTotalIntervalo}</div>
+        </div>
+        <div>
+          <strong>QTD ATENDIMENTOS OUTROS PROFISSIONAIS</strong>
+          <div>{qtdOutrosAtendimentos}</div>
+        </div>
+        <div>
+          <strong>ESPECIALIDADE</strong>
+          <div>{especialidade}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Relatorios() {
   const hoje = dayjs().format("YYYY-MM-DD");
 
@@ -49,10 +120,8 @@ export default function Relatorios() {
     Nutricionista: "#00CED1",
   };
 
-  const normalizeString = (str) => {
-    if (!str) return "";
-    return str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  };
+  const normalizeString = (str) =>
+    !str ? "" : str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
   useEffect(() => {
     const dadosMedicos = JSON.parse(localStorage.getItem("medicos") || "[]");
@@ -70,7 +139,7 @@ export default function Relatorios() {
   };
 
   const filtrarRelatorio = () => {
-    setMensagemGlobal(""); // limpa mensagem anterior
+    setMensagemGlobal("");
 
     // Se filtro de médico preenchido e não encontrado mostra aviso
     if (medicoQuery.trim()) {
@@ -292,15 +361,16 @@ export default function Relatorios() {
         <h1>DASHBOARD DE GESTÃO DE PRODUTIVIDADE MÉDICA</h1>
       </div>
 
-      {/* Mensagem global com estilo semelhante à página Plantao */}
+      {/* Mensagem global */}
       {mensagemGlobal && (
         <div className={`mensagem-global ${tipoMensagem}`}>
           <p>{mensagemGlobal}</p>
         </div>
       )}
 
+      {/* Área de controles de filtro */}
       <div className="relatorios-controles card">
-        {/* CONTROLES DE FILTRO */}
+        {/* CONTROLES */}
         <div className="grid-3">
           <div className="field">
             <label>Visão</label>
@@ -330,8 +400,8 @@ export default function Relatorios() {
                 setHoraAte(fim);
               }}
             >
-              <option value="07:00-19:00">7h-19h</option>
-              <option value="19:00-07:00">19h-7h</option>
+              <option value="07:00-19:00">07:00h-19:00h</option>
+              <option value="19:00-07:00">19:00h-07:00h</option>
               <option value="00:00-23:59">00h-23h59 (completo)</option>
             </select>
           </div>
@@ -385,9 +455,7 @@ export default function Relatorios() {
                   }}
                 >
                   {medicosData
-                    .filter((m) =>
-                      m.nome.toLowerCase().includes(medicoQuery.toLowerCase())
-                    )
+                    .filter((m) => m.nome.toLowerCase().includes(medicoQuery.toLowerCase()))
                     .map((m) => (
                       <div
                         key={m.id}
@@ -461,51 +529,18 @@ export default function Relatorios() {
         </div>
       </div>
 
-      {gerado && (
-        <section className="relatorios-tabela">
-          {linhas.length === 0 && <p>Nenhum dado encontrado com os filtros selecionados.</p>}
+      {gerado && visao === "profissional" && (
+        <section
+          className="relatorios-tabela"
+          style={{ display: "flex", flexWrap: "wrap", justifyContent: "center" }}
+        >
           {linhas.map((grupo) => (
-            <div key={grupo.chave} className="grupo-relatorio card">
-              <h3>{grupo.chave}</h3>
-              {grupo.meses.map((mes) => (
-                <div key={mes.mes} className="mes-card">
-                  <h4>{mes.mes} - Total: {mes.totalMes}</h4>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Médico</th>
-                        <th>CRM</th>
-                        <th>Especialidade</th>
-                        <th>Data</th>
-                        <th>Hora</th>
-                        <th>Qt de Atendimento</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mes.items.map((p, idx) => (
-                        <tr key={idx}>
-                          <td>{p.medico}</td>
-                          <td>{p.crm}</td>
-                          <td>{p.especialidade}</td>
-                          <td>{p.data}</td>
-                          <td>{p.hora}</td>
-                          <td>{p.quantidade}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-              <div className="relatorios-grafico">
-                {tipoGrafico === "barra" && <GraficoBarra data={gerarChartData(grupo)} />}
-                {tipoGrafico === "linha" && <GraficoLinha data={gerarChartData(grupo)} />}
-                {tipoGrafico === "pizza" && <GraficoPizza data={gerarChartData(grupo)} />}
-                {tipoGrafico === "area" && <GraficoArea data={gerarChartData(grupo)} />}
-              </div>
-            </div>
+            <CardMedico key={grupo.chave} medico={grupo.chave} meses={grupo.meses} />
           ))}
         </section>
       )}
+
+      {/* Outros renders como gráfico consolidado podem ficar aqui */}
     </div>
   );
 }
