@@ -13,19 +13,11 @@ import "./Relatorios.css";
 
 dayjs.locale("pt-br");
 
-function CardMedico({ medico, meses }) {
-  const totalAtendimentos = meses.reduce((acc, m) => acc + m.totalMes, 0);
-  const allItems = meses.flatMap((m) => m.items);
-  allItems.sort((a, b) => new Date(`${a.data}T${a.hora}`) - new Date(`${b.data}T${b.hora}`));
-  const primeiroAtendimento = allItems.length ? `${dayjs(allItems[0].data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY")} ${allItems[0].hora}` : "—";
-  const ultimoAtendimento = allItems.length ? `${dayjs(allItems[allItems.length - 1].data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY")} ${allItems[allItems.length - 1].hora}` : "—";
-
-  // Ajuste os valores fixos abaixo para seus dados reais
-  const tempoMedioEspera = "17 Minuto(s)";
-  const tempoMedioAtendimento = "5 Minuto(s)";
-  const tempoTotalIntervalo = "300 Minuto(s)";
-  const qtdOutrosAtendimentos = Math.round(totalAtendimentos * 0.8);
+function CardMedico({ medico, dias, totalOverall }) {
+  const totalAtendimentos = dias.reduce((acc, d) => acc + d.totalDia, 0);
+  const allItems = dias.flatMap((d) => d.items);
   const especialidade = allItems.length ? allItems[0].especialidade : "—";
+  const crm = allItems.length ? allItems[0].crm : "—";
 
   return (
     <div
@@ -48,32 +40,16 @@ function CardMedico({ medico, meses }) {
       <h2 style={{ fontWeight: "700", fontSize: 18, marginBottom: 15 }}>{medico}</h2>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "space-around" }}>
         <div>
+          <strong>CRM</strong>
+          <div>{crm}</div>
+        </div>
+        <div>
           <strong>ATENDIMENTOS</strong>
           <div>{totalAtendimentos}</div>
         </div>
         <div>
-          <strong>PRIMEIRO ATENDIMENTO</strong>
-          <div>{primeiroAtendimento}</div>
-        </div>
-        <div>
-          <strong>ÚLTIMO ATENDIMENTO</strong>
-          <div>{ultimoAtendimento}</div>
-        </div>
-        <div>
-          <strong>TEMPO MÉDIO DE ESPERA POR ATENDIMENTO</strong>
-          <div>{tempoMedioEspera}</div>
-        </div>
-        <div>
-          <strong>TEMPO MÉDIO POR ATENDIMENTO</strong>
-          <div>{tempoMedioAtendimento}</div>
-        </div>
-        <div>
-          <strong>TEMPO TOTAL DE INTERVALO</strong>
-          <div>{tempoTotalIntervalo}</div>
-        </div>
-        <div>
-          <strong>QTD ATENDIMENTOS OUTROS PROFISSIONAIS</strong>
-          <div>{qtdOutrosAtendimentos}</div>
+          <strong>ATENDIMENTOS DE OUTROS PROFISSIONAIS</strong>
+          <div>{totalOverall - totalAtendimentos}</div>
         </div>
         <div>
           <strong>ESPECIALIDADE</strong>
@@ -89,7 +65,6 @@ export default function Relatorios() {
 
   const [plantoes, setPlantoes] = useState([]);
   const [medicosData, setMedicosData] = useState([]);
-
   const [medicoQuery, setMedicoQuery] = useState("");
   const [crmQuery, setCrmQuery] = useState("");
   const [especialidade, setEspecialidade] = useState("");
@@ -98,14 +73,14 @@ export default function Relatorios() {
   const [dataAte, setDataAte] = useState(hoje);
   const [horaAte, setHoraAte] = useState("19:00");
   const [visao, setVisao] = useState("profissional");
-  const [tipoGrafico, setTipoGrafico] = useState("barra");
+  const [tipoGrafico, setTipoGrafico] = useState("pizza");
   const [linhas, setLinhas] = useState([]);
   const [gerado, setGerado] = useState(false);
   const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
   const [ordem, setOrdem] = useState("alfabetica");
 
   const [mensagemGlobal, setMensagemGlobal] = useState("");
-  const [tipoMensagem, setTipoMensagem] = useState(""); // 'erro' ou 'sucesso'
+  const [tipoMensagem, setTipoMensagem] = useState("");
 
   const graficoRefs = useRef({});
   const inputRef = useRef();
@@ -138,13 +113,57 @@ export default function Relatorios() {
     return new Date(`${ano}-${mes}-${dia}T${horaStr || "00:00"}`);
   };
 
+  useEffect(() => {
+    if (!gerado || !linhas.length) return;
+
+    const getLastTimestamp = (grupo) => {
+      const all = grupo.dias.flatMap((d) => d.items);
+      if (!all.length) return 0;
+      return Math.max(...all.map((i) => parsePlantaoDate(i.data, i.hora).getTime()));
+    };
+
+    let newLinhas = [...linhas];
+    if (ordem === "alfabetica") {
+      newLinhas.sort((a, b) => a.chave.localeCompare(b.chave));
+    } else if (ordem === "ultimo") {
+      newLinhas.sort((a, b) => getLastTimestamp(b) - getLastTimestamp(a));
+    }
+    setLinhas(newLinhas);
+  }, [ordem]);
+
+  const limparResultados = () => {
+    setLinhas([]);
+    setGerado(false);
+    graficoRefs.current = {};
+    setMensagemGlobal("");
+    setTipoMensagem("");
+  };
+
+  const limpar = () => {
+    setMedicoQuery("");
+    setCrmQuery("");
+    setEspecialidade("");
+    setDataDe(hoje);
+    setHoraDe("07:00");
+    setDataAte(hoje);
+    setHoraAte("19:00");
+    setVisao("profissional");
+    setTipoGrafico("pizza");
+    setOrdem("alfabetica");
+    limparResultados();
+    setMostrarListaMedicos(false);
+  };
+
   const filtrarRelatorio = () => {
     setMensagemGlobal("");
 
-    // Se filtro de médico preenchido e não encontrado mostra aviso
-    if (medicoQuery.trim()) {
+    const nomeBusca = normalizeString(medicoQuery);
+    const crmBusca = crmQuery.trim();
+    const espBusca = normalizeString(especialidade);
+
+    if (nomeBusca) {
       const encontrouMedico = medicosData.some(
-        (m) => normalizeString(m.nome) === normalizeString(medicoQuery.trim())
+        (m) => normalizeString(m.nome) === nomeBusca
       );
       if (!encontrouMedico) {
         setMensagemGlobal("⚠️ Médico não encontrado no sistema.");
@@ -155,15 +174,14 @@ export default function Relatorios() {
       }
     }
 
-    const nomeBusca = medicoQuery.trim().toLowerCase();
-    const crmBusca = crmQuery.trim();
-
     const dadosCompletos = plantoes.map((p) => {
-      const medico = medicosData.find((m) => m.nome === p.nome);
+      const medico = medicosData.find(
+        (m) => m.crm === p.crm || normalizeString(m.nome) === normalizeString(p.nome)
+      );
       return {
         medico: p.nome,
-        crm: medico?.crm || "—",
-        especialidade: medico?.especialidade || "—",
+        crm: p.crm || medico?.crm || "—",
+        especialidade: medico?.especialidade || p.especialidade || "—",
         data: p.data,
         hora: p.hora,
         turno: p.turno || "—",
@@ -175,8 +193,8 @@ export default function Relatorios() {
     const fim = parsePlantaoDate(dataAte || hoje, horaAte || "19:00");
 
     let filtrados = dadosCompletos.filter((p) => {
-      const okEsp = !especialidade || p.especialidade.toLowerCase() === especialidade.toLowerCase();
-      const okMed = !nomeBusca || p.medico.toLowerCase().includes(nomeBusca);
+      const okEsp = !espBusca || normalizeString(p.especialidade) === espBusca;
+      const okMed = !nomeBusca || normalizeString(p.medico) === nomeBusca;
       const okCrm = !crmBusca || p.crm.includes(crmBusca);
       const registro = parsePlantaoDate(p.data, p.hora);
 
@@ -212,8 +230,17 @@ export default function Relatorios() {
       return okEsp && okMed && okCrm && okDataHora;
     });
 
+
     if (filtrados.length === 0) {
-      setMensagemGlobal("⚠️ Nenhum dado encontrado com os filtros selecionados.");
+      let mensagem = "⚠️ Nenhum dado encontrado com os filtros selecionados.";
+      if (nomeBusca && espBusca) {
+        mensagem = "⚠️ Especialidade sem registro para esse médico.";
+      } else if (nomeBusca && !espBusca) {
+        mensagem = "⚠️ Médico sem registros.";
+      } else if (!nomeBusca && espBusca) {
+        mensagem = "⚠️ Especialidade sem registros.";
+      }
+      setMensagemGlobal(mensagem);
       setTipoMensagem("erro");
       setLinhas([]);
       setGerado(false);
@@ -222,81 +249,149 @@ export default function Relatorios() {
       setMensagemGlobal("");
     }
 
+
     if (ordem === "alfabetica") {
       filtrados.sort((a, b) => a.medico.localeCompare(b.medico));
     } else if (ordem === "ultimo") {
       filtrados.sort((a, b) => parsePlantaoDate(b.data, b.hora) - parsePlantaoDate(a.data, a.hora));
     }
 
+
     const agrupados = {};
     filtrados.forEach((p) => {
       const chavePrincipal = visao === "profissional" ? p.medico : p.especialidade;
       if (!agrupados[chavePrincipal]) agrupados[chavePrincipal] = {};
-      const mesAno = dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("MM/YYYY");
-      if (!agrupados[chavePrincipal][mesAno]) agrupados[chavePrincipal][mesAno] = [];
-      agrupados[chavePrincipal][mesAno].push(p);
+      const dia = dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY");
+      if (!agrupados[chavePrincipal][dia]) agrupados[chavePrincipal][dia] = [];
+      agrupados[chavePrincipal][dia].push(p);
     });
 
+
     const linhasAgrupadas = Object.keys(agrupados).map((chave) => {
-      const meses = Object.keys(agrupados[chave]).map((mes) => {
-        const totalMes = agrupados[chave][mes].reduce((acc, p) => acc + Number(p.quantidade), 0);
-        return { mes, totalMes, items: agrupados[chave][mes] };
+      const dias = Object.keys(agrupados[chave]).map((dia) => {
+        const totalDia = agrupados[chave][dia].reduce((acc, p) => acc + Number(p.quantidade), 0);
+        return { dia, totalDia, items: agrupados[chave][dia] };
       });
-      return { chave, meses };
+      return { chave, dias };
     });
+
 
     setLinhas(linhasAgrupadas);
     setGerado(true);
     setTipoMensagem("sucesso");
+
 
     setTimeout(() => {
       linhasAgrupadas.forEach((grupo) => gerarGrafico(grupo));
     }, 100);
   };
 
-  const limparResultados = () => {
-    setLinhas([]);
-    setGerado(false);
-    graficoRefs.current = {};
-    setMensagemGlobal("");
-    setTipoMensagem("");
-  };
-
-  const limpar = () => {
-    setMedicoQuery("");
-    setCrmQuery("");
-    setEspecialidade("");
-    setDataDe(hoje);
-    setHoraDe("07:00");
-    setDataAte(hoje);
-    setHoraAte("19:00");
-    setVisao("profissional");
-    setTipoGrafico("barra");
-    setOrdem("alfabetica");
-    limparResultados();
-    setMostrarListaMedicos(false);
-  };
 
   const gerarChartData = (grupo) => {
-    const labels = grupo.meses.flatMap((mes) =>
-      mes.items.map((i) => `${dayjs(i.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY")} ${dayjs(i.hora, "HH:mm").format("HH:mm")}`)
+    const labels = grupo.dias.flatMap((dia) =>
+      dia.items.map((i) => `${dayjs(i.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY")} ${i.hora}`)
     );
-    const data = grupo.meses.flatMap((mes) => mes.items.map((i) => Number(i.quantidade)));
-    const backgroundColor = grupo.meses.flatMap((mes) =>
-      mes.items.map((i) => CORES_ESPECIALIDADE[i.especialidade] || "#36A2EB")
+    const data = grupo.dias.flatMap((dia) => dia.items.map((i) => Number(i.quantidade)));
+    const backgroundColor = grupo.dias.flatMap((dia) =>
+      dia.items.map((i) => CORES_ESPECIALIDADE[i.especialidade] || "#36A2EB")
     );
     return { labels, datasets: [{ label: "Quantidade de Atendimentos", data, backgroundColor }] };
   };
 
+
   const gerarGrafico = (grupo) => {
     const ctx = graficoRefs.current[grupo.chave];
     if (!ctx) return;
+
+
     new Chart(ctx, {
       type: tipoGrafico === "pizza" ? "pie" : tipoGrafico,
       data: gerarChartData(grupo),
-      options: { responsive: true, plugins: { legend: { position: "bottom" } } },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: {
+              color: "#003366",
+              font: { size: 14, weight: "500" },
+            },
+          },
+        },
+        layout: {
+          padding: { top: 20, bottom: 20 },
+        },
+        scales:
+          tipoGrafico !== "pizza" && {
+            x: { ticks: { color: "#003366" }, grid: { color: "#e0e0e0" } },
+            y: { ticks: { color: "#003366" }, grid: { color: "#e0e0e0" } },
+          },
+      },
+      plugins: [
+        {
+          id: "fundoBranco",
+          beforeDraw: (chart) => {
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.globalCompositeOperation = "destination-over";
+            ctx.fillStyle = "white"; // fundo branco
+            ctx.fillRect(0, 0, chart.width, chart.height);
+            ctx.restore();
+          },
+        },
+      ],
     });
   };
+
+
+  const gerarChartDataConsolidadoPorMedico = (linhas) => {
+    const totais = {};
+    linhas.forEach((grupo) => {
+      const medico = grupo.chave;
+      totais[medico] = 0;
+      grupo.dias.forEach((dia) => {
+        totais[medico] += dia.totalDia;
+      });
+    });
+    const labels = Object.keys(totais);
+    const data = labels.map((label) => totais[label]);
+    const backgroundColor = labels.map((label) => CORES_ESPECIALIDADE[medicosData.find((m) => m.nome === label)?.especialidade] || "#36A2EB");
+    return { labels, datasets: [{ label: "Quantidade", data, backgroundColor }] };
+  };
+
+
+  const gerarChartDataConsolidadoPorEspecialidade = (linhas) => {
+    const totais = {};
+    linhas.forEach((grupo) => {
+      grupo.dias.forEach((dia) => {
+        dia.items.forEach((item) => {
+          if (!totais[item.especialidade]) totais[item.especialidade] = 0;
+          totais[item.especialidade] += item.quantidade;
+        });
+      });
+    });
+    const labels = Object.keys(totais);
+    const data = labels.map((lab) => totais[lab]);
+    const backgroundColor = labels.map((lab) => CORES_ESPECIALIDADE[lab] || "#36A2EB");
+    return { labels, datasets: [{ label: "Quantidade", data, backgroundColor }] };
+  };
+
+
+  const renderGraficoDinamico = (data) => {
+    switch (tipoGrafico) {
+      case "barra":
+        return <GraficoBarra data={data} />;
+      case "linha":
+        return <GraficoLinha data={data} />;
+      case "area":
+        return <GraficoArea data={data} />;
+      case "pizza":
+      default:
+        return <GraficoPizza data={data} />;
+    }
+  };
+
 
   const gerarPDF = () => {
     if (!linhas.length) return alert("Não há dados para gerar o PDF.");
@@ -304,12 +399,13 @@ export default function Relatorios() {
     doc.setFontSize(18);
     doc.text("DASHBOARD DE GESTÃO DE PRODUTIVIDADE MÉDICA", 14, 22);
 
+
     let yPos = 35;
     linhas.forEach((grupo) => {
-      grupo.meses.forEach((mes) => {
+      grupo.dias.forEach((dia) => {
         doc.setFontSize(14);
-        doc.text(`${visao === "profissional" ? "Médico" : "Especialidade"}: ${grupo.chave} - ${mes.mes} (Total: ${mes.totalMes})`, 14, yPos);
-        const tableData = mes.items.map((p) => [
+        doc.text(`${visao === "profissional" ? "Médico" : "Especialidade"}: ${grupo.chave} - ${dia.dia} (Total: ${dia.totalDia})`, 14, yPos);
+        const tableData = dia.items.map((p) => [
           p.medico,
           p.crm,
           p.especialidade,
@@ -322,12 +418,14 @@ export default function Relatorios() {
           body: tableData,
           startY: yPos + 10,
         });
-        yPos += 10 + 10 * (mes.items.length + 2);
+        yPos += 10 + 10 * (dia.items.length + 2);
       });
     });
 
+
     doc.save(`relatorio_${dayjs().format("DDMMYYYY_HHmm")}.pdf`);
   };
+
 
   const exportExcel = () => {
     if (!linhas.length) {
@@ -336,10 +434,10 @@ export default function Relatorios() {
     }
     const wb = XLSX.utils.book_new();
     linhas.forEach((grupo) => {
-      grupo.meses.forEach((mes) => {
+      grupo.dias.forEach((dia) => {
         const wsData = [
           ["Médico", "CRM", "Especialidade", "Data", "Hora", "Quantidade"],
-          ...mes.items.map((p) => [
+          ...dia.items.map((p) => [
             p.medico,
             p.crm,
             p.especialidade,
@@ -349,11 +447,12 @@ export default function Relatorios() {
           ]),
         ];
         const ws = XLSX.utils.aoa_to_sheet(wsData);
-        XLSX.utils.book_append_sheet(wb, ws, `${grupo.chave}_${mes.mes}`.substring(0, 31));
+        XLSX.utils.book_append_sheet(wb, ws, `${grupo.chave}_${dia.dia}`.substring(0, 31));
       });
     });
     XLSX.writeFile(wb, `relatorio_${dayjs().format("YYYYMMDD_HHmm")}.xlsx`);
   };
+
 
   return (
     <div className="relatorios-wrap">
@@ -361,14 +460,14 @@ export default function Relatorios() {
         <h1>DASHBOARD DE GESTÃO DE PRODUTIVIDADE MÉDICA</h1>
       </div>
 
-      {/* Mensagem global */}
+
       {mensagemGlobal && (
         <div className={`mensagem-global ${tipoMensagem}`}>
           <p>{mensagemGlobal}</p>
         </div>
       )}
 
-      {/* Área de controles de filtro */}
+
       <div className="relatorios-controles card">
         {/* CONTROLES */}
         <div className="grid-3">
@@ -444,18 +543,18 @@ export default function Relatorios() {
               {mostrarListaMedicos && (
                 <div
                   style={{
-                    border: "1px solid #ccc",
-                    maxHeight: "200px",
+                    border: "1px solid #5f5a5aff",
+                    maxHeight: "310px",
                     overflowY: "auto",
-                    background: "#fff",
+                    background: "#fcf1f1ff",
                     position: "absolute",
                     top: "30px",
-                    width: "200px",
+                    width: "350px",
                     zIndex: 10,
                   }}
                 >
                   {medicosData
-                    .filter((m) => m.nome.toLowerCase().includes(medicoQuery.toLowerCase()))
+                    .filter((m) => normalizeString(m.nome).includes(normalizeString(medicoQuery)))
                     .map((m) => (
                       <div
                         key={m.id}
@@ -504,10 +603,7 @@ export default function Relatorios() {
           </div>
         </div>
 
-        <div
-          className="botoes-relatorio"
-          style={{ marginTop: "15px", display: "flex", gap: "20px" }}
-        >
+        <div className="botoes-relatorio" style={{ marginTop: "15px", display: "flex", gap: "20px" }}>
           <button
             style={{ fontSize: "16px", padding: "10px 60px" }}
             onClick={() => {
@@ -529,18 +625,35 @@ export default function Relatorios() {
         </div>
       </div>
 
+
       {gerado && visao === "profissional" && (
-        <section
-          className="relatorios-tabela"
-          style={{ display: "flex", flexWrap: "wrap", justifyContent: "center" }}
-        >
+        <section className="relatorios-tabela" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center" }}>
           {linhas.map((grupo) => (
-            <CardMedico key={grupo.chave} medico={grupo.chave} meses={grupo.meses} />
+            <CardMedico
+              key={grupo.chave}
+              medico={grupo.chave}
+              dias={grupo.dias}
+              totalOverall={linhas.reduce((acc, g) => acc + g.dias.reduce((a, d) => a + d.totalDia, 0), 0)}
+            />
           ))}
         </section>
       )}
 
-      {/* Outros renders como gráfico consolidado podem ficar aqui */}
+      {gerado && linhas.length > 0 && (
+        <div
+          className="grafico-container"
+          style={{ maxWidth: 1200, margin: "40px auto 20px", padding: "0 15px" }}
+        >
+          <h3 style={{ textAlign: "center", marginBottom: 20 }}>
+            Gráfico Consolidado {visao === "profissional" ? "por Médico" : "por Especialidade"}
+          </h3>
+          {renderGraficoDinamico(
+            visao === "profissional"
+              ? gerarChartDataConsolidadoPorMedico(linhas)
+              : gerarChartDataConsolidadoPorEspecialidade(linhas)
+          )}
+        </div>
+      )}
     </div>
   );
 }

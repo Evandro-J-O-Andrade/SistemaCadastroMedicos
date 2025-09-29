@@ -5,8 +5,18 @@ export default function GraficoPizza({ data }) {
   const options = {
     responsive: true,
     plugins: {
-      legend: { position: "right" },
-      tooltip: { enabled: true },
+      legend: {
+        position: "right",
+        labels: { color: "#003366", font: { size: 14, weight: "500" } },
+      },
+      tooltip: {
+        enabled: true,
+        backgroundColor: "#ffffff",
+        titleColor: "#003366",
+        bodyColor: "#003366",
+        borderColor: "#003366",
+        borderWidth: 1,
+      },
     },
   };
 

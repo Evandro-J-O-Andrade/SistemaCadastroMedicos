@@ -151,3 +151,29 @@ datalist option {
   flex: 1 2 160px;
   min-width: 100px;
 }
+/* Canvas gráfico responsivo */
+canvas {
+  width: 100% !important;
+  max-height: 400px !important;
+}
+.grafico-container {
+  max-width: 1200px;
+  margin: 40px auto 20px;
+  padding: 0 15px;
+  background-color: #fff; /* fundo do container do gráfico */
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden; /* para arredondar bordas do título também */
+}
+
+.grafico-container h3 {
+  background-color: #000; /* tarja preta */
+  color: #fff;            /* texto branco */
+  text-align: center;
+  padding: 15px 0;
+  margin: 0 0 20px 0;     /* separação entre título e gráfico */
+  font-size: 1.5rem;
+  font-weight: 600;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
