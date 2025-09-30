@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "chart.js": "^4.5.0",
+    "chartjs-adapter-dayjs-4": "^1.0.4",
     "cheerio": "^1.1.2",
     "cors": "^2.8.5",
     "dayjs": "^1.11.18",

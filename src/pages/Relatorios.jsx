@@ -14,10 +14,23 @@ import "./Relatorios.css";
 dayjs.locale("pt-br");
 
 function CardMedico({ medico, dias, totalOverall }) {
-  const totalAtendimentos = dias.reduce((acc, d) => acc + d.totalDia, 0);
-  const allItems = dias.flatMap((d) => d.items);
-  const especialidade = allItems.length ? allItems[0].especialidade : "—";
-  const crm = allItems.length ? allItems[0].crm : "—";
+  // Soma todos os atendimentos de todos os dias
+  const totalAtendimentos = dias.reduce(
+    (acc, d) => acc + d.items.reduce((soma, i) => soma + Number(i.quantidade), 0),
+    0
+  );
+
+  // Pega todos os CRMs únicos
+  const crms = [
+    ...new Set(dias.flatMap((d) => d.items.map((i) => i.crm || "—")))
+  ];
+  const crm = crms.join(", "); // Se houver mais de um, separa por vírgula
+
+  // Pega todas as especialidades únicas
+  const especialidades = [
+    ...new Set(dias.flatMap((d) => d.items.map((i) => i.especialidade || "—")))
+  ];
+  const especialidade = especialidades.join(", ");
 
   return (
     <div
@@ -68,10 +81,10 @@ export default function Relatorios() {
   const [medicoQuery, setMedicoQuery] = useState("");
   const [crmQuery, setCrmQuery] = useState("");
   const [especialidade, setEspecialidade] = useState("");
-  const [dataDe, setDataDe] = useState(hoje);
-  const [horaDe, setHoraDe] = useState("07:00");
-  const [dataAte, setDataAte] = useState(hoje);
-  const [horaAte, setHoraAte] = useState("19:00");
+  const [dataDe, setDataDe] = useState(hoje); // Default: data atual
+  const [horaDe, setHoraDe] = useState("07:00"); // Default: 07:00
+  const [dataAte, setDataAte] = useState(hoje); // Default: data atual
+  const [horaAte, setHoraAte] = useState("19:00"); // Default: 19:00
   const [visao, setVisao] = useState("profissional");
   const [tipoGrafico, setTipoGrafico] = useState("pizza");
   const [linhas, setLinhas] = useState([]);
@@ -84,6 +97,7 @@ export default function Relatorios() {
 
   const graficoRefs = useRef({});
   const inputRef = useRef();
+  const tabelaRef = useRef(null); // Ref para capturar a tabela no PDF
 
   const CORES_ESPECIALIDADE = {
     Emergencista: "#FF0000",
@@ -104,6 +118,15 @@ export default function Relatorios() {
 
     const dadosPlantoes = JSON.parse(localStorage.getItem("plantaoData") || "[]");
     setPlantoes(Array.isArray(dadosPlantoes) ? dadosPlantoes : []);
+
+    // Defaults iniciais para filtros
+    setDataDe(hoje);
+    setDataAte(hoje);
+    setHoraDe("07:00");
+    setHoraAte("19:00");
+    setMedicoQuery("");
+    setEspecialidade("");
+    setCrmQuery("");
   }, []);
 
   const parsePlantaoDate = (dataStr, horaStr) => {
@@ -112,6 +135,190 @@ export default function Relatorios() {
     const [dia, mes, ano] = dataStr.split("/");
     return new Date(`${ano}-${mes}-${dia}T${horaStr || "00:00"}`);
   };
+
+  // Funções simulando "procedures" para cada filtro/input
+  const filtrarPorMedico = (dados, nomeBusca, crmBusca) => {
+    if (!nomeBusca && !crmBusca) return dados; // Default: todos médicos
+    return dados.filter((p) => {
+      const okMed = nomeBusca ? normalizeString(p.medico) === normalizeString(nomeBusca) : true;
+      const okCrm = crmBusca ? p.crm.includes(crmBusca) : true;
+      return okMed && okCrm;
+    });
+  };
+
+  const filtrarPorEspecialidade = (dados, espBusca) => {
+    if (!espBusca) return dados; // Default: todas especialidades
+    return dados.filter((p) => normalizeString(p.especialidade) === normalizeString(espBusca));
+  };
+
+  const filtrarPorDataHora = (dados, inicio, fim, horaDe, horaAte) => {
+    return dados.filter((p) => {
+      const registro = parsePlantaoDate(p.data, p.hora);
+      if (!registro) return false;
+
+      let okDataHora = registro >= inicio && registro <= fim;
+
+      // Lógica para intervalos predefinidos
+      if (horaDe === "00:00" && horaAte === "23:59") {
+        // Ignora filtro de hora, traz o dia inteiro
+        return okDataHora;
+      } else if (horaDe === "19:00" && horaAte === "07:00") {
+        const horaRegistro = registro.getHours() * 60 + registro.getMinutes();
+        const limInicio = 19 * 60;
+        const limFim = 7 * 60;
+
+        const dataRegistro = new Date(registro);
+        dataRegistro.setHours(0, 0, 0, 0);
+
+        if (registro >= inicio && horaRegistro >= limInicio) {
+          return true;
+        } else {
+          const inicioDiaSeguinte = new Date(dataRegistro);
+          inicioDiaSeguinte.setDate(inicioDiaSeguinte.getDate() + 1);
+          inicioDiaSeguinte.setHours(0, 0, 0, 0);
+          const fimTurno = new Date(inicioDiaSeguinte);
+          fimTurno.setHours(7, 0, 0, 0);
+          if (registro >= inicioDiaSeguinte && registro <= fimTurno && horaRegistro <= limFim) {
+            return true;
+          }
+        }
+      } else {
+        // Filtro diurno ou custom
+        const horaRegistro = dayjs(registro).format("HH:mm");
+        if (horaRegistro >= horaDe && horaRegistro <= horaAte) return okDataHora;
+      }
+      return false;
+    });
+  };
+
+  const agruparESomar = (filtrados, visao) => {
+    const agrupados = {};
+    filtrados.forEach((p) => {
+      const chavePrincipal = visao === "profissional" ? p.medico : p.especialidade;
+      const dia = dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY");
+      const chaveDiaEsp = `${dia}-${p.especialidade}`; // Para soma por dia/especialidade
+
+      if (!agrupados[chavePrincipal]) agrupados[chavePrincipal] = {};
+      if (!agrupados[chavePrincipal][chaveDiaEsp]) {
+        agrupados[chavePrincipal][chaveDiaEsp] = { dia, totalDia: 0, items: [] };
+      }
+      agrupados[chavePrincipal][chaveDiaEsp].totalDia += p.quantidade; // Soma se múltiplos plantões
+      agrupados[chavePrincipal][chaveDiaEsp].items.push(p);
+    });
+
+    return Object.keys(agrupados).map((chave) => ({
+      chave,
+      dias: Object.values(agrupados[chave]),
+    }));
+  };
+const filtrarRelatorio = () => {
+  setMensagemGlobal("");
+
+  const nomeBusca = normalizeString(medicoQuery);
+  const crmBusca = crmQuery.trim();
+  const espBusca = normalizeString(especialidade);
+
+  // Verifica se o médico existe
+  if (nomeBusca) {
+    const encontrouMedico = medicosData.some(
+      (m) => normalizeString(m.nome) === nomeBusca
+    );
+    if (!encontrouMedico) {
+      setMensagemGlobal("⚠️ Médico não encontrado no sistema.");
+      setTipoMensagem("erro");
+      setLinhas([]);
+      setGerado(false);
+      return;
+    }
+  }
+
+  // Normaliza todos os plantões
+  const dadosCompletos = plantoes.map((p) => {
+    const medico = medicosData.find(
+      (m) => m.crm === p.crm || normalizeString(m.nome) === normalizeString(p.nome)
+    );
+    return {
+      medico: p.nome,
+      crm: p.crm || medico?.crm || "—",
+      especialidade: medico?.especialidade || p.especialidade || "—",
+      data: p.data,
+      hora: p.hora,
+      turno: p.turno || "—",
+      quantidade: Number(p.quantidade) || 0,
+    };
+  });
+
+  const inicio = parsePlantaoDate(dataDe || hoje, horaDe || "07:00");
+  const fim = parsePlantaoDate(dataAte || hoje, horaAte || "19:00");
+
+  let filtrados = dadosCompletos.filter((p) => {
+    const registro = parsePlantaoDate(p.data, p.hora);
+    if (!registro) return false;
+
+    // Filtro de nome, CRM e especialidade
+    const okMedico = !nomeBusca || normalizeString(p.medico).includes (nomeBusca);
+    const okCrm = !crmBusca ||normalizeString(p.crm).includes(crmBusca);
+    const okEsp = !espBusca || normalizeString(p.especialidade).includes(espBusca);
+
+    // Filtro de horário
+    let okHora = false;
+    const horaRegistro = registro.getHours() * 60 + registro.getMinutes();
+
+    if (horaDe === "07:00" && horaAte === "19:00") {
+      okHora = registro >= inicio && registro <= fim;
+    } else if (horaDe === "19:00" && horaAte === "07:00") {
+      // Noturno
+      okHora =
+        horaRegistro >= 19 * 60 || horaRegistro <= 7 * 60; // Entre 19:00 e 07:00
+    } else if (horaDe === "00:00" && horaAte === "23:59") {
+      okHora = true; // turno completo
+    } else {
+      okHora = registro >= inicio && registro <= fim;
+    }
+
+    return okMedico && okCrm && okEsp && okHora;
+  });
+
+  if (filtrados.length === 0) {
+    let mensagem = "⚠️ Nenhum dado encontrado com os filtros selecionados.";
+    if (nomeBusca && espBusca) mensagem = "⚠️ Especialidade sem registro para esse médico.";
+    else if (nomeBusca && !espBusca) mensagem = "⚠️ Médico sem registros.";
+    else if (!nomeBusca && espBusca) mensagem = "⚠️ Especialidade sem registros.";
+    setMensagemGlobal(mensagem);
+    setTipoMensagem("erro");
+    setLinhas([]);
+    setGerado(false);
+    return;
+  } else {
+    setMensagemGlobal("");
+  }
+
+  // Agrupamento por visão (profissional ou especialidade)
+  const agrupados = {};
+  filtrados.forEach((p) => {
+    const chave = visao === "profissional" ? p.medico : p.especialidade;
+    if (!agrupados[chave]) agrupados[chave] = {};
+    const dia = dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY");
+    if (!agrupados[chave][dia]) agrupados[chave][dia] = [];
+    agrupados[chave][dia].push(p);
+  });
+
+  const linhasAgrupadas = Object.keys(agrupados).map((chave) => {
+    const dias = Object.keys(agrupados[chave]).map((dia) => {
+      const totalDia = agrupados[chave][dia].reduce((acc, p) => acc + Number(p.quantidade), 0);
+      return { dia, totalDia, items: agrupados[chave][dia] };
+    });
+    return { chave, dias };
+  });
+
+  setLinhas(linhasAgrupadas);
+  setGerado(true);
+  setTipoMensagem("sucesso");
+
+  setTimeout(() => {
+    linhasAgrupadas.forEach((grupo) => gerarGrafico(grupo));
+  }, 100);
+};
 
   useEffect(() => {
     if (!gerado || !linhas.length) return;
@@ -154,139 +361,6 @@ export default function Relatorios() {
     setMostrarListaMedicos(false);
   };
 
-  const filtrarRelatorio = () => {
-    setMensagemGlobal("");
-
-    const nomeBusca = normalizeString(medicoQuery);
-    const crmBusca = crmQuery.trim();
-    const espBusca = normalizeString(especialidade);
-
-    if (nomeBusca) {
-      const encontrouMedico = medicosData.some(
-        (m) => normalizeString(m.nome) === nomeBusca
-      );
-      if (!encontrouMedico) {
-        setMensagemGlobal("⚠️ Médico não encontrado no sistema.");
-        setTipoMensagem("erro");
-        setLinhas([]);
-        setGerado(false);
-        return;
-      }
-    }
-
-    const dadosCompletos = plantoes.map((p) => {
-      const medico = medicosData.find(
-        (m) => m.crm === p.crm || normalizeString(m.nome) === normalizeString(p.nome)
-      );
-      return {
-        medico: p.nome,
-        crm: p.crm || medico?.crm || "—",
-        especialidade: medico?.especialidade || p.especialidade || "—",
-        data: p.data,
-        hora: p.hora,
-        turno: p.turno || "—",
-        quantidade: Number(p.quantidade) || 0,
-      };
-    });
-
-    const inicio = parsePlantaoDate(dataDe || hoje, horaDe || "07:00");
-    const fim = parsePlantaoDate(dataAte || hoje, horaAte || "19:00");
-
-    let filtrados = dadosCompletos.filter((p) => {
-      const okEsp = !espBusca || normalizeString(p.especialidade) === espBusca;
-      const okMed = !nomeBusca || normalizeString(p.medico) === nomeBusca;
-      const okCrm = !crmBusca || p.crm.includes(crmBusca);
-      const registro = parsePlantaoDate(p.data, p.hora);
-
-      if (!registro) return false;
-
-      let okDataHora = false;
-      if (horaDe === "07:00" && horaAte === "19:00") {
-        okDataHora = registro >= inicio && registro <= fim;
-      } else if (horaDe === "19:00" && horaAte === "07:00") {
-        const horaRegistro = registro.getHours() * 60 + registro.getMinutes();
-        const limInicio = 19 * 60;
-        const limFim = 7 * 60;
-
-        const dataRegistro = new Date(registro);
-        dataRegistro.setHours(0, 0, 0, 0);
-
-        if (registro >= inicio && horaRegistro >= limInicio) {
-          okDataHora = true;
-        } else {
-          const inicioDiaSeguinte = new Date(dataRegistro);
-          inicioDiaSeguinte.setDate(inicioDiaSeguinte.getDate() + 1);
-          inicioDiaSeguinte.setHours(0, 0, 0, 0);
-          const fimTurno = new Date(inicioDiaSeguinte);
-          fimTurno.setHours(7, 0, 0, 0);
-          if (registro >= inicioDiaSeguinte && registro <= fimTurno && horaRegistro <= limFim) {
-            okDataHora = true;
-          }
-        }
-      } else {
-        okDataHora = registro >= inicio && registro <= fim;
-      }
-
-      return okEsp && okMed && okCrm && okDataHora;
-    });
-
-
-    if (filtrados.length === 0) {
-      let mensagem = "⚠️ Nenhum dado encontrado com os filtros selecionados.";
-      if (nomeBusca && espBusca) {
-        mensagem = "⚠️ Especialidade sem registro para esse médico.";
-      } else if (nomeBusca && !espBusca) {
-        mensagem = "⚠️ Médico sem registros.";
-      } else if (!nomeBusca && espBusca) {
-        mensagem = "⚠️ Especialidade sem registros.";
-      }
-      setMensagemGlobal(mensagem);
-      setTipoMensagem("erro");
-      setLinhas([]);
-      setGerado(false);
-      return;
-    } else {
-      setMensagemGlobal("");
-    }
-
-
-    if (ordem === "alfabetica") {
-      filtrados.sort((a, b) => a.medico.localeCompare(b.medico));
-    } else if (ordem === "ultimo") {
-      filtrados.sort((a, b) => parsePlantaoDate(b.data, b.hora) - parsePlantaoDate(a.data, a.hora));
-    }
-
-
-    const agrupados = {};
-    filtrados.forEach((p) => {
-      const chavePrincipal = visao === "profissional" ? p.medico : p.especialidade;
-      if (!agrupados[chavePrincipal]) agrupados[chavePrincipal] = {};
-      const dia = dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY");
-      if (!agrupados[chavePrincipal][dia]) agrupados[chavePrincipal][dia] = [];
-      agrupados[chavePrincipal][dia].push(p);
-    });
-
-
-    const linhasAgrupadas = Object.keys(agrupados).map((chave) => {
-      const dias = Object.keys(agrupados[chave]).map((dia) => {
-        const totalDia = agrupados[chave][dia].reduce((acc, p) => acc + Number(p.quantidade), 0);
-        return { dia, totalDia, items: agrupados[chave][dia] };
-      });
-      return { chave, dias };
-    });
-
-
-    setLinhas(linhasAgrupadas);
-    setGerado(true);
-    setTipoMensagem("sucesso");
-
-
-    setTimeout(() => {
-      linhasAgrupadas.forEach((grupo) => gerarGrafico(grupo));
-    }, 100);
-  };
-
-
   const gerarChartData = (grupo) => {
     const labels = grupo.dias.flatMap((dia) =>
       dia.items.map((i) => `${dayjs(i.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY")} ${i.hora}`)
@@ -298,11 +372,9 @@ export default function Relatorios() {
     return { labels, datasets: [{ label: "Quantidade de Atendimentos", data, backgroundColor }] };
   };
 
-
   const gerarGrafico = (grupo) => {
     const ctx = graficoRefs.current[grupo.chave];
     if (!ctx) return;
-
 
     new Chart(ctx, {
       type: tipoGrafico === "pizza" ? "pie" : tipoGrafico,
@@ -343,7 +415,19 @@ export default function Relatorios() {
       ],
     });
   };
-
+  
+const gerarResumoPorEspecialidade = (linhas) => {
+  const totais = {};
+  linhas.forEach((grupo) => {
+    grupo.dias.forEach((dia) => {
+      dia.items.forEach((item) => {
+        if (!totais[item.especialidade]) totais[item.especialidade] = 0;
+        totais[item.especialidade] += item.quantidade;
+      });
+    });
+  });
+  return Object.keys(totais).map((esp) => `${esp}: ${totais[esp]} atendimentos`);
+};
 
   const gerarChartDataConsolidadoPorMedico = (linhas) => {
     const totais = {};
@@ -359,7 +443,6 @@ export default function Relatorios() {
     const backgroundColor = labels.map((label) => CORES_ESPECIALIDADE[medicosData.find((m) => m.nome === label)?.especialidade] || "#36A2EB");
     return { labels, datasets: [{ label: "Quantidade", data, backgroundColor }] };
   };
-
 
   const gerarChartDataConsolidadoPorEspecialidade = (linhas) => {
     const totais = {};
@@ -377,7 +460,6 @@ export default function Relatorios() {
     return { labels, datasets: [{ label: "Quantidade", data, backgroundColor }] };
   };
 
-
   const renderGraficoDinamico = (data) => {
     switch (tipoGrafico) {
       case "barra":
@@ -392,40 +474,41 @@ export default function Relatorios() {
     }
   };
 
-
   const gerarPDF = () => {
-    if (!linhas.length) return alert("Não há dados para gerar o PDF.");
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("DASHBOARD DE GESTÃO DE PRODUTIVIDADE MÉDICA", 14, 22);
+  if (!linhas.length) return alert("Não há dados para gerar o PDF.");
+  const doc = new jsPDF();
+  doc.setFontSize(18);
+  doc.text("DASHBOARD DE PRODUTIVIDADE MÉDICA", 14, 20);
 
+  linhas.forEach((grupo, indexGrupo) => {
+    grupo.dias.forEach((dia, indexDia) => {
+      const dadosTabela = dia.items.map((item) => [
+        item.medico,
+        item.crm,
+        item.especialidade,
+        dayjs(item.data).format("DD/MM/YYYY"),
+        item.hora,
+        item.quantidade,
+      ]);
 
-    let yPos = 35;
-    linhas.forEach((grupo) => {
-      grupo.dias.forEach((dia) => {
-        doc.setFontSize(14);
-        doc.text(`${visao === "profissional" ? "Médico" : "Especialidade"}: ${grupo.chave} - ${dia.dia} (Total: ${dia.totalDia})`, 14, yPos);
-        const tableData = dia.items.map((p) => [
-          p.medico,
-          p.crm,
-          p.especialidade,
-          dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY"),
-          dayjs(p.hora, "HH:mm").format("HH:mm"),
-          p.quantidade,
-        ]);
-        doc.autoTable({
-          head: [["Médico", "CRM", "Especialidade", "Data", "Hora", "Quantidade"]],
-          body: tableData,
-          startY: yPos + 10,
-        });
-        yPos += 10 + 10 * (dia.items.length + 2);
+      doc.autoTable({
+        startY: doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 30,
+        head: [["Médico", "CRM", "Especialidade", "Data", "Hora", "Quantidade"]],
+        body: dadosTabela,
+        theme: "grid",
+        headStyles: { fillColor: [31, 78, 120], textColor: 255 },
+        bodyStyles: { textColor: 0 },
+        styles: { fontSize: 10 },
       });
+
+      if (indexDia < grupo.dias.length - 1) doc.addPage();
     });
 
+    if (indexGrupo < linhas.length - 1) doc.addPage();
+  });
 
-    doc.save(`relatorio_${dayjs().format("DDMMYYYY_HHmm")}.pdf`);
-  };
-
+  doc.save(`relatorio_${dayjs().format("DDMMYYYY_HHmm")}.pdf`);
+};
 
   const exportExcel = () => {
     if (!linhas.length) {
@@ -453,20 +536,17 @@ export default function Relatorios() {
     XLSX.writeFile(wb, `relatorio_${dayjs().format("YYYYMMDD_HHmm")}.xlsx`);
   };
 
-
   return (
     <div className="relatorios-wrap">
       <div className="relatorios-header">
         <h1>DASHBOARD DE GESTÃO DE PRODUTIVIDADE MÉDICA</h1>
       </div>
 
-
       {mensagemGlobal && (
         <div className={`mensagem-global ${tipoMensagem}`}>
           <p>{mensagemGlobal}</p>
         </div>
       )}
-
 
       <div className="relatorios-controles card">
         {/* CONTROLES */}
@@ -606,10 +686,7 @@ export default function Relatorios() {
         <div className="botoes-relatorio" style={{ marginTop: "15px", display: "flex", gap: "20px" }}>
           <button
             style={{ fontSize: "16px", padding: "10px 60px" }}
-            onClick={() => {
-              limparResultados();
-              filtrarRelatorio();
-            }}
+            onClick={filtrarRelatorio} // Gera novo relatório sem limpar
           >
             Gerar Relatórios
           </button>
@@ -625,9 +702,8 @@ export default function Relatorios() {
         </div>
       </div>
 
-
       {gerado && visao === "profissional" && (
-        <section className="relatorios-tabela" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center" }}>
+        <section ref={tabelaRef} className="relatorios-tabela" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center" }}>
           {linhas.map((grupo) => (
             <CardMedico
               key={grupo.chave}
@@ -639,21 +715,24 @@ export default function Relatorios() {
         </section>
       )}
 
-      {gerado && linhas.length > 0 && (
-        <div
-          className="grafico-container"
-          style={{ maxWidth: 1200, margin: "40px auto 20px", padding: "0 15px" }}
-        >
-          <h3 style={{ textAlign: "center", marginBottom: 20 }}>
-            Gráfico Consolidado {visao === "profissional" ? "por Médico" : "por Especialidade"}
-          </h3>
-          {renderGraficoDinamico(
-            visao === "profissional"
-              ? gerarChartDataConsolidadoPorMedico(linhas)
-              : gerarChartDataConsolidadoPorEspecialidade(linhas)
-          )}
-        </div>
-      )}
+     {gerado && linhas.length > 0 && (
+  <div className="grafico-container">
+    <h3 style={{ textAlign: "center", marginBottom: 20 }}>
+      Gráfico Consolidado {visao === "profissional" ? "por Médico" : "por Especialidade"}
+    </h3>
+    {renderGraficoDinamico(
+      visao === "profissional"
+        ? gerarChartDataConsolidadoPorMedico(linhas)
+        : gerarChartDataConsolidadoPorEspecialidade(linhas)
+    )}
+    {visao === "especialidade" && (
+      <div style={{ marginTop: 15, textAlign: "center", fontWeight: "600", color: "#003366" }}>
+        {gerarResumoPorEspecialidade(linhas).join(" | ")}
+      </div>
+    )}
+  </div>
+)}
+
     </div>
   );
 }
