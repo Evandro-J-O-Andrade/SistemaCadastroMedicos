@@ -24,8 +24,19 @@ function App() {
 
   // checa login ao iniciar
   useEffect(() => {
-    const logado = localStorage.getItem("usuarioLogado") === "true";
-    const atual = JSON.parse(localStorage.getItem("usuarioAtual"));
+    const logado = sessionStorage.getItem("usuarioLogado") === "true";
+    const atual = JSON.parse(sessionStorage.getItem("usuarioAtual"));
+    const expiracao = Number(sessionStorage.getItem("expiracao"));
+
+    // verifica expiração
+    if (expiracao && Date.now() > expiracao) {
+      sessionStorage.clear();
+      setUsuarioLogado(false);
+      setUsuarioAtual(null);
+      navigate("/login");
+      return;
+    }
+
     setUsuarioLogado(logado);
     setUsuarioAtual(atual);
 
@@ -36,8 +47,7 @@ function App() {
 
   // função de logoff
   const handleLogoff = () => {
-    localStorage.removeItem("usuarioLogado");
-    localStorage.removeItem("usuarioAtual");
+    sessionStorage.clear();
     setUsuarioLogado(false);
     setUsuarioAtual(null);
     navigate("/login");
@@ -45,23 +55,58 @@ function App() {
 
   return (
     <div className="app">
-      {/* Header com logoff */}
       <Header usuarioAtual={usuarioAtual} handleLogoff={handleLogoff} />
 
       <div className="main-layout">
-        {/* Sidebar com roles */}
         <Sidebar usuarioAtual={usuarioAtual} />
 
         <main>
           <Routes>
-            <Route path="/login" element={<Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />} />
-            <Route path="/" element={usuarioLogado ? <Home /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />} />
-            <Route path="/medicos" element={usuarioAtual && (usuarioAtual.role === "admin" || usuarioAtual.role === "suporte") ? <Medicos /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />} />
-            <Route path="/plantao" element={usuarioAtual && (usuarioAtual.role === "admin" || usuarioAtual.role === "suporte") ? <Plantao /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />} />
-            <Route path="/relatorios" element={usuarioLogado ? <Relatorios /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />} />
-            <Route path="/filtros" element={usuarioLogado ? <Filtros /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />} />
-            <Route path="/cadastro-lote" element={usuarioAtual && (usuarioAtual.role === "admin" || usuarioAtual.role === "suporte") ? <CadastroEmLote /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />} />
-            <Route path="/cadastro-usuarios" element={usuarioAtual && usuarioAtual.role === "admin" ? <CadastroUsuarios /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />} />
+            <Route
+              path="/login"
+              element={
+                <Login
+                  setUsuarioLogado={setUsuarioLogado}
+                  setUsuarioAtual={setUsuarioAtual}
+                />
+              }
+            />
+            <Route
+              path="/"
+              element={usuarioLogado ? <Home /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />}
+            />
+            <Route
+              path="/medicos"
+              element={
+                usuarioAtual && (usuarioAtual.role === "admin" || usuarioAtual.role === "suporte") ? <Medicos /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />
+              }
+            />
+            <Route
+              path="/plantao"
+              element={
+                usuarioAtual && (usuarioAtual.role === "admin" || usuarioAtual.role === "suporte") ? <Plantao /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />
+              }
+            />
+            <Route
+              path="/relatorios"
+              element={usuarioLogado ? <Relatorios /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />}
+            />
+            <Route
+              path="/filtros"
+              element={usuarioLogado ? <Filtros /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />}
+            />
+            <Route
+              path="/cadastro-lote"
+              element={
+                usuarioAtual && (usuarioAtual.role === "admin" || usuarioAtual.role === "suporte") ? <CadastroEmLote /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />
+              }
+            />
+            <Route
+              path="/cadastro-usuarios"
+              element={
+                usuarioAtual && usuarioAtual.role === "admin" ? <CadastroUsuarios /> : <Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />
+              }
+            />
           </Routes>
         </main>
       </div>

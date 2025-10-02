@@ -15,7 +15,6 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
 
   const isLocal = window.location.hostname === "localhost";
   const isNetlify = window.location.hostname === "gestaomedicaalpha.netlify.app";
-
   const phpUrl = "http://localhost/sistemaCadastroMedicos/backend/enviar_email.php";
 
   // LOGIN
@@ -30,8 +29,12 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }) {
     );
 
     if (usuario) {
-      localStorage.setItem("usuarioLogado", "true");
-      localStorage.setItem("usuarioAtual", JSON.stringify(usuario));
+      // sessionStorage com expiração de 1 hora
+      const expiracao = Date.now() + 60 * 60 * 1000; // 1 hora em ms
+      sessionStorage.setItem("usuarioLogado", "true");
+      sessionStorage.setItem("usuarioAtual", JSON.stringify(usuario));
+      sessionStorage.setItem("expiracao", expiracao);
+
       setUsuarioLogado(true);
       setUsuarioAtual(usuario);
       setErro(false);
