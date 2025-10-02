@@ -280,3 +280,24 @@
   color: #999;
   font-style: italic;
 }
+.mensagem-container {
+  display: flex;
+  flex-direction: column; /* botão fica embaixo do texto */
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.btn-voz {
+  padding: 6px 12px;
+  font-size: 14px;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-voz:hover {
+  background: #ddd;
+}

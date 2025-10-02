@@ -141,6 +141,33 @@ export default function Relatorios() {
 
   const [mensagemGlobal, setMensagemGlobal] = useState("");
   const [tipoMensagem, setTipoMensagem] = useState("");
+// <<< ADICIONAR AQUI >>>
+useEffect(() => {
+  const falar = () => {
+    if (!mensagemGlobal) return;
+
+    const synth = window.speechSynthesis;
+    const utterance = new SpeechSynthesisUtterance(mensagemGlobal);
+    utterance.lang = "pt-BR";
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    const voices = synth.getVoices();
+    const vozGoogleBR = voices.find(
+      (v) => v.lang === "pt-BR" && v.name.toLowerCase().includes("google")
+    );
+    if (vozGoogleBR) utterance.voice = vozGoogleBR;
+
+    synth.speak(utterance);
+  };
+
+  window.speechSynthesis.addEventListener("voiceschanged", falar);
+  falar(); // Tenta falar imediatamente
+
+  return () => {
+    window.speechSynthesis.removeEventListener("voiceschanged", falar);
+  };
+}, [mensagemGlobal]);
 
   const graficoRefs = useRef({});
   const inputRef = useRef();
@@ -305,10 +332,10 @@ export default function Relatorios() {
     filtrados = filtrarPorDataHora(filtrados, inicio, fim, horaDe, horaAte);
 
     if (filtrados.length === 0) {
-      let mensagem = "⚠️ Nenhum dado encontrado com os filtros selecionados.";
-      if (nomeBusca && espBusca) mensagem = "⚠️ Especialidade sem registro para esse médico.";
-      else if (nomeBusca && !espBusca) mensagem = "⚠️ Médico sem registros.";
-      else if (!nomeBusca && espBusca) mensagem = "⚠️ Especialidade sem registros.";
+      let mensagem = "⚠️... Nenhum dado encontrado com os filtros selecionados!. Preencha-os Corretamente!";
+      if (nomeBusca && espBusca) mensagem = "⚠️...Especialidade sem registro para esse médico.";
+      else if (nomeBusca && !espBusca) mensagem = "⚠️...Médico sem registros.";
+      else if (!nomeBusca && espBusca) mensagem = "⚠️...Especialidade sem registros.";
       setMensagemGlobal(mensagem);
       setTipoMensagem("erro");
       setLinhas([]);
@@ -794,7 +821,10 @@ export default function Relatorios() {
             </div>
           )}
         </div>
+        
       )}
+      
     </div>
+    
   );
 }

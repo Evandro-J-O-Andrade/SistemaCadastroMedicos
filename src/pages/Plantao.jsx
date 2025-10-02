@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import "./Plantao.css";
-
+import { falarMensagem, toggleVoz, getVozStatus } from "../utils/tts.js";
 function formatarDataHora(data, hora) {
   if (!data || !hora) return { dataFormatada: "", horaFormatada: "" };
   return {
@@ -42,6 +42,11 @@ export default function Plantao() {
   const [lupaInput, setLupaInput] = useState("");
   const [mostrarListaLupa, setMostrarListaLupa] = useState(false);
   const [listaFiltradaLupa, setListaFiltradaLupa] = useState([]);
+const handleToggleVoz = () => {
+    const status = toggleVoz();
+    setVozLigada(status);
+    setMensagem(status ? "🔊 Leitor de voz ativado." : "🔈 Leitor de voz desativado.");
+  };
 
   useEffect(() => {
     const dados = JSON.parse(localStorage.getItem("medicos") || "[]");
@@ -89,6 +94,32 @@ export default function Plantao() {
     document.addEventListener("click", handleClickFora);
     return () => document.removeEventListener("click", handleClickFora);
   }, []);
+useEffect(() => {
+  const falar = () => {
+    if (!mensagemGlobal) return;
+
+    const synth = window.speechSynthesis;
+    const utterance = new SpeechSynthesisUtterance(mensagemGlobal);
+    utterance.lang = "pt-BR";
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    const voices = synth.getVoices();
+    const vozGoogleBR = voices.find(
+      (v) => v.lang === "pt-BR" && v.name.toLowerCase().includes("google")
+    );
+    if (vozGoogleBR) utterance.voice = vozGoogleBR;
+
+    synth.speak(utterance);
+  };
+
+  window.speechSynthesis.addEventListener("voiceschanged", falar);
+  falar(); // Tenta falar imediatamente
+
+  return () => {
+    window.speechSynthesis.removeEventListener("voiceschanged", falar);
+  };
+}, [mensagemGlobal]);
 
   const uniqueSpecialties = (() => {
     const map = {};
@@ -175,14 +206,14 @@ export default function Plantao() {
       !dataAtendimento ||
       !horaAtendimento
     ) {
-      setMensagemGlobal("⚠️ Preencha todos os campos! O CRM é obrigatório.");
+      setMensagemGlobal("⚠️... Preencha todos os campos obrigatorios.");
       setTipoMensagem("erro");
       return;
     }
 
     const medicoExiste = medicosData.some((m) => m.id === medicoId);
     if (!medicoExiste) {
-      setMensagemGlobal("⚠️ Médico não encontrado ou não está cadastrado!");
+      setMensagemGlobal("⚠️...Médico não encontrado ou não está cadastrado!");
       setTipoMensagem("erro");
       return;
     }
@@ -205,7 +236,7 @@ export default function Plantao() {
 
     if (validarConflito(novoPlantao)) {
       setMensagemGlobal(
-        "⚠️ Este médico já possui um plantão nesta especialidade nas últimas 12h!"
+        "⚠️...Este médico já possui um plantão nesta especialidade nas últimas 12h!"
       );
       setTipoMensagem("erro");
       return;
@@ -216,10 +247,10 @@ export default function Plantao() {
         p.id === editandoId ? novoPlantao : p
       );
       setPlantaoList(atualizado);
-      setMensagemGlobal("✅ Plantão atualizado com sucesso!");
+      setMensagemGlobal("✅...Plantão atualizado com sucesso!");
     } else {
       setPlantaoList([...plantaoList, novoPlantao]);
-      setMensagemGlobal("✅ Plantão salvo com sucesso!");
+      setMensagemGlobal("✅...Plantão salvo com sucesso!");
     }
 
     setTipoMensagem("sucesso");
@@ -235,7 +266,7 @@ export default function Plantao() {
 
   const handleConfirmarExclusao = (id) => {
     setPlantaoParaExcluir(id);
-    setMensagemGlobal("⚠️ Deseja realmente excluir este plantão?");
+    setMensagemGlobal("⚠️...Deseja realmente excluir este plantão?");
     setTipoMensagem("erro");
 
     setTimeout(() => {
@@ -251,7 +282,7 @@ export default function Plantao() {
     const atualizado = plantaoList.filter((p) => p.id !== plantaoParaExcluir);
     setPlantaoList(atualizado);
     setPlantaoParaExcluir(null);
-    setMensagemGlobal("🗑️ Plantão excluído com sucesso!");
+    setMensagemGlobal("🗑️...Plantão excluído com sucesso!");
     setTipoMensagem("sucesso");
   };
 
