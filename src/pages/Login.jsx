@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import emailjs from "emailjs-com";
 import LogoAlpha from "../img/Logo_Alpha.png"; // imagem estática na pasta src/img
+import "./mobile.css"
 import "./Login.css";
 
 export default function Login({ setUsuarioLogado, setUsuarioAtual }) {

@@ -1,0 +1,658 @@
+/* ===== Media Query: Cadastro de Médicos em Lote ===== */
+@media screen and (max-width: 768px) {
+  /* Container principal */
+  .cadastro-lote-container {
+    padding: 15px;
+    margin: 10px auto;
+  }
+
+  .cadastro-lote-container h2 {
+    font-size: 1.5rem;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  /* Mensagem de sucesso */
+  .cadastro-lote-mensagem-sucesso {
+    font-size: 0.9rem;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  /* Texto explicativo */
+  .cadastro-lote-container p {
+    font-size: 0.9rem;
+  }
+
+  /* Textarea */
+  .cadastro-lote-textarea {
+    width: 100%;
+    font-size: 14px;
+    padding: 8px;
+    min-height: 200px;
+    resize: vertical;
+    margin-bottom: 12px;
+  }
+
+  /* Botões */
+  .cadastro-lote-botoes-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cadastro-lote-botoes-container button {
+    font-size: 14px;
+    padding: 10px;
+  }
+}
+
+/* Telas pequenas - smartphones até 500px */
+@media screen and (max-width: 500px) {
+  .cadastro-lote-container h2 {
+    font-size: 1.2rem;
+  }
+
+  .cadastro-lote-textarea {
+    min-height: 150px;
+    font-size: 13px;
+  }
+
+  .cadastro-lote-botoes-container button {
+    font-size: 13px;
+    padding: 8px;
+  }
+}
+/* ===== Media Query: Cadastro de Usuários ===== */
+@media screen and (max-width: 768px) {
+  /* Container principal */
+  .cadastro-usuarios-container {
+    padding: 15px;
+    margin: 10px auto;
+  }
+
+  .cadastro-usuarios-container h2 {
+    font-size: 1.5rem;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  /* Formulário de usuário */
+  .form-usuario {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .form-usuario input,
+  .form-usuario select {
+    width: 100%;
+    font-size: 14px;
+    padding: 8px;
+  }
+
+  .form-usuario button {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  .form-usuario > div {
+    flex-direction: column;
+  }
+
+  /* Busca de usuários */
+  .busca-usuario {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .busca-usuario input,
+  .busca-usuario select,
+  .busca-usuario button {
+    width: 100%;
+    font-size: 14px;
+    padding: 8px;
+  }
+
+  /* Tabela */
+  table {
+    width: 100%;
+    font-size: 12px;
+    overflow-x: auto;
+    display: block;
+  }
+
+  table th, table td {
+    padding: 6px;
+    text-align: left;
+  }
+
+  table td button {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  /* Mensagem caso não haja usuários */
+  .cadastro-usuarios-container p {
+    font-size: 13px;
+  }
+}
+
+/* Telas pequenas - smartphones até 500px */
+@media screen and (max-width: 500px) {
+  .cadastro-usuarios-container h2 {
+    font-size: 1.2rem;
+  }
+
+  .form-usuario input,
+  .form-usuario select,
+  .form-usuario button,
+  .busca-usuario input,
+  .busca-usuario select,
+  .busca-usuario button {
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+
+  table {
+    font-size: 11px;
+  }
+
+  table th, table td {
+    padding: 4px;
+  }
+}
+/* ===== Media Query: Filtros & Consolidados ===== */
+@media screen and (max-width: 1024px) {
+  .card {
+    padding: 10px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .card h2, .card h3, .card h4 {
+    font-size: 1.4rem;
+  }
+
+  .card div > div {
+    flex-wrap: wrap;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  /* Container principal */
+  .card {
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* Filtros */
+  .card > div > div {
+    flex-direction: column !important;
+    gap: 10px;
+  }
+
+  .card label {
+    font-size: 13px;
+  }
+
+  .card select,
+  .card input,
+  .card button {
+    width: 100% !important;
+    font-size: 13px !important;
+    padding: 8px !important;
+  }
+
+  /* Totais */
+  .card ul {
+    padding-left: 18px;
+    font-size: 13px;
+  }
+
+  /* Tabela */
+  table {
+    font-size: 12px !important;
+  }
+
+  table th, table td {
+    padding: 6px !important;
+  }
+
+  /* Gráficos */
+  .card div[style*="width: 100%"][style*="height: 260px"] {
+    height: 200px !important;
+  }
+
+  .card h3 {
+    font-size: 1.1rem;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .card select,
+  .card input,
+  .card button {
+    font-size: 12px !important;
+    padding: 6px 8px !important;
+  }
+
+  table {
+    font-size: 11px !important;
+  }
+
+  table th, table td {
+    padding: 4px !important;
+  }
+
+  .card h2, .card h3, .card h4 {
+    font-size: 1rem !important;
+  }
+
+  .card div[style*="width: 100%"][style*="height: 260px"] {
+    height: 160px !important;
+  }
+
+  .card ul {
+    font-size: 12px;
+  }
+}
+/* ===== Media Query: GraficoArea ===== */
+@media screen and (max-width: 1024px) {
+  .grafico-area-container {
+    width: 100% !important;
+    height: 300px !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .grafico-area-container {
+    width: 100% !important;
+    height: 250px !important;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .grafico-area-container {
+    width: 100% !important;
+    height: 180px !important;
+  }
+}
+/* ===== Media Query: GraficoBarra ===== */
+.grafico-barra-container {
+  width: 100%;
+  height: 350px; /* padrão desktop */
+}
+
+@media screen and (max-width: 1024px) {
+  .grafico-barra-container {
+    height: 300px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .grafico-barra-container {
+    height: 250px;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .grafico-barra-container {
+    height: 180px;
+  }
+}
+/* ===== Media Query: GraficoLinha ===== */
+.grafico-linha-container {
+  width: 100%;
+  height: 350px; /* padrão desktop */
+}
+
+@media screen and (max-width: 1024px) {
+  .grafico-linha-container {
+    height: 300px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .grafico-linha-container {
+    height: 250px;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .grafico-linha-container {
+    height: 180px;
+  }
+}
+/* ===== Media Query: GraficoPizza ===== */
+.grafico-pizza-container {
+  width: 100%;
+  height: 350px; /* padrão desktop */
+}
+
+@media screen and (max-width: 1024px) {
+  .grafico-pizza-container {
+    height: 300px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .grafico-pizza-container {
+    height: 250px;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .grafico-pizza-container {
+    height: 180px;
+  }
+}
+/* ===== Media Queries para Home.jsx ===== */
+@media screen and (max-width: 1200px) {
+  .resumo-sistema {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .novidades-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .resumo-sistema {
+    grid-template-columns: 1fr 1fr;
+  }
+  .novidades-list {
+    grid-template-columns: 1fr 1fr;
+  }
+  .banner {
+    text-align: center;
+  }
+  .banner h1 {
+    font-size: 24px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .resumo-sistema {
+    grid-template-columns: 1fr;
+  }
+  .novidades-list {
+    grid-template-columns: 1fr;
+  }
+  .banner .logo-home {
+    width: 140px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .card-resumo p {
+    font-size: 20px;
+  }
+  .btn-login {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px;
+  }
+  .banner h1 {
+    font-size: 20px;
+  }
+  .banner p {
+    font-size: 14px;
+  }
+}
+/* ===== Media Queries para Login.jsx ===== */
+@media screen and (max-width: 1024px) {
+  .login-page {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .login-left, .login-right {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .login-left {
+    margin-bottom: 20px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .login-logo {
+    width: 150px;
+    height: auto;
+  }
+
+  .login-form {
+    padding: 20px;
+  }
+
+  .login-input {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  .login-btn {
+    font-size: 14px;
+    padding: 10px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .login-logo {
+    width: 120px;
+  }
+
+  .login-title {
+    font-size: 18px;
+  }
+
+  .login-input {
+    font-size: 12px;
+    padding: 8px;
+  }
+
+  .login-btn {
+    font-size: 12px;
+    padding: 8px;
+  }
+
+  .recuperar-senha {
+    font-size: 12px;
+  }
+}
+/* ===== Media Queries ===== */
+@media screen and (max-width: 768px) {
+  .linha-especialidade-crm {
+    flex-wrap: wrap; /* quebra linha se necessário */
+  }
+
+  .linha-especialidade-crm input[name="crm"] {
+    flex: 1 1 80px;  /* CRM encolhe */
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .linha-especialidade-crm input[name="crm"] {
+    flex: 1 1 60px;  /* CRM encolhe ainda mais */
+    font-size: 13px;
+    padding: 6px;
+  }
+
+  #buscar-container input,
+  #buscar-container button {
+    font-size: 13px;
+    padding: 6px;
+  }
+}
+/* ===== Media Queries Plantão ===== */
+@media screen and (max-width: 768px) {
+  .form-plantao {
+    flex-direction: column;
+  }
+
+  .data-hora-wrapper {
+    flex-direction: column;
+  }
+
+  .medico-wrapper,
+  .lupa-wrapper {
+    width: 100%;
+  }
+
+  .medico-wrapper input,
+  .lupa-wrapper input,
+  .form-plantao input,
+  .form-plantao select {
+    font-size: 14px;
+    padding: 6px;
+  }
+
+  .btn-salvar-plantao,
+  .btn-cadastrar-medico,
+  .acoes-plantao button {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .form-plantao input,
+  .form-plantao select {
+    font-size: 13px;
+    padding: 5px;
+  }
+
+  .btn-salvar-plantao,
+  .btn-cadastrar-medico,
+  .acoes-plantao button {
+    font-size: 13px;
+    padding: 6px 10px;
+  }
+
+  .lista-medicos {
+    max-height: 150px; /* limita altura da lista para caber na tela */
+    overflow-y: auto;
+  }
+
+  .data-hora-wrapper label {
+    width: 100%;
+  }
+}
+/* ===== Tablet (até 768px) ===== */
+@media (max-width: 768px) {
+  .relatorios-wrap {
+    padding: 15px 20px;
+  }
+
+  .relatorios-header h1 {
+    font-size: 22px;
+    text-align: center;
+  }
+
+  .relatorios-controles .grid-3 {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .botoes-relatorio {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .botoes-relatorio button {
+    font-size: 14px;
+    padding: 8px 0;
+    width: 100%;
+  }
+
+  canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .relatorios-tabela {
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .card-medico {
+    max-width: 100%;
+    padding: 12px;
+  }
+
+  .grafico-container {
+    width: 100%;
+    padding: 0 10px;
+  }
+}
+
+/* ===== Mobile (até 480px) ===== */
+@media (max-width: 480px) {
+  .relatorios-wrap {
+    padding: 10px;
+  }
+
+  .relatorios-header h1 {
+    font-size: 18px;
+  }
+
+  .relatorios-controles .field label {
+    font-size: 12px;
+  }
+
+  .relatorios-controles input,
+  .relatorios-controles select {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .botoes-relatorio button {
+    font-size: 13px;
+    padding: 6px 0;
+    width: 100%;
+  }
+
+  .relatorios-tabela {
+    gap: 8px;
+  }
+
+  .card-medico {
+    font-size: 12px;
+    padding: 10px;
+  }
+
+  .grafico-container h3 {
+    font-size: 16px;
+  }
+}
+/* Media Queries para TrocaSenha */
+@media (max-width: 768px) {
+  .troca-senha-container {
+    max-width: 90%;
+    margin: 20px auto;
+    padding: 20px;
+  }
+
+  .troca-senha-container input,
+  .troca-senha-container button {
+    font-size: 14px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .troca-senha-container {
+    margin: 15px auto;
+    padding: 15px;
+  }
+
+  .troca-senha-container input,
+  .troca-senha-container button {
+    font-size: 13px;
+    padding: 6px;
+  }
+}

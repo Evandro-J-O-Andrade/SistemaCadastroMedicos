@@ -26,7 +26,7 @@ main { flex: 1; padding: 20px; overflow: auto; }
 
 .sidebar.collapsed {
   width: 60px;
-  background-color: #0f172a; /* fundo escuro no colapsado */
+  background-color: #0f172a;
 }
 
 /* Título da sidebar */
@@ -66,21 +66,16 @@ main { flex: 1; padding: 20px; overflow: auto; }
 }
 
 .menu-nav a:hover { background-color: #d0d7de; }
-
 .menu-nav a.active { background-color: #2563eb; color: #fff; }
 
 /* Ícones */
-.menu-icon {
-  font-size: 18px;
-  transition: color 0.3s;
-}
+.menu-icon { font-size: 18px; transition: color 0.3s; }
 
 /* Texto do menu */
 .menu-text { display: inline; }
-
 .sidebar.collapsed .menu-text { display: none; }
 .sidebar.collapsed .menu-nav a { justify-content: center; padding: 10px 0; }
-.sidebar.collapsed .menu-nav a .menu-icon { color: #fff; } /* ícone branco no colapsado */
+.sidebar.collapsed .menu-nav a .menu-icon { color: #fff; }
 
 /* Perfil do usuário */
 .user-profile {
@@ -89,8 +84,7 @@ main { flex: 1; padding: 20px; overflow: auto; }
   padding: 15px 20px;
   border-top: 1px solid #374151;
   gap: 12px;
-  margin-top: auto; /* sempre no fim */
-  
+  margin-top: auto;
 }
 
 .user-photo {
@@ -109,12 +103,12 @@ main { flex: 1; padding: 20px; overflow: auto; }
 .user-name { font-size: 14px; font-weight: bold; color: #111; }
 .user-role { font-size: 12px; color: #9ca3af; }
 
-.sidebar.collapsed .user-info { display: none; } /* esconde info no colapsado */
+.sidebar.collapsed .user-info { display: none; }
 
 /* Botão toggle */
 .toggle-btn {
   position: absolute;
-  bottom: 100px; /* acima do perfil */
+  bottom: 100px;
   right: -10px;
   width: 30px;
   height: 30px;
@@ -132,29 +126,72 @@ main { flex: 1; padding: 20px; overflow: auto; }
   background: #f1f1f3;
   color: #141414;
 }
-
-/* Responsivo */
 @media screen and (max-width: 768px) {
+  /* Sidebar vertical corrigida */
   .sidebar {
-    width: 100%;
-    flex-direction: row;
-    padding: 10px;
-    min-height: auto;
+    width: 60px;
+    flex-direction: column;
+    padding: 10px 0;
+    min-height: 100vh;
+    background-color: #0f172a;
+    align-items: flex-start; /* garante topo */
   }
 
   .sidebar nav ul {
-    flex-direction: row;
+    flex-direction: column;
+    display: flex;
+    flex: unset; /* remove crescimento automático */
+  }
+
+  .menu-nav li {
+    margin: 5px 0;
+  }
+
+  /* Esconde textos e info do usuário */
+  .menu-text { display: none; }
+  .user-profile { display: none; }
+
+  /* Toggle no fim */
+  .toggle-btn {
+    bottom: 10px;
+    right: 10px;
+  }
+
+  /* Ajuste do padding do menu */
+  .menu-nav a {
+    justify-content: center;
+    padding: 10px 0;
+  }
+
+  /* Ícones em branco */
+  .menu-nav a .menu-icon { color: #fff; }
+}
+@media screen and (max-width: 768px) {
+  .sidebar {
+    width: 60px;
+    flex-direction: column;
+    padding: 10px 0;
+    min-height: 100vh;
+    background-color: #0f172a;
+    justify-content: flex-start; /* <- adiciona isso */
+    align-items: center;         /* centraliza ícones horizontalmente */
+  }
+
+  .sidebar nav ul {
+    flex-direction: column;
     display: flex;
   }
 
-  .sidebar nav li { margin: 0 15px; }
+  .menu-nav li {
+    margin: 5px 0;
+  }
+
+  .menu-text {
+    display: none;
+  }
 
   .user-profile {
-    flex-direction: row;
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
-    
+    display: none;
   }
 
   .toggle-btn {

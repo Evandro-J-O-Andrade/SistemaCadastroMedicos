@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate } from "react-router-dom";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import Footer from "./components/Footer";
-
+import "./pages/mobile.css"
 import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Medicos from "./pages/Medicos";
