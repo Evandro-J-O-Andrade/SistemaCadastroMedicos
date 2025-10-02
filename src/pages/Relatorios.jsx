@@ -9,6 +9,8 @@ import GraficoBarra from "./GraficoBarra.jsx";
 import GraficoPizza from "./GraficoPizza.jsx";
 import GraficoLinha from "./GraficoLinha.jsx";
 import GraficoArea from "./GraficoArea.jsx";
+import { falarMensagem, toggleVoz, getVozStatus } from "../utils/tts.js";
+
 import "./Relatorios.css";
 
 dayjs.locale("pt-br");
@@ -109,7 +111,11 @@ function CardMedico({ medico, especialidade, dia, dias, totalOverall }) {
           <div>{especialidadeDisplay}</div>
         </div>
       </div>
-      <canvas ref={chartRef} style={{ height: 200, width: "100%" }} />
+      <div>
+        <strong>TOTAL ATENDIMENTOS</strong>
+        <div>{totalAtendimentos}</div>
+      </div>
+      <canvas ref={chartRef} style={{ height: 200, width: "200%" }} />
     </div>
   );
 }
@@ -481,7 +487,8 @@ export default function Relatorios() {
     linhasParam.forEach((grupo) => {
       const medico = grupo.medico;
       if (!totais[medico]) totais[medico] = 0;
-      totais[medico] += Number(grupo.totalDia || grupo.items?.reduce((s, i) => s + Number(i.quantidade), 0) || 0);
+      const reduceValue = grupo.items ? grupo.items.reduce((s, i) => s + Number(i.quantidade), 0) : 0;
+      totais[medico] += Number(grupo.totalDia || reduceValue || 0);
     });
     const labels = Object.keys(totais);
     const data = labels.map((label) => totais[label]);
@@ -500,9 +507,10 @@ export default function Relatorios() {
   const gerarChartDataConsolidadoPorEspecialidade = (linhasParam) => {
     const totais = {};
     linhasParam.forEach((grupo) => {
-      const esp = grupo.especialidade || (grupo.items && group.items[0]?.especialidade) || "—";
+      const esp = grupo.especialidade || (grupo.items && grupo.items[0]?.especialidade) || "—";
       if (!totais[esp]) totais[esp] = 0;
-      totais[esp] += Number(grupo.totalDia || grupo.items?.reduce((s, i) => s + Number(i.quantidade), 0) || 0);
+      const reduceValue = grupo.items ? grupo.items.reduce((s, i) => s + Number(i.quantidade), 0) : 0;
+      totais[esp] += Number(grupo.totalDia || reduceValue || 0);
     });
     const labels = Object.keys(totais);
     const data = labels.map((lab) => totais[lab]);
@@ -583,7 +591,10 @@ export default function Relatorios() {
   };
 
   // totalOverall: soma de todos os atendimentos no relatório (soma across linhas)
-  const totalOverall = linhas.reduce((acc, g) => acc + Number(g.totalDia || g.items?.reduce((s, i) => s + Number(i.quantidade), 0) || 0), 0);
+  const totalOverall = linhas.reduce((acc, g) => {
+    const reduceValue = g.items ? g.items.reduce((s, i) => s + Number(i.quantidade), 0) : 0;
+    return acc + Number(g.totalDia || reduceValue || 0);
+  }, 0);
 
   return (
     <div className="relatorios-wrap">
