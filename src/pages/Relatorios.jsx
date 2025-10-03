@@ -277,7 +277,7 @@ useEffect(() => {
     if (nomeBusca) {
       const encontrouMedico = medicosData.some((m) => normalizeString(m.nome) === nomeBusca);
       if (!encontrouMedico) {
-        setMensagemGlobal("⚠️ Médico não encontrado no sistema.");
+        setMensagemGlobal("Médico não encontrado no sistema.");
         setTipoMensagem("erro");
         setLinhas([]);
         setGerado(false);
@@ -332,10 +332,10 @@ useEffect(() => {
     filtrados = filtrarPorDataHora(filtrados, inicio, fim, horaDe, horaAte);
 
     if (filtrados.length === 0) {
-      let mensagem = "⚠️... Nenhum dado encontrado com os filtros selecionados!. Preencha-os Corretamente!";
-      if (nomeBusca && espBusca) mensagem = "⚠️...Especialidade sem registro para esse médico.";
-      else if (nomeBusca && !espBusca) mensagem = "⚠️...Médico sem registros.";
-      else if (!nomeBusca && espBusca) mensagem = "⚠️...Especialidade sem registros.";
+      let mensagem = "Nenhum dado encontrado com os filtros selecionados!. Preencha-os Corretamente!";
+      if (nomeBusca && espBusca) mensagem = "Especialidade sem registro para esse médico.";
+      else if (nomeBusca && !espBusca) mensagem = "Médico sem registros.";
+      else if (!nomeBusca && espBusca) mensagem = "Especialidade sem registros.";
       setMensagemGlobal(mensagem);
       setTipoMensagem("erro");
       setLinhas([]);
