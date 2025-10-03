@@ -109,7 +109,7 @@ function Medicos() {
 
     if (Object.keys(camposFaltando).length > 0) {
       setErroCampos(camposFaltando);
-      setMensagem("⚠️ ... Preencha todos os campos obrigatórios (CRM, Nome e Especialidade)!");
+      setMensagem("Preencha todos os campos (CRM, Nome e Especialidade são obrigatorio)!");
       setTimeout(() => setMensagem(""), 7000);
       return;
     }
@@ -120,7 +120,7 @@ function Medicos() {
       const existeCRM = todosMedicos.some((m) => m.crm === form.crm);
       if (existeCRM) {
         setErroCampos({ crm: true });
-        setMensagem("⚠️ ... CRM já cadastrado! Escolha outro.");
+        setMensagem("Esse CRM já está cadastrado! Escolha outro.");
         setTimeout(() => setMensagem(""), 3000);
         return;
       }
@@ -134,7 +134,7 @@ function Medicos() {
     let novosMedicos;
     if (form.id) {
       novosMedicos = todosMedicos.map((m) => (m.id === form.id ? { ...form } : m));
-      setMensagem("✅ ... Médico atualizado com sucesso!");
+      setMensagem("Médico atualizado com sucesso!");
     } else {
       let novoId = 1;
       if (todosMedicos.length > 0) {
@@ -143,7 +143,7 @@ function Medicos() {
       }
       const novoMedico = { ...form, idMedico: novoId, id: Date.now() + Math.random() };
       novosMedicos = [...todosMedicos, novoMedico];
-      setMensagem("✅ ... Médico cadastrado com sucesso!");
+      setMensagem("Médico cadastrado com sucesso!");
     }
 
     localStorage.setItem("medicos", JSON.stringify(novosMedicos));
@@ -158,7 +158,7 @@ function Medicos() {
   };
 
   const handleExcluir = (id) => {
-    const confirmado = window.confirm("⚠️ ... Tem certeza que deseja excluir este médico?");
+    const confirmado = window.confirm("Deseja excluir este médico?");
     if (!confirmado) return;
 
     const todosMedicos = JSON.parse(localStorage.getItem("medicos") || "[]");
@@ -166,7 +166,7 @@ function Medicos() {
     localStorage.setItem("medicos", JSON.stringify(novosMedicos));
     setMedicos((prev) => prev.filter((m) => m.id !== id));
 
-    setMensagem("✅ ... Médico excluído com sucesso!");
+    setMensagem("Médico excluído com sucesso!");
     setTimeout(() => setMensagem(""), 3000);
   };
 

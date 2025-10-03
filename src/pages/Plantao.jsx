@@ -42,7 +42,8 @@ export default function Plantao() {
   const [lupaInput, setLupaInput] = useState("");
   const [mostrarListaLupa, setMostrarListaLupa] = useState(false);
   const [listaFiltradaLupa, setListaFiltradaLupa] = useState([]);
-const handleToggleVoz = () => {
+  
+  const handleToggleVoz = () => {
     const status = toggleVoz();
     setVozLigada(status);
     setMensagem(status ? "🔊 Leitor de voz ativado." : "🔈 Leitor de voz desativado.");
@@ -94,6 +95,7 @@ const handleToggleVoz = () => {
     document.addEventListener("click", handleClickFora);
     return () => document.removeEventListener("click", handleClickFora);
   }, []);
+  
 useEffect(() => {
   const falar = () => {
     if (!mensagemGlobal) return;
@@ -174,7 +176,7 @@ useEffect(() => {
       );
       setListaFiltradaLupa(filtro);
       if (filtro.length === 0) {
-        setMensagemGlobal("⚠️ Médico não encontrado ou erro de digitação!");
+        setMensagemGlobal(" Médico não encontrado ou erro de digitação!");
         setTipoMensagem("erro");
       }
     }
@@ -206,14 +208,14 @@ useEffect(() => {
       !dataAtendimento ||
       !horaAtendimento
     ) {
-      setMensagemGlobal("⚠️... Preencha todos os campos obrigatorios.");
+      setMensagemGlobal("Preencha todos os campos obrigatorios.");
       setTipoMensagem("erro");
       return;
     }
 
     const medicoExiste = medicosData.some((m) => m.id === medicoId);
     if (!medicoExiste) {
-      setMensagemGlobal("⚠️...Médico não encontrado ou não está cadastrado!");
+      setMensagemGlobal("Médico não encontrado ou não está cadastrado!");
       setTipoMensagem("erro");
       return;
     }
@@ -236,7 +238,7 @@ useEffect(() => {
 
     if (validarConflito(novoPlantao)) {
       setMensagemGlobal(
-        "⚠️...Este médico já possui um plantão nesta especialidade nas últimas 12h!"
+        "Este médico já possui um plantão nesta especialidade nas últimas 12h!"
       );
       setTipoMensagem("erro");
       return;
@@ -247,10 +249,10 @@ useEffect(() => {
         p.id === editandoId ? novoPlantao : p
       );
       setPlantaoList(atualizado);
-      setMensagemGlobal("✅...Plantão atualizado com sucesso!");
+      setMensagemGlobal("Plantão atualizado com sucesso!");
     } else {
       setPlantaoList([...plantaoList, novoPlantao]);
-      setMensagemGlobal("✅...Plantão salvo com sucesso!");
+      setMensagemGlobal("Plantão salvo com sucesso!");
     }
 
     setTipoMensagem("sucesso");
@@ -266,7 +268,7 @@ useEffect(() => {
 
   const handleConfirmarExclusao = (id) => {
     setPlantaoParaExcluir(id);
-    setMensagemGlobal("⚠️...Deseja realmente excluir este plantão?");
+    setMensagemGlobal("Deseja realmente excluir este plantão?");
     setTipoMensagem("erro");
 
     setTimeout(() => {
@@ -282,7 +284,7 @@ useEffect(() => {
     const atualizado = plantaoList.filter((p) => p.id !== plantaoParaExcluir);
     setPlantaoList(atualizado);
     setPlantaoParaExcluir(null);
-    setMensagemGlobal("🗑️...Plantão excluído com sucesso!");
+    setMensagemGlobal("Plantão excluído com sucesso!");
     setTipoMensagem("sucesso");
   };
 
