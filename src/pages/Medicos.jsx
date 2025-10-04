@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
-import { especialidades, ordenarEspecialidades } from "../api/especialidades";
+import { especialidades, ordenarEspecialidades, getEspecialidadeInfo } from "../api/especialidades.js";
 import "./Medicos.css";
+import "./mobile.css"
 import { toggleVoz, getVozStatus } from "../utils/tts.js";
 
 const normalizeString = (str) => {
@@ -16,100 +17,72 @@ function Medicos() {
   const [form, setForm] = useState({
     id: null,
     nome: "",
-    especialidade: "",
+    especialidade: { nome: "", cor: "", icone: null },
     crm: "",
     observacao: "",
   });
   const [mensagem, setMensagem] = useState("");
   const [erroCampos, setErroCampos] = useState({});
-  const [pesquisa, setPesquisa] = useState({
-    nome: "",
-    especialidade: "",
-    crm: "",
-  });
+  const [pesquisa, setPesquisa] = useState({ nome: "", especialidade: "", crm: "" });
   const [pagina, setPagina] = useState(0);
   const [listaVisivel, setListaVisivel] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [vozLigada, setVozLigada] = useState(getVozStatus());
-  const [vozDesligada, setVozDesligada] = useState(getVozStatus());
   const inputRef = useRef(null);
   const LIMIT = 50;
 
-  // Limpa lista de médicos ao montar
-  useEffect(() => {
-    setMedicos([]);
-  }, []);
+  // Limpa lista ao montar
+  useEffect(() => setMedicos([]), []);
 
-  // Fecha dropdown de especialidades ao clicar fora
+  // Fecha dropdown ao clicar fora
   useEffect(() => {
     const handleClickFora = (event) => {
-      if (inputRef.current && !inputRef.current.contains(event.target)) {
-        setListaVisivel(false);
-      }
+      if (inputRef.current && !inputRef.current.contains(event.target)) setListaVisivel(false);
     };
     document.addEventListener("mousedown", handleClickFora);
     return () => document.removeEventListener("mousedown", handleClickFora);
   }, []);
 
-  // 🔊 TTS: sempre que a mensagem mudar e voz estiver ligada
+  // 🔊 TTS
   useEffect(() => {
-    if (mensagem && vozLigada) {
-      const synth = window.speechSynthesis;
-
-      const falar = () => {
-        if (!mensagem) return;
-        const utterance = new SpeechSynthesisUtterance(mensagem);
-        utterance.lang = "pt-BR";
-        utterance.rate = 1;
-        utterance.pitch = 1;
-
-        const voices = synth.getVoices();
-        const vozGoogleBR = voices.find(
-          (v) => v.lang === "pt-BR" && v.name.toLowerCase().includes("google")
-        );
-
-        if (vozGoogleBR) {
-          utterance.voice = vozGoogleBR; // ✅ força voz Google Brasil
-        }
-
-        synth.cancel();
-        synth.speak(utterance);
-      };
-
-      if (synth.getVoices().length === 0) {
-        synth.addEventListener("voiceschanged", falar);
-      } else {
-        falar();
-      }
-
-      return () => {
-        synth.removeEventListener("voiceschanged", falar);
-      };
-    }
+    if (!mensagem || !vozLigada) return;
+    const synth = window.speechSynthesis;
+    const falar = () => {
+      if (!mensagem) return;
+      const utterance = new SpeechSynthesisUtterance(mensagem);
+      utterance.lang = "pt-BR";
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      const voices = synth.getVoices();
+      const vozGoogleBR = voices.find(
+        (v) => v.lang === "pt-BR" && v.name.toLowerCase().includes("google")
+      );
+      if (vozGoogleBR) utterance.voice = vozGoogleBR;
+      synth.cancel();
+      synth.speak(utterance);
+    };
+    if (synth.getVoices().length === 0) synth.addEventListener("voiceschanged", falar);
+    else falar();
+    return () => synth.removeEventListener("voiceschanged", falar);
   }, [mensagem, vozLigada]);
 
   const handleChange = (e) => {
     let valor = e.target.value.toUpperCase();
-    if (e.target.name === "nome") {
-      valor = normalizeString(valor);
-    }
+    if (e.target.name === "nome") valor = normalizeString(valor);
     setForm({ ...form, [e.target.name]: valor });
-    if (erroCampos[e.target.name]) {
-      setErroCampos({ ...erroCampos, [e.target.name]: false });
-    }
+    if (erroCampos[e.target.name]) setErroCampos({ ...erroCampos, [e.target.name]: false });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     let camposFaltando = {};
-
     if (!form.nome) camposFaltando.nome = true;
-    if (!form.especialidade) camposFaltando.especialidade = true;
+    if (!form.especialidade?.nome) camposFaltando.especialidade = true;
     if (!form.crm) camposFaltando.crm = true;
 
     if (Object.keys(camposFaltando).length > 0) {
       setErroCampos(camposFaltando);
-      setMensagem("Preencha todos os campos (CRM, Nome e Especialidade são obrigatorio)!");
+      setMensagem("Preencha todos os campos (CRM, Nome e Especialidade são obrigatórios)!");
       setTimeout(() => setMensagem(""), 7000);
       return;
     }
@@ -126,28 +99,32 @@ function Medicos() {
       }
     }
 
-    const espIndex = especialidades.findIndex((e) => e.nome === form.especialidade);
-    if (espIndex !== -1) {
-      especialidades[espIndex].cadastros += 1;
-    }
+    // 🔥 Pega info completa (nome + cor + ícone como componente React)
+    const espInfo = getEspecialidadeInfo(form.especialidade.nome);
+
+    const medicoAtualizado = {
+      ...form,
+      especialidade: {
+        nome: espInfo.nome,
+        cor: espInfo.cor,
+        icone: espInfo.icone, // <- agora é componente React, não string
+      },
+    };
 
     let novosMedicos;
     if (form.id) {
-      novosMedicos = todosMedicos.map((m) => (m.id === form.id ? { ...form } : m));
+      novosMedicos = todosMedicos.map((m) => (m.id === form.id ? medicoAtualizado : m));
       setMensagem("Médico atualizado com sucesso!");
     } else {
-      let novoId = 1;
-      if (todosMedicos.length > 0) {
-        const ids = todosMedicos.map((m) => m.idMedico || 0);
-        novoId = Math.max(...ids) + 1;
-      }
-      const novoMedico = { ...form, idMedico: novoId, id: Date.now() + Math.random() };
+      const ids = todosMedicos.map((m) => m.idMedico || 0);
+      const novoId = ids.length > 0 ? Math.max(...ids) + 1 : 1;
+      const novoMedico = { ...medicoAtualizado, idMedico: novoId, id: Date.now() + Math.random() };
       novosMedicos = [...todosMedicos, novoMedico];
       setMensagem("Médico cadastrado com sucesso!");
     }
 
     localStorage.setItem("medicos", JSON.stringify(novosMedicos));
-    setForm({ id: null, nome: "", especialidade: "", crm: "", observacao: "" });
+    setForm({ id: null, nome: "", especialidade: { nome: "", cor: "", icone: null }, crm: "", observacao: "" });
     setErroCampos({});
     setTimeout(() => setMensagem(""), 3000);
   };
@@ -158,14 +135,11 @@ function Medicos() {
   };
 
   const handleExcluir = (id) => {
-    const confirmado = window.confirm("Deseja excluir este médico?");
-    if (!confirmado) return;
-
+    if (!window.confirm("Deseja excluir este médico?")) return;
     const todosMedicos = JSON.parse(localStorage.getItem("medicos") || "[]");
     const novosMedicos = todosMedicos.filter((m) => m.id !== id);
     localStorage.setItem("medicos", JSON.stringify(novosMedicos));
     setMedicos((prev) => prev.filter((m) => m.id !== id));
-
     setMensagem("Médico excluído com sucesso!");
     setTimeout(() => setMensagem(""), 3000);
   };
@@ -174,14 +148,12 @@ function Medicos() {
     const todosMedicos = JSON.parse(localStorage.getItem("medicos") || "[]");
     const filtrados = todosMedicos.filter((m) => {
       return (
-        (!pesquisa.nome ||
-          normalizeString(m.nome).includes(normalizeString(pesquisa.nome))) &&
-        (!pesquisa.especialidade ||
-          normalizeString(m.especialidade).includes(normalizeString(pesquisa.especialidade))) &&
+        (!pesquisa.nome || normalizeString(m.nome).includes(normalizeString(pesquisa.nome))) &&
+        (!pesquisa.especialidade || normalizeString(m.especialidade?.nome || "")
+          .includes(normalizeString(pesquisa.especialidade))) &&
         (!pesquisa.crm || m.crm.toLowerCase().includes(pesquisa.crm.toLowerCase()))
       );
     });
-
     setMedicos(filtrados.slice(0, LIMIT));
     setPagina(0);
   };
@@ -250,9 +222,8 @@ function Medicos() {
               type="text"
               name="especialidade"
               placeholder="Especialidade"
-              value={form.especialidade}
+              value={form.especialidade?.nome || ""}
               onChange={(e) => {
-                handleChange(e);
                 setFiltro(e.target.value.toUpperCase());
                 setListaVisivel(true);
               }}
@@ -265,7 +236,7 @@ function Medicos() {
               onClick={() => {
                 setFiltro("");
                 setListaVisivel(true);
-                setForm({ ...form, especialidade: "" });
+                setForm({ ...form, especialidade: { nome: "", cor: "", icone: null } });
               }}
             >
               <FaSearch />
@@ -274,18 +245,29 @@ function Medicos() {
             {listaVisivel && (
               <ul className="lista-suspensa">
                 {especialidadesFiltradas.length > 0 ? (
-                  especialidadesFiltradas.map((item) => (
-                    <li
-                      key={item.id}
-                      onClick={() => {
-                        setForm({ ...form, especialidade: item.nome.toUpperCase() });
-                        setListaVisivel(false);
-                        setFiltro("");
-                      }}
-                    >
-                      {item.nome.toUpperCase()}
-                    </li>
-                  ))
+                  especialidadesFiltradas.map((item) => {
+                    const Icone = item.icone; // <- sempre é componente React
+                    return (
+                      <li
+                        key={item.id}
+                        onClick={() => {
+                          setForm({
+                            ...form,
+                            especialidade: {
+                              nome: item.nome,
+                              cor: item.cor,
+                              icone: item.icone,
+                            },
+                          });
+                          setListaVisivel(false);
+                          setFiltro("");
+                        }}
+                        style={{ color: item.cor }}
+                      >
+                        {Icone && <Icone className="icone" />} {item.nome.toUpperCase()}
+                      </li>
+                    );
+                  })
                 ) : filtro.trim() !== "" ? (
                   <li className="lista-vazia">Nenhuma especialidade encontrada</li>
                 ) : null}
@@ -363,23 +345,28 @@ function Medicos() {
             </tr>
           </thead>
           <tbody>
-            {medicos.map((m, i) => (
-              <tr key={m.id}>
-                <td>{i + 1 + pagina * LIMIT}</td>
-                <td>{m.nome}</td>
-                <td>{m.especialidade}</td>
-                <td>{m.crm}</td>
-                <td>{m.observacao}</td>
-                <td>
-                  <button onClick={() => handleEditar(m)} className="btn-editar">
-                    Editar
-                  </button>
-                  <button onClick={() => handleExcluir(m.id)} className="btn-excluir">
-                    Excluir
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {medicos.map((m, i) => {
+              const Icone = m.especialidade?.icone;
+              return (
+                <tr key={m.id}>
+                  <td>{i + 1 + pagina * LIMIT}</td>
+                  <td>{m.nome}</td>
+                  <td style={{ color: m.especialidade?.cor || "#000" }}>
+                    {Icone && <Icone className="icone" />} {m.especialidade?.nome}
+                  </td>
+                  <td>{m.crm}</td>
+                  <td>{m.observacao}</td>
+                  <td>
+                    <button onClick={() => handleEditar(m)} className="btn-editar">
+                      Editar
+                    </button>
+                    <button onClick={() => handleExcluir(m.id)} className="btn-excluir">
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {medicos.length === 0 && (
               <tr>
                 <td colSpan="6" style={{ textAlign: "center" }}>

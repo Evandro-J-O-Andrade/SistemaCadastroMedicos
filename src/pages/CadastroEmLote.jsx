@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./CadastroLote.css";
-
+import "./mobile.css"
 function CadastroEmLote() {
   const navigate = useNavigate();
   const [textoLote, setTextoLote] = useState("");

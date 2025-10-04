@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import "./mobile.css"
 export default function TrocaSenha() {
   const navigate = useNavigate();
   const usuarioAtual = JSON.parse(localStorage.getItem("usuarioAtual"));

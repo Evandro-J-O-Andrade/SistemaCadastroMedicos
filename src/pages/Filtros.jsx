@@ -1,26 +1,20 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
 import html2canvas from "html2canvas";
 import LogoAlpha from "../img/Logo_Alpha.png";
+import GraficoBarra from "./GraficoBarra.jsx";
+import GraficoPizza from "./GraficoPizza.jsx";
+import GraficoLinha from "./GraficoLinha.jsx";
+import GraficoArea from "./GraficoArea.jsx";
+import { especialidades as especialidadesList, getEspecialidadeInfo } from "../api/especialidades.js";
 
-const LOGO_URL = LogoAlpha;
 dayjs.locale("pt-br");
 const fmt = (d) => dayjs(d).format("DD/MM/YYYY");
-
-// Substitua pela URL ou import da sua logo
-
-
-const API = {
-  opcoes: "/api/opcoes",
-  consolidado: "/api/relatorios/consolidado",
-};
 
 export default function Filtros() {
   const [periodo, setPeriodo] = useState("dia");
@@ -41,81 +35,57 @@ export default function Filtros() {
   const graficoDiaRef = useRef(null);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setErro("");
-        const r = await fetch(API.opcoes);
-        if (!r.ok) throw new Error("Falha ao carregar opções");
-        const data = await r.json();
-        setOpcoes({
-          medicos: data.medicos ?? [],
-          especialidades: data.especialidades ?? [],
-        });
-      } catch {
-        setOpcoes({
-          medicos: [
-            { id: 1, nome: "DR. ALEXANDRE MAURICIO RODRIGUES DE ARAUJO" },
-            { id: 2, nome: "DRA. ADRIANA ESCOBAR" },
-            { id: 3, nome: "DR. BRUNO CAVALCANTE" },
-            { id: 4, nome: "DRA. CAMILA OLIVEIRA" },
-            { id: 5, nome: "DR. DIEGO FERNANDES" },
-            { id: 6, nome: "DRA. FABIANA SOUZA" },  
-            { id: 7, nome: "DR. GUSTAVO LIMA" },
-            { id: 8, nome: "DRA. HELENA RIBEIRO" },
-            { id: 9, nome: "DR. IGOR SANTOS" },
-          ],
-          especialidades: [
-            { id: 10, nome: "Clínico Diurno" },
-            { id: 11, nome: "Clínico Noturno" },
-            { id: 12, nome: "Pediatria Diurno" },
-            { id: 13, nome: "Pediatria Noturno" },
-            { id: 14, nome: "Emergencista Dia" },
-            { id: 15, nome: "Emergencista Noite" },
-            { id: 16, nome: "Vistador" },
-            { id: 17, nome: "Cinderela" },
-          ],
-        });
-      }
-    };
-    load();
+    try {
+      const medicos = JSON.parse(localStorage.getItem("medicos")) || [];
+      setOpcoes({
+        medicos,
+        especialidades: especialidadesList || [],
+      });
+    } catch {
+      setOpcoes({ medicos: [], especialidades: especialidadesList || [] });
+    }
+
+    const atendimentos = JSON.parse(localStorage.getItem("atendimentos")) || [];
+    setLinhas(atendimentos);
   }, []);
 
-  const aplicar = async () => {
+  const aplicar = () => {
     setLoading(true);
     setErro("");
-    setLinhas([]);
-    try {
-      const q = new URLSearchParams();
-      q.set("periodo", periodo);
-      if (periodo === "dia") q.set("dia", dia);
-      if (periodo === "mes") q.set("mes", mes);
-      if (periodo === "ano") q.set("ano", ano);
-      if (especialidadeId) q.set("especialidadeId", especialidadeId);
-      if (medicoId) q.set("medicoId", medicoId);
-
-      const url = `${API.consolidado}?${q.toString()}`;
-      const r = await fetch(url);
-      if (!r.ok) throw new Error("Falha ao consultar consolidado");
-      const data = await r.json();
-      setLinhas(data.rows ?? []);
-    } catch {
-      const base = [
-        { data: fmt(dia), periodo: "Diurno", especialidade: "Clínico", medico: "DR. ALEXANDRE...", atendimentos: 4 },
-        { data: fmt(dia), periodo: "Noturno", especialidade: "Clínico", medico: "DRA. ADRIANA...", atendimentos: 4 },
-        { data: fmt(dia), periodo: "Diurno", especialidade: "Pediatria", medico: "DR. ALEXANDRE...", atendimentos: 4 },
-        { data: fmt(dia), periodo: "Noturno", especialidade: "Pediatria", medico: "DRA. ADRIANA...", atendimentos: 4 },
-        { data: fmt(dia), periodo: "Dia", especialidade: "Emergencista", medico: "—", atendimentos: 1 },
-        { data: fmt(dia), periodo: "Noite", especialidade: "Emergencista", medico: "—", atendimentos: 1 },
-        { data: fmt(dia), periodo: "Dia", especialidade: "Vistador", medico: "—", atendimentos: 1 },
-        { data: fmt(dia), periodo: "Dia", especialidade: "Cinderela", medico: "—", atendimentos: 1 },
-        
-        
-      ];
-      setLinhas(base);
-      setErro("⚠️ Mostrando dados de demonstração (backend não respondeu).");
-    } finally {
+    const data = JSON.parse(localStorage.getItem("atendimentos")) || [];
+    if (!data.length) {
+      setLinhas([]);
+      setErro("⚠️ Nenhum atendimento registrado para este período.");
       setLoading(false);
+      return;
     }
+
+    let filtrado = [...data];
+
+    // Filtra por período
+    if (periodo === "dia") filtrado = filtrado.filter(l => l.data === dia);
+    if (periodo === "mes") filtrado = filtrado.filter(l => l.data.startsWith(mes));
+    if (periodo === "ano") filtrado = filtrado.filter(l => l.data.startsWith(ano));
+
+    const nomeEsp = especialidadeId ? getEspecialidadeInfo(especialidadeId)?.nome : "";
+    const nomeMed = medicoId ? opcoes.medicos.find(m => m.id === medicoId)?.nome : "";
+
+    // Lógica combinada de filtros
+    if (nomeEsp && nomeMed) {
+      // Especialidade + Médico
+      filtrado = filtrado.filter(l => l.especialidade === nomeEsp && l.medico === nomeMed);
+    } else if (nomeEsp && !nomeMed) {
+      // Apenas especialidade
+      filtrado = filtrado.filter(l => l.especialidade === nomeEsp);
+    } else if (!nomeEsp && nomeMed) {
+      // Apenas médico
+      filtrado = filtrado.filter(l => l.medico === nomeMed);
+    }
+    // else -> tudo vazio = traz todos
+
+    setLinhas(filtrado);
+    if (!filtrado.length) setErro("⚠️ Nenhum atendimento encontrado com os filtros aplicados.");
+    setLoading(false);
   };
 
   const limpar = () => {
@@ -125,16 +95,15 @@ export default function Filtros() {
     setAno(dayjs().format("YYYY"));
     setEspecialidadeId("");
     setMedicoId("");
-    setLinhas([]);
+    setLinhas(JSON.parse(localStorage.getItem("atendimentos")) || []);
     setErro("");
   };
 
-  // Totais e gráficos
   const totais = useMemo(() => {
     const totalPeriodo = linhas.reduce((acc, l) => acc + Number(l.atendimentos || 0), 0);
     const dias = new Set(linhas.map(l => l.data));
     const mediaDia = dias.size ? (totalPeriodo / dias.size).toFixed(2) : 0;
-    const mediaMes = (totalPeriodo / 30).toFixed(2); // aproximado
+    const mediaMes = (totalPeriodo / 30).toFixed(2);
     const mediaEspecialidade = {};
     linhas.forEach(l => {
       mediaEspecialidade[l.especialidade] = (mediaEspecialidade[l.especialidade] || 0) + Number(l.atendimentos || 0);
@@ -145,7 +114,10 @@ export default function Filtros() {
   const porEspecialidade = useMemo(() => {
     const m = new Map();
     linhas.forEach(l => m.set(l.especialidade, (m.get(l.especialidade) || 0) + Number(l.atendimentos || 0)));
-    return [...m.entries()].map(([name, total]) => ({ name, total }));
+    return [...m.entries()].map(([name, total]) => {
+      const info = especialidadesList.find(e => e.nome === name) || {};
+      return { name, total, color: info.cor || "#3b82f6" };
+    });
   }, [linhas]);
 
   const porMedico = useMemo(() => {
@@ -160,31 +132,26 @@ export default function Filtros() {
     return [...m.entries()].map(([name, total]) => ({ name, total }));
   }, [linhas]);
 
-  // Novo: atendimentos por dia
   const porDia = useMemo(() => {
     const m = new Map();
     linhas.forEach(l => m.set(l.data, (m.get(l.data) || 0) + Number(l.atendimentos || 0)));
     return [...m.entries()].map(([name, total]) => ({ name, total }));
   }, [linhas]);
 
-  // Export PDF atualizado
   const exportarPDF = async () => {
     const doc = new jsPDF("p", "mm", "a4");
     const { totalPeriodo, mediaDia, mediaMes, mediaEspecialidade } = totais;
 
-    // Logo
     const logoImg = new Image();
-    logoImg.src = LOGO_URL;
+    logoImg.src = LogoAlpha;
     await new Promise(res => { logoImg.onload = res; });
     doc.addImage(logoImg, "PNG", 14, 10, 40, 15);
 
-    // Título
     doc.setFontSize(16);
     doc.text("Relatório de Atendimentos", 60, 16);
     doc.setFontSize(10);
     doc.text(`Data do relatório: ${fmt(new Date())}`, 60, 22);
 
-    // Totais
     let startY = 32;
     doc.setFontSize(12);
     doc.text(`TOTAL DE ATENDIMENTOS: ${totalPeriodo}`, 14, startY);
@@ -200,7 +167,6 @@ export default function Filtros() {
       startY += 6;
     });
 
-    // Tabela de detalhamento
     doc.autoTable({
       startY,
       head: [["Data", "Período", "Especialidade", "Médico", "Atendimentos"]],
@@ -210,7 +176,6 @@ export default function Filtros() {
       styles: { fontSize: 9 },
     });
 
-    // Função para gráficos
     const addGrafico = async (ref, titulo) => {
       if (!ref.current) return;
       const canvas = await html2canvas(ref.current, { scale: 2 });
@@ -229,7 +194,6 @@ export default function Filtros() {
     doc.save("relatorio_profissional.pdf");
   };
 
-  // Export Excel atualizado
   const exportarExcel = () => {
     const ws = XLSX.utils.json_to_sheet(linhas.map(l => ({
       Data: l.data,
@@ -239,7 +203,6 @@ export default function Filtros() {
       Atendimentos: l.atendimentos,
     })));
 
-    // Adicionando uma aba com resumo
     const resumoWS = XLSX.utils.json_to_sheet([
       { Total_Periodo: totais.totalPeriodo, Media_Dia: totais.mediaDia, Media_Mes: totais.mediaMes },
       ...Object.entries(totais.mediaEspecialidade).map(([esp, valor]) => ({ Especialidade: esp, Total: valor })),
@@ -255,10 +218,9 @@ export default function Filtros() {
     <div>
       <h2>🔎 Filtros & Consolidados</h2>
 
-      {/* Filtros e totais */}
+      {/* Filtros */}
       <div className="card" style={{ padding: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
-          {/* Período */}
           <div>
             <label>Período</label><br />
             <select value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
@@ -271,7 +233,6 @@ export default function Filtros() {
           {periodo === "mes" && <div><label>Mês</label><br /><input type="month" value={mes} onChange={(e) => setMes(e.target.value)} /></div>}
           {periodo === "ano" && <div><label>Ano</label><br /><input type="number" min="2000" max="2100" value={ano} onChange={(e) => setAno(e.target.value)} style={{ width: 100 }} /></div>}
 
-          {/* Especialidade e médico */}
           <div>
             <label>Especialidade</label><br />
             <select value={especialidadeId} onChange={(e) => setEspecialidadeId(e.target.value)}>
@@ -289,30 +250,29 @@ export default function Filtros() {
 
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={aplicar} disabled={loading}>{loading ? "Carregando..." : "Aplicar"}</button>
-            <button onClick={limpar} type="button">Limpar</button>
-            <button type="button" onClick={exportarPDF}>PDF</button>
-            <button type="button" onClick={exportarExcel}>Excel</button>
+            <button onClick={limpar}>Limpar</button>
+            <button onClick={exportarPDF}>PDF</button>
+            <button onClick={exportarExcel}>Excel</button>
           </div>
         </div>
-
         {erro && <p style={{ color: "#b91c1c", marginTop: 8 }}>{erro}</p>}
-
-        {/* Totais */}
-        {linhas.length > 0 && (
-          <div style={{ marginTop: 16, padding: 12, border: "1px solid #e5e7eb", borderRadius: 8, background: "#f9fafb" }}>
-            <h4>📊 Totais</h4>
-            <p>Total no período: {totais.totalPeriodo}</p>
-            <p>Média diária: {totais.mediaDia}</p>
-            <p>Média mensal (aprox.): {totais.mediaMes}</p>
-            <p>Média por especialidade:</p>
-            <ul>
-              {Object.entries(totais.mediaEspecialidade).map(([esp, valor]) => (
-                <li key={esp}>{esp}: {valor}</li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
+
+      {/* Totais & Médias */}
+      {linhas.length > 0 && (
+        <div className="card" style={{ padding: 12, background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, marginBottom: 16 }}>
+          <h3>📊 Totais & Médias</h3>
+          <p><strong>Total de Atendimentos:</strong> {totais.totalPeriodo}</p>
+          <p><strong>Média Diária:</strong> {totais.mediaDia}</p>
+          <p><strong>Média Mensal (aprox.):</strong> {totais.mediaMes}</p>
+          <p><strong>Média por Especialidade:</strong></p>
+          <ul>
+            {Object.entries(totais.mediaEspecialidade).map(([esp, valor]) => (
+              <li key={esp}>{esp}: {valor}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Tabela */}
       <div ref={tabelaRef} className="card" style={{ padding: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, marginBottom: 16 }}>
@@ -330,7 +290,15 @@ export default function Filtros() {
             </thead>
             <tbody>
               {linhas.length === 0 && <tr><td colSpan={5} style={{ padding: 12, textAlign: "center" }}>Sem dados</td></tr>}
-              {linhas.map((l, i) => <tr key={i}><td style={td}>{l.data}</td><td style={td}>{l.periodo}</td><td style={td}>{l.especialidade}</td><td style={td}>{l.medico}</td><td style={td}>{l.atendimentos}</td></tr>)}
+              {linhas.map((l, i) => (
+                <tr key={i}>
+                  <td style={td}>{l.data}</td>
+                  <td style={td}>{l.periodo}</td>
+                  <td style={td}>{l.especialidade}</td>
+                  <td style={td}>{l.medico}</td>
+                  <td style={td}>{l.atendimentos}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -339,7 +307,7 @@ export default function Filtros() {
       {/* Gráficos */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div ref={graficoEspecialidadeRef}>
-          <ChartCard titulo="Atendimentos por Especialidade" data={porEspecialidade} dataKey="total" />
+          <ChartCard titulo="Atendimentos por Especialidade" data={porEspecialidade} dataKey="total" useColor />
         </div>
         <div ref={graficoMedicoRef}>
           <ChartCard titulo="Atendimentos por Médico" data={porMedico} dataKey="total" />
@@ -358,7 +326,7 @@ export default function Filtros() {
 const th = { textAlign: "left", padding: 8, background: "#f1f5f9", borderBottom: "1px solid #e5e7eb" };
 const td = { padding: 8, borderBottom: "1px solid #e5e7eb" };
 
-const ChartCard = ({ titulo, data, dataKey }) => (
+const ChartCard = ({ titulo, data, dataKey, useColor = false }) => (
   <div className="card" style={{ padding: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8 }}>
     <h3 style={{ marginTop: 0 }}>{titulo}</h3>
     <div style={{ width: "100%", height: 260 }}>
@@ -369,7 +337,11 @@ const ChartCard = ({ titulo, data, dataKey }) => (
           <YAxis allowDecimals={false} />
           <Tooltip />
           <Legend />
-          <Bar dataKey={dataKey} fill="#3b82f6" />
+          <Bar dataKey={dataKey} fill="#3b82f6">
+            {data.map((entry, index) => (
+              <cell key={`cell-${index}`} fill={useColor ? entry.color : "#3b82f6"} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

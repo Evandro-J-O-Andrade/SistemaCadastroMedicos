@@ -1,14 +1,15 @@
-// src/pages/Home.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import * as FaIcons from "react-icons/fa"; // Importa todos os ícones Fa para uso dinâmico
 import "./Home.css";
+import "./mobile.css"
 import LogoAlpha from "../img/Logo_Alpha.png";
-import * as espModule from "../api/especialidades"; // importa especialidades
+import { getEspecialidadeInfo } from "../api/especialidades"; // Importa só a função (array não precisa mais)
 
-// função de normalização (uppercase + remove acentos)
+// função de normalização (agora lowercase pra combinar com especialidades.js)
 const normalizar = (str) =>
   str
-    ? String(str).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    ? String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
     : "";
 
 export default function Home() {
@@ -22,13 +23,6 @@ export default function Home() {
   const [mediaPorEspecialidade, setMediaPorEspecialidade] = useState([]);
   const [totalMediaEspecialidades, setTotalMediaEspecialidades] = useState(0);
   const [expandirEspecialidades, setExpandirEspecialidades] = useState(false);
-
-  // tenta pegar a lista exportada de várias formas
-  const listaEspecialidades =
-    espModule.listaEspecialidades ||
-    espModule.especialidades ||
-    espModule.default ||
-    [];
 
   const novidades = [
     { id: 1, titulo: "Sistema atualizado", descricao: "Nova versão com melhorias no painel de relatórios." },
@@ -70,15 +64,15 @@ export default function Home() {
       // Médicos cadastrados
       setMedicosCadastrados(medicosData.length || 0);
 
-      // Quantidade de especialidades distintas cadastradas (base médicos)
-      const espUnicasMedicos = [...new Set(medicosData.map((m) => m?.especialidade).filter(Boolean))];
+      // Quantidade de especialidades distintas cadastradas (base médicos) - garante string
+      const espUnicasMedicos = [...new Set(medicosData.map((m) => m?.especialidade || "").filter(Boolean))];
       setEspecialidades(espUnicasMedicos.length);
 
-      // Agrupa plantões por especialidade
+      // Agrupa plantões por especialidade (normaliza pra chave única)
       const mapa = new Map();
       for (const p of plantaoMes) {
         const nome = p?.especialidade ? String(p.especialidade) : "";
-        const norm = normalizar(nome);
+        const norm = normalizar(nome); // Agora lowercase, combina com getEspecialidadeInfo
         if (!norm) continue;
         const quantidade = Number(p.quantidade) || 0;
         if (!mapa.has(norm)) {
@@ -88,25 +82,25 @@ export default function Home() {
         }
       }
 
-      // Cria array de médias por especialidade
+      // Cria array de totais por especialidade (sem média diária)
       const mediasEsp = [];
       for (const [norm, { nomeOriginal, total }] of mapa.entries()) {
         if (total <= 0) continue;
 
-        // tenta achar na lista oficial
-        const espData = listaEspecialidades.find((e) => normalizar(e.nome) === norm);
+        // Usa getEspecialidadeInfo direto no nome original (cuida de sinonimos e normalização interna)
+        const espInfo = getEspecialidadeInfo(nomeOriginal);
 
         mediasEsp.push({
-          especialidade: (espData?.nome || nomeOriginal).toUpperCase(),
-          icon: espData?.icone || "fas fa-stethoscope", // <- corrigido para "icone"
-          color: espData?.cor || espData?.color || "#607d8b",
-          mediaDiaria: Math.round(total / diasMes),
+          especialidade: espInfo.nome.toUpperCase(), // Nome oficial, upper pra exibição
+          icon: espInfo.icone, // Componente React direto (ex: FaUserMd)
+          color: espInfo.cor, // Cor da especialidades.js
+          totalMensal: total, // Total do mês, não diária
         });
       }
 
       setMediaPorEspecialidade(mediasEsp);
 
-      const total = mediasEsp.reduce((acc, item) => acc + (item.mediaDiaria || 0), 0);
+      const total = mediasEsp.reduce((acc, item) => acc + (item.totalMensal || 0), 0);
       setTotalMediaEspecialidades(total);
     } catch (err) {
       console.error("Erro em atualizarDados Home:", err);
@@ -172,7 +166,7 @@ export default function Home() {
             onClick={() => setExpandirEspecialidades((s) => !s)}
             style={{ cursor: "pointer" }}
           >
-            <h3>Média por Especialidades</h3>
+            <h3>Totais por Especialidades</h3> {/* Ajustado título pra refletir totais */}
 
             {!expandirEspecialidades ? (
               <p><strong>Total:</strong> {totalMediaEspecialidades}</p>
@@ -181,9 +175,12 @@ export default function Home() {
                 <p><strong>Total:</strong> {totalMediaEspecialidades}</p>
                 {mediaPorEspecialidade.map((item) => (
                   <div key={item.especialidade} className="item-especialidade">
-                    <i className={item.icon} style={{ color: item.color, marginRight: 8 }} />
-                    <strong>{item.especialidade}</strong>
-                    <span style={{ marginLeft: 8 }}>{item.mediaDiaria} atendimentos/dia</span>
+                    {item.icon && typeof item.icon === "function" ? (
+                      <item.icon size={16} style={{ color: item.color, marginRight: 8 }} />
+                    ) : (
+                      <FaIcons.FaQuestion size={16} style={{ color: item.color || "#999", marginRight: 8 }} /> // Fallback do react-icons
+                    )}
+                    <strong>{item.especialidade} Total Atendido = {item.totalMensal}</strong> {/* Formato ajustado: Especialidade Total Atendido = Número */}
                   </div>
                 ))}
               </div>

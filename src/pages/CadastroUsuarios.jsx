@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./CadastroUsuarios.css";
-
+import "./mobile.css"
 export default function CadastroUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [usuarioInput, setUsuarioInput] = useState("");

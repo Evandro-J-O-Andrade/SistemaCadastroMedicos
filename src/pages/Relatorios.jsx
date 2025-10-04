@@ -10,9 +10,10 @@ import GraficoPizza from "./GraficoPizza.jsx";
 import GraficoLinha from "./GraficoLinha.jsx";
 import GraficoArea from "./GraficoArea.jsx";
 import { falarMensagem, toggleVoz, getVozStatus } from "../utils/tts.js";
+import { getEspecialidadeInfo } from "../api/especialidades.js"; // Novo import para cores e ícones dinâmicos
 
 import "./Relatorios.css";
-
+import "./mobile.css"
 dayjs.locale("pt-br");
 
 function CardMedico({ medico, especialidade, dia, dias, totalOverall }) {
@@ -24,7 +25,7 @@ function CardMedico({ medico, especialidade, dia, dias, totalOverall }) {
   const crms = [...new Set(items.map((i) => i.crm || "—"))];
   const crm = crms.join(", ");
 
-  // Pega todas as especialidades únicas (deveria ser uma só por card)
+  // Pega todas as especialidades únicas (deveria ser uma só por card) - garante string
   const especialidades = [...new Set(items.map((i) => i.especialidade || "—"))];
   const especialidadeDisplay = especialidades.join(", ");
 
@@ -42,7 +43,8 @@ function CardMedico({ medico, especialidade, dia, dias, totalOverall }) {
 
       const labels = items.map((i) => i.hora);
       const data = items.map((i) => Number(i.quantidade));
-      const backgroundColor = items.map((i) => "#36A2EB"); // Cor fixa para simplicidade
+      // Cor dinâmica por especialidade (garante string no map)
+      const backgroundColor = items.map((i) => getEspecialidadeInfo(i.especialidade || "—").cor || "#36A2EB");
 
       const chartInstance = new Chart(ctx, {
         type: "bar", // Barra para distribuição por horário
@@ -71,6 +73,10 @@ function CardMedico({ medico, especialidade, dia, dias, totalOverall }) {
       }
     };
   }, [items]);
+
+  // Ícone dinâmico para especialidade (opcional, adicionado para consistência)
+  const espInfo = getEspecialidadeInfo(especialidadeDisplay || "—");
+  const Icone = espInfo.icone;
 
   return (
     <div
@@ -108,7 +114,10 @@ function CardMedico({ medico, especialidade, dia, dias, totalOverall }) {
         </div>
         <div>
           <strong>ESPECIALIDADE</strong>
-          <div>{especialidadeDisplay}</div>
+          <div style={{ color: espInfo.cor || "#003366", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {Icone && typeof Icone === "function" && <Icone size={16} style={{ marginRight: 5 }} />}
+            {especialidadeDisplay}
+          </div>
         </div>
       </div>
       <div>
@@ -141,54 +150,51 @@ export default function Relatorios() {
 
   const [mensagemGlobal, setMensagemGlobal] = useState("");
   const [tipoMensagem, setTipoMensagem] = useState("");
-// <<< ADICIONAR AQUI >>>
-useEffect(() => {
-  const falar = () => {
-    if (!mensagemGlobal) return;
 
-    const synth = window.speechSynthesis;
-    const utterance = new SpeechSynthesisUtterance(mensagemGlobal);
-    utterance.lang = "pt-BR";
-    utterance.rate = 1;
-    utterance.pitch = 1;
+  useEffect(() => {
+    const falar = () => {
+      if (!mensagemGlobal) return;
 
-    const voices = synth.getVoices();
-    const vozGoogleBR = voices.find(
-      (v) => v.lang === "pt-BR" && v.name.toLowerCase().includes("google")
-    );
-    if (vozGoogleBR) utterance.voice = vozGoogleBR;
+      const synth = window.speechSynthesis;
+      const utterance = new SpeechSynthesisUtterance(mensagemGlobal);
+      utterance.lang = "pt-BR";
+      utterance.rate = 1;
+      utterance.pitch = 1;
 
-    synth.speak(utterance);
-  };
+      const voices = synth.getVoices();
+      const vozGoogleBR = voices.find(
+        (v) => v.lang === "pt-BR" && v.name.toLowerCase().includes("google")
+      );
+      if (vozGoogleBR) utterance.voice = vozGoogleBR;
 
-  window.speechSynthesis.addEventListener("voiceschanged", falar);
-  falar(); // Tenta falar imediatamente
+      synth.speak(utterance);
+    };
 
-  return () => {
-    window.speechSynthesis.removeEventListener("voiceschanged", falar);
-  };
-}, [mensagemGlobal]);
+    window.speechSynthesis.addEventListener("voiceschanged", falar);
+    falar(); // Tenta falar imediatamente
+
+    return () => {
+      window.speechSynthesis.removeEventListener("voiceschanged", falar);
+    };
+  }, [mensagemGlobal]);
 
   const graficoRefs = useRef({});
   const inputRef = useRef();
   const tabelaRef = useRef(null); // Ref para capturar a tabela no PDF
 
-  const CORES_ESPECIALIDADE = {
-    Emergencista: "#FF0000",
-    Pediátrico: "#FFC0CB",
-    Clínico: "#09098f",
-    Visitador: "#008000",
-    Cinderela: "#800080",
-    Fisioterapeuta: "#FFA500",
-    Nutricionista: "#00CED1",
-  };
+  // Removido CORES_ESPECIALIDADE - agora usa getEspecialidadeInfo dinamicamente
 
   const normalizeString = (str) =>
     !str ? "" : str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
   useEffect(() => {
     const dadosMedicos = JSON.parse(localStorage.getItem("medicos") || "[]");
-    setMedicosData(Array.isArray(dadosMedicos) ? dadosMedicos : []);
+    // Garante que especialidade seja string nos medicos carregados
+    const medicosNormalizados = dadosMedicos.map((m) => ({
+      ...m,
+      especialidade: m.especialidade?.nome || m.especialidade || "—",
+    }));
+    setMedicosData(Array.isArray(dadosMedicos) ? medicosNormalizados : []);
 
     const dadosPlantoes = JSON.parse(localStorage.getItem("plantaoData") || "[]");
     setPlantoes(Array.isArray(dadosPlantoes) ? dadosPlantoes : []);
@@ -285,7 +291,7 @@ useEffect(() => {
       }
     }
 
-    // Normaliza todos os plantões - prioriza p.especialidade
+    // Normaliza todos os plantões - prioriza p.especialidade, garante string
     const dadosCompletos = plantoes.map((p) => {
       const medico = medicosData.find(
         (m) => m.crm === p.crm || normalizeString(m.nome) === normalizeString(p.nome)
@@ -293,7 +299,7 @@ useEffect(() => {
       return {
         medico: p.nome,
         crm: p.crm || medico?.crm || "—",
-        especialidade: p.especialidade || medico?.especialidade || "—",
+        especialidade: p.especialidade || (medico?.especialidade || "—"), // Garante string (usa .nome se objeto)
         data: p.data,
         hora: p.hora,
         turno: p.turno || "—",
@@ -435,7 +441,8 @@ useEffect(() => {
     const items = grupo.dias ? grupo.dias.flatMap((d) => d.items) : grupo.items || [];
     const labels = items.map((i) => `${dayjs(i.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY")} ${i.hora}`);
     const data = items.map((i) => Number(i.quantidade));
-    const backgroundColor = items.map((i) => CORES_ESPECIALIDADE[i.especialidade] || "#36A2EB");
+    // Cor dinâmica
+    const backgroundColor = items.map((i) => getEspecialidadeInfo(i.especialidade || "—").cor || "#36A2EB");
     return { labels, datasets: [{ label: "Quantidade de Atendimentos", data, backgroundColor }] };
   };
 
@@ -501,8 +508,9 @@ useEffect(() => {
     linhasParam.forEach((grupo) => {
       // cada grupo é um card, com items
       (grupo.items || []).forEach((item) => {
-        if (!totais[item.especialidade]) totais[item.especialidade] = 0;
-        totais[item.especialidade] += Number(item.quantidade);
+        const espKey = item.especialidade || "—"; // Garante string
+        if (!totais[espKey]) totais[espKey] = 0;
+        totais[espKey] += Number(item.quantidade);
       });
     });
     return Object.keys(totais).map((esp) => `${esp}: ${totais[esp]} atendimentos`);
@@ -520,11 +528,11 @@ useEffect(() => {
     const labels = Object.keys(totais);
     const data = labels.map((label) => totais[label]);
 
-    // tenta achar a especialidade do médico nos dados para obter cor
+    // tenta achar a especialidade do médico nos dados para obter cor (garante string)
     const backgroundColor = labels.map((label) => {
       const encontro = medicosData.find((m) => normalizeString(m.nome) === normalizeString(label));
-      const esp = encontro?.especialidade;
-      return CORES_ESPECIALIDADE[esp] || "#36A2EB";
+      const esp = encontro?.especialidade || "—"; // Já string normalizado
+      return getEspecialidadeInfo(esp).cor || "#36A2EB";
     });
 
     return { labels, datasets: [{ label: "Quantidade", data, backgroundColor }] };
@@ -534,14 +542,15 @@ useEffect(() => {
   const gerarChartDataConsolidadoPorEspecialidade = (linhasParam) => {
     const totais = {};
     linhasParam.forEach((grupo) => {
-      const esp = grupo.especialidade || (grupo.items && grupo.items[0]?.especialidade) || "—";
-      if (!totais[esp]) totais[esp] = 0;
+      const espKey = grupo.especialidade || (grupo.items && grupo.items[0]?.especialidade) || "—"; // Garante string
+      if (!totais[espKey]) totais[espKey] = 0;
       const reduceValue = grupo.items ? grupo.items.reduce((s, i) => s + Number(i.quantidade), 0) : 0;
-      totais[esp] += Number(grupo.totalDia || reduceValue || 0);
+      totais[espKey] += Number(grupo.totalDia || reduceValue || 0);
     });
     const labels = Object.keys(totais);
     const data = labels.map((lab) => totais[lab]);
-    const backgroundColor = labels.map((lab) => CORES_ESPECIALIDADE[lab] || "#36A2EB");
+    // Cor dinâmica para todas as especialidades
+    const backgroundColor = labels.map((lab) => getEspecialidadeInfo(lab).cor || "#36A2EB");
     return { labels, datasets: [{ label: "Quantidade", data, backgroundColor }] };
   };
 
@@ -570,7 +579,7 @@ useEffect(() => {
       const dadosTabela = (grupo.items || []).map((item) => [
         item.medico,
         item.crm,
-        item.especialidade,
+        item.especialidade, // Já string
         dayjs(item.data).format("DD/MM/YYYY"),
         item.hora,
         item.quantidade,
@@ -604,7 +613,7 @@ useEffect(() => {
         ...(grupo.items || []).map((p) => [
           p.medico,
           p.crm,
-          p.especialidade,
+          p.especialidade, // Já string
           dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY"),
           dayjs(p.hora, "HH:mm").format("HH:mm"),
           p.quantidade,
@@ -678,6 +687,7 @@ useEffect(() => {
             <label>Especialidade</label>
             <select value={especialidade} onChange={(e) => setEspecialidade(e.target.value)}>
               <option value="">Todas</option>
+              {/* Garante string no map */}
               {[...new Set(medicosData.map((m) => m.especialidade))].map((esp) => (
                 <option key={esp} value={esp}>
                   {esp}
