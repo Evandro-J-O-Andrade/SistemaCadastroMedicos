@@ -14,30 +14,26 @@ const normalizar = (str) =>
 
 // Parseia datas "DD/MM/YYYY" ou "YYYY-MM-DD" ou Date.parse fallback
 const parseData = (dataStr) => {
-  if (!dataStr) return null;
-  if (typeof dataStr !== "string") return null;
+  if (!dataStr || typeof dataStr !== "string") return null;
   if (dataStr.includes("/")) {
-    const parts = dataStr.split("/").map(Number);
-    if (parts.length >= 3) {
-      const [dia, mes, ano] = parts;
-      return new Date(ano, mes - 1, dia);
-    }
+    const [dia, mes, ano] = dataStr.split("/").map(Number);
+    return new Date(ano, mes - 1, dia);
   } else if (dataStr.includes("-")) {
-    const parts = dataStr.split("-").map(Number);
-    if (parts.length >= 3) {
-      const [ano, mes, dia] = parts;
-      return new Date(ano, mes - 1, dia);
-    }
+    const [ano, mes, dia] = dataStr.split("-").map(Number);
+    return new Date(ano, mes - 1, dia);
   }
   const d = new Date(dataStr);
   return isNaN(d) ? null : d;
 };
 
 /* --- Card reutilizável de Especialidades --- */
-function CardEspecialidades({ titulo, dados, mostrarTotal = true, mostrarMedia = false }) {
+function CardEspecialidades({ titulo, dados, mostrarTotal = true, mostrarMedia = true }) {
   const [expandido, setExpandido] = useState(false);
 
-  const total = dados.reduce((acc, item) => acc + (Number(item.quantidade || item.totalMensal || item.totalAno || 0) || 0), 0);
+  const total = dados.reduce(
+    (acc, item) => acc + (Number(item.quantidade || item.totalMensal || item.totalAno || 0) || 0),
+    0
+  );
 
   return (
     <div
@@ -65,12 +61,11 @@ function CardEspecialidades({ titulo, dados, mostrarTotal = true, mostrarMedia =
               key={idx}
               style={{
                 display: "flex",
-                alignItems: "center",
+                flexDirection: "column",
+                alignItems: "flex-start",
                 fontSize: "0.85rem",
                 margin: "6px 0",
                 lineHeight: 1.2,
-                flexDirection: "column",
-                alignItems: "flex-start",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
@@ -83,11 +78,14 @@ function CardEspecialidades({ titulo, dados, mostrarTotal = true, mostrarMedia =
               </div>
               <div style={{ marginLeft: 22, fontSize: "0.85rem" }}>
                 {item.quantidade ?? item.totalMensal ?? item.totalAno ?? 0}
-                {mostrarMedia && (item.mediaDiaria !== undefined || item.mediaMes !== undefined || item.mediaAno !== undefined) && (
-                  <span style={{ marginLeft: 8 }}>
-                    | Dia: {item.mediaDiaria ?? ""} | Mês: {item.mediaMes ?? ""} | Ano: {item.mediaAno ?? ""}
-                  </span>
-                )}
+                {mostrarMedia &&
+                  (item.mediaDiaria !== undefined ||
+                    item.mediaMes !== undefined ||
+                    item.mediaAno !== undefined) && (
+                    <span style={{ marginLeft: 8 }}>
+                      | Dia: {item.mediaDiaria ?? ""} | Mês: {item.mediaMes ?? ""} | Ano: {item.mediaAno ?? ""}
+                    </span>
+                  )}
               </div>
             </div>
           ))}
@@ -114,9 +112,15 @@ function CardMedias({ titulo, total, mediaDia, mediaMes, totalAno }) {
         </p>
       ) : (
         <div style={{ marginTop: 4, fontSize: "0.85rem", lineHeight: 1.3 }}>
-          <p><strong>Média/dia (mês atual):</strong> {mediaDia}</p>
-          <p><strong>Média/mês (ano):</strong> {mediaMes}</p>
-          <p><strong>Total ano:</strong> {totalAno}</p>
+          <p>
+            <strong>Média/dia:</strong> {mediaDia}
+          </p>
+          <p>
+            <strong>Média/mês:</strong> {mediaMes}
+          </p>
+          <p>
+            <strong>Total ano:</strong> {totalAno}
+          </p>
         </div>
       )}
     </div>
@@ -128,7 +132,6 @@ export default function Home() {
   const navigate = useNavigate();
   const [usuarioLogado, setUsuarioLogado] = useState(false);
 
-  // dados
   const [plantaoHojeRaw, setPlantaoHojeRaw] = useState([]);
   const [dadosAtendimentosHoje, setDadosAtendimentosHoje] = useState([]);
   const [atendimentosHojeTotal, setAtendimentosHojeTotal] = useState(0);
@@ -151,7 +154,8 @@ export default function Home() {
     for (const f of possibleNameFields) {
       const v = plantao[f];
       if (!v) continue;
-      if (typeof v === "string" && v.trim()) return { name: v.trim(), medicoObj: medicosIndexByName.get(normalizar(v)) || null };
+      if (typeof v === "string" && v.trim())
+        return { name: v.trim(), medicoObj: medicosIndexByName.get(normalizar(v)) || null };
       if (typeof v === "object") {
         if (v.nome || v.name) return { name: String(v.nome || v.name), medicoObj: v };
         if (v.id || v._id) {
@@ -162,8 +166,13 @@ export default function Home() {
     }
 
     const idCandidates = [
-      plantao.idMedico, plantao.id_medico, plantao.medicoId, plantao.medico_id,
-      plantao.id, plantao._id, plantao.medico,
+      plantao.idMedico,
+      plantao.id_medico,
+      plantao.medicoId,
+      plantao.medico_id,
+      plantao.id,
+      plantao._id,
+      plantao.medico,
     ].filter(Boolean);
 
     for (const cand of idCandidates) {
@@ -208,14 +217,17 @@ export default function Home() {
       const mesAtual = hoje.getMonth();
       const anoAtual = hoje.getFullYear();
 
+      // --- Plantão hoje ---
       const plantaoHojeFiltrado = (plantaoData || []).filter((p) => {
         const d = parseData(p?.data);
-        if (!d) return false;
-        return d.getFullYear() === anoAtual && d.getMonth() === mesAtual && d.getDate() === diaHoje;
+        return d && d.getFullYear() === anoAtual && d.getMonth() === mesAtual && d.getDate() === diaHoje;
       });
       setPlantaoHojeRaw(plantaoHojeFiltrado);
 
-      const totalHoje = plantaoHojeFiltrado.reduce((acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0), 0);
+      const totalHoje = plantaoHojeFiltrado.reduce(
+        (acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0),
+        0
+      );
       setAtendimentosHojeTotal(totalHoje);
 
       const mapaMedicos = new Map();
@@ -233,44 +245,56 @@ export default function Home() {
         const medObj = m.medicoObj || null;
         const espNome = medObj?.especialidade || medObj?.especialidadeNome || "";
         const espInfo = espNome ? getEspecialidadeInfo(espNome) : { nome: "", icone: FaIcons.FaUserMd, cor: "#666" };
-        const IconComponent = (espInfo && espInfo.icone) ? espInfo.icone : FaIcons.FaUserMd;
         return {
           especialidade: m.nome,
           quantidade: m.quantidade,
-          icon: IconComponent,
-          color: (espInfo && espInfo.cor) || "#444",
+          icon: espInfo.icone || FaIcons.FaUserMd,
+          color: espInfo.cor || "#444",
         };
       });
-
       atendHojeArr.sort((a, b) => b.quantidade - a.quantidade);
       setDadosAtendimentosHoje(atendHojeArr);
 
+      // --- Totais do mês e cálculo de médias ---
       const plantaoMes = (plantaoData || []).filter((p) => {
         const d = parseData(p?.data);
-        if (!d) return false;
-        return d.getFullYear() === anoAtual && d.getMonth() === mesAtual;
+        return d && d.getFullYear() === anoAtual && d.getMonth() === mesAtual;
       });
       const diasMes = new Date(anoAtual, mesAtual + 1, 0).getDate() || 1;
-      const totalMes = plantaoMes.reduce((acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0), 0);
+      const totalMes = plantaoMes.reduce(
+        (acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0),
+        0
+      );
       const mediaDiaCalc = Math.round(totalMes / diasMes);
       setMediaDia(mediaDiaCalc);
 
       const plantaoAno = (plantaoData || []).filter((p) => {
         const d = parseData(p?.data);
-        if (!d) return false;
-        return d.getFullYear() === anoAtual;
+        return d && d.getFullYear() === anoAtual;
       });
-      const totalAnoCalc = plantaoAno.reduce((acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0), 0);
+      const totalAnoCalc = plantaoAno.reduce(
+        (acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0),
+        0
+      );
       const mediaMesCalc = Math.round(totalAnoCalc / 12);
       setTotalAno(totalAnoCalc);
       setMediaMes(mediaMesCalc);
 
       setMedicosCadastrados((medicosData || []).length || 0);
 
-      const espUnicasMedicos = [...new Set((medicosData || []).map(m => normalizar(m?.especialidade || m?.especialidadeNome || "")).filter(Boolean))];
+      const espUnicasMedicos = [
+        ...new Set(
+          (medicosData || [])
+            .map((m) => normalizar(m?.especialidade || m?.especialidadeNome || ""))
+            .filter(Boolean)
+        ),
+      ];
       setEspecialidadesCount(espUnicasMedicos.length);
 
-      const mapa = new Map();
+      // --- Médias por especialidade ---
+      const mapaMes = new Map();
+      const mapaAno = new Map();
+
       for (const p of plantaoMes) {
         let espRaw = p?.especialidade ? String(p.especialidade) : "";
         if (!espRaw) {
@@ -278,29 +302,54 @@ export default function Home() {
           espRaw = resolved.medicoObj?.especialidade || resolved.medicoObj?.especialidadeNome || "";
         }
         if (!espRaw) espRaw = "Desconhecida";
+
         const norm = normalizar(espRaw);
         const quantidade = Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0;
-        if (!mapa.has(norm)) mapa.set(norm, { nomeOriginal: espRaw, total: quantidade });
-        else mapa.get(norm).total += quantidade;
+
+        if (!mapaMes.has(norm)) mapaMes.set(norm, { nomeOriginal: espRaw, total: quantidade });
+        else mapaMes.get(norm).total += quantidade;
+      }
+
+      for (const p of plantaoAno) {
+        let espRaw = p?.especialidade ? String(p.especialidade) : "";
+        if (!espRaw) {
+          const resolved = resolveMedicoFromPlantao(p, medicosIndexById, medicosIndexByName);
+          espRaw = resolved.medicoObj?.especialidade || resolved.medicoObj?.especialidadeNome || "";
+        }
+        if (!espRaw) espRaw = "Desconhecida";
+
+        const norm = normalizar(espRaw);
+        const quantidade = Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0;
+
+        if (!mapaAno.has(norm)) mapaAno.set(norm, quantidade);
+        else mapaAno.set(norm, mapaAno.get(norm) + quantidade);
       }
 
       const mediasEsp = [];
-      for (const [_, { nomeOriginal, total }] of mapa.entries()) {
+      for (const [norm, { nomeOriginal, total }] of mapaMes.entries()) {
         if (!total) continue;
+
+        const totalMensal = total;
+        const mediaDiaria = Math.round(totalMensal / diasMes);
+        const totalAnoEspecialidade = mapaAno.get(norm) || 0;
+        const mediaMes = Math.round(totalAnoEspecialidade / 12);
+
         const espInfo = getEspecialidadeInfo(nomeOriginal);
+
         mediasEsp.push({
           especialidade: (espInfo && espInfo.nome) ? espInfo.nome.toUpperCase() : nomeOriginal.toUpperCase(),
           icon: espInfo.icone || FaIcons.FaUserMd,
           color: espInfo.cor || "#666",
-          totalMensal: total,
-          mediaDiaria: Math.round(total / (diasMes || 1)),
+          totalMensal,
+          mediaDiaria,
+          mediaMes,
+          mediaAno: totalAnoEspecialidade,
         });
       }
 
       mediasEsp.sort((a, b) => (b.totalMensal || 0) - (a.totalMensal || 0));
       setMediaPorEspecialidade(mediasEsp);
       setTotalMediaEspecialidades(mediasEsp.reduce((acc, i) => acc + (i.totalMensal || 0), 0));
-
     } catch (err) {
       console.error("Erro em atualizarDados Home:", err);
       setPlantaoHojeRaw([]);
@@ -343,17 +392,8 @@ export default function Home() {
       </section>
 
       <section className="resumo-sistema">
-        {/* Atendimentos hoje por médico */}
         <CardEspecialidades titulo="Atendimentos Hoje (por médico)" dados={dadosAtendimentosHoje} />
-
-        {/* Card de Médias */}
-        <CardMedias
-          titulo="Médias"
-          total={atendimentosHojeTotal}
-          mediaDia={mediaDia}
-          mediaMes={mediaMes}
-          totalAno={totalAno}
-        />
+        <CardMedias titulo="Médias" total={atendimentosHojeTotal} mediaDia={mediaDia} mediaMes={mediaMes} totalAno={totalAno} />
 
         <div className="card-resumo">
           <h3>Médicos cadastrados</h3>
@@ -364,18 +404,13 @@ export default function Home() {
           <p>{especialidadesCount}</p>
         </div>
 
-        {/* Totais por especialidade */}
-        <CardEspecialidades
-          titulo="Totais por Especialidades (mês / média dia)"
-          dados={mediaPorEspecialidade}
-          mostrarMedia={true}
-        />
+        <CardEspecialidades titulo="Totais por Especialidades (mês / média dia)" dados={mediaPorEspecialidade} mostrarMedia={true} />
       </section>
 
       <section className="novidades">
         <h2>Novidades</h2>
         <div className="novidades-list">
-          {novidades.map(item => (
+          {novidades.map((item) => (
             <div key={item.id} className="card-novidade">
               <h4>{item.titulo}</h4>
               <p>{item.descricao}</p>
