@@ -1,34 +1,189 @@
+// src/pages/Home.js
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import * as FaIcons from "react-icons/fa"; // Importa todos os ícones Fa para uso dinâmico
+import * as FaIcons from "react-icons/fa";
 import "./Home.css";
-import "./mobile.css"
+import "./mobile.css";
 import LogoAlpha from "../img/Logo_Alpha.png";
-import { getEspecialidadeInfo } from "../api/especialidades"; // Importa só a função (array não precisa mais)
+import { getEspecialidadeInfo } from "../api/especialidades";
 
-// função de normalização (agora lowercase pra combinar com especialidades.js)
+/* --- util --- */
+// Normaliza strings: remove acentos / trim / lowercase
 const normalizar = (str) =>
-  str
-    ? String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
-    : "";
+  str ? String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
 
+// Parseia datas "DD/MM/YYYY" ou "YYYY-MM-DD" ou Date.parse fallback
+const parseData = (dataStr) => {
+  if (!dataStr) return null;
+  if (typeof dataStr !== "string") return null;
+  if (dataStr.includes("/")) {
+    const parts = dataStr.split("/").map(Number);
+    if (parts.length >= 3) {
+      const [dia, mes, ano] = parts;
+      return new Date(ano, mes - 1, dia);
+    }
+  } else if (dataStr.includes("-")) {
+    const parts = dataStr.split("-").map(Number);
+    if (parts.length >= 3) {
+      const [ano, mes, dia] = parts;
+      return new Date(ano, mes - 1, dia);
+    }
+  }
+  const d = new Date(dataStr);
+  return isNaN(d) ? null : d;
+};
+
+/* --- Card reutilizável de Especialidades --- */
+function CardEspecialidades({ titulo, dados, mostrarTotal = true, mostrarMedia = false }) {
+  const [expandido, setExpandido] = useState(false);
+
+  const total = dados.reduce((acc, item) => acc + (Number(item.quantidade || item.totalMensal || item.totalAno || 0) || 0), 0);
+
+  return (
+    <div
+      className={`card-resumo ${expandido ? "expandido" : ""}`}
+      onClick={() => setExpandido((s) => !s)}
+      style={{ cursor: "pointer" }}
+    >
+      <h3>{titulo}</h3>
+
+      {!expandido ? (
+        mostrarTotal && (
+          <p style={{ margin: "4px 0", fontSize: "0.9rem" }}>
+            <strong>Total:</strong> {total}
+          </p>
+        )
+      ) : (
+        <div className="lista-especialidades" style={{ marginTop: 4 }}>
+          {mostrarTotal && (
+            <p style={{ margin: "4px 0", fontSize: "0.9rem" }}>
+              <strong>Total:</strong> {total}
+            </p>
+          )}
+          {dados.map((item, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                fontSize: "0.85rem",
+                margin: "6px 0",
+                lineHeight: 1.2,
+                flexDirection: "column",
+                alignItems: "flex-start",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                {item.icon && typeof item.icon === "function" ? (
+                  <item.icon size={14} style={{ color: item.color || "#666", marginRight: 8 }} />
+                ) : (
+                  <FaIcons.FaUserMd size={14} style={{ color: item.color || "#666", marginRight: 8 }} />
+                )}
+                <span style={{ fontWeight: 600 }}>{item.especialidade}</span>
+              </div>
+              <div style={{ marginLeft: 22, fontSize: "0.85rem" }}>
+                {item.quantidade ?? item.totalMensal ?? item.totalAno ?? 0}
+                {mostrarMedia && (item.mediaDiaria !== undefined || item.mediaMes !== undefined || item.mediaAno !== undefined) && (
+                  <span style={{ marginLeft: 8 }}>
+                    | Dia: {item.mediaDiaria ?? ""} | Mês: {item.mediaMes ?? ""} | Ano: {item.mediaAno ?? ""}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* --- Card de Médias --- */
+function CardMedias({ titulo, total, mediaDia, mediaMes, totalAno }) {
+  const [expandido, setExpandido] = useState(false);
+
+  return (
+    <div
+      className={`card-resumo ${expandido ? "expandido" : ""}`}
+      onClick={() => setExpandido((s) => !s)}
+      style={{ cursor: "pointer" }}
+    >
+      <h3>{titulo}</h3>
+      {!expandido ? (
+        <p style={{ margin: "4px 0", fontSize: "0.9rem" }}>
+          <strong>Total de atendimentos:</strong> {total}
+        </p>
+      ) : (
+        <div style={{ marginTop: 4, fontSize: "0.85rem", lineHeight: 1.3 }}>
+          <p><strong>Média/dia (mês atual):</strong> {mediaDia}</p>
+          <p><strong>Média/mês (ano):</strong> {mediaMes}</p>
+          <p><strong>Total ano:</strong> {totalAno}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* --- Página Home --- */
 export default function Home() {
   const navigate = useNavigate();
   const [usuarioLogado, setUsuarioLogado] = useState(false);
 
-  const [atendimentosHoje, setAtendimentosHoje] = useState(0);
-  const [mediaMensal, setMediaMensal] = useState(0);
+  // dados
+  const [plantaoHojeRaw, setPlantaoHojeRaw] = useState([]);
+  const [dadosAtendimentosHoje, setDadosAtendimentosHoje] = useState([]);
+  const [atendimentosHojeTotal, setAtendimentosHojeTotal] = useState(0);
+  const [mediaDia, setMediaDia] = useState(0);
+  const [mediaMes, setMediaMes] = useState(0);
+  const [totalAno, setTotalAno] = useState(0);
   const [medicosCadastrados, setMedicosCadastrados] = useState(0);
-  const [especialidades, setEspecialidades] = useState(0);
+  const [especialidadesCount, setEspecialidadesCount] = useState(0);
   const [mediaPorEspecialidade, setMediaPorEspecialidade] = useState([]);
   const [totalMediaEspecialidades, setTotalMediaEspecialidades] = useState(0);
-  const [expandirEspecialidades, setExpandirEspecialidades] = useState(false);
 
   const novidades = [
     { id: 1, titulo: "Sistema atualizado", descricao: "Nova versão com melhorias no painel de relatórios." },
     { id: 2, titulo: "Treinamento disponível", descricao: "Treinamento online para novos funcionários." },
     { id: 3, titulo: "Suporte técnico", descricao: "Suporte disponível de 8h às 18h." },
   ];
+
+  const resolveMedicoFromPlantao = (plantao, medicosIndexById, medicosIndexByName) => {
+    const possibleNameFields = ["nomeMedico", "nome", "medicoNome", "medico_name", "medico"];
+    for (const f of possibleNameFields) {
+      const v = plantao[f];
+      if (!v) continue;
+      if (typeof v === "string" && v.trim()) return { name: v.trim(), medicoObj: medicosIndexByName.get(normalizar(v)) || null };
+      if (typeof v === "object") {
+        if (v.nome || v.name) return { name: String(v.nome || v.name), medicoObj: v };
+        if (v.id || v._id) {
+          const found = medicosIndexById.get(String(v.id || v._id));
+          if (found) return { name: found.nome || found.name || "Desconhecido", medicoObj: found };
+        }
+      }
+    }
+
+    const idCandidates = [
+      plantao.idMedico, plantao.id_medico, plantao.medicoId, plantao.medico_id,
+      plantao.id, plantao._id, plantao.medico,
+    ].filter(Boolean);
+
+    for (const cand of idCandidates) {
+      if (typeof cand === "object") {
+        if (cand.nome || cand.name) return { name: String(cand.nome || cand.name), medicoObj: cand };
+        if (cand.id || cand._id) {
+          const found = medicosIndexById.get(String(cand.id || cand._id));
+          if (found) return { name: found.nome || found.name || "Desconhecido", medicoObj: found };
+        }
+        continue;
+      }
+      const key = String(cand);
+      const byId = medicosIndexById.get(key) || medicosIndexById.get(String(Number(key))) || null;
+      if (byId) return { name: byId.nome || byId.name || "Desconhecido", medicoObj: byId };
+      const byName = medicosIndexByName.get(normalizar(key));
+      if (byName) return { name: byName.nome || byName.name || key, medicoObj: byName };
+    }
+
+    return { name: "Medico não encontrado!", medicoObj: null };
+  };
 
   const atualizarDados = () => {
     try {
@@ -38,76 +193,124 @@ export default function Home() {
       const plantaoData = JSON.parse(localStorage.getItem("plantaoData") || "[]");
       const medicosData = JSON.parse(localStorage.getItem("medicos") || "[]");
 
-      const hoje = new Date();
-      const diaHoje = hoje.toISOString().split("T")[0]; // YYYY-MM-DD
-
-      // Atendimentos hoje
-      const atendHoje = plantaoData
-        .filter((p) => p && String(p.data) === diaHoje)
-        .reduce((acc, p) => acc + (Number(p.quantidade) || 0), 0);
-      setAtendimentosHoje(atendHoje);
-
-      // Média mensal
-      const mesAtual = hoje.getMonth() + 1;
-      const anoAtual = hoje.getFullYear();
-
-      const plantaoMes = plantaoData.filter((p) => {
-        if (!p?.data) return false;
-        const [ano, mes] = p.data.split("-");
-        return Number(ano) === anoAtual && Number(mes) === mesAtual;
+      const medicosIndexById = new Map();
+      const medicosIndexByName = new Map();
+      (medicosData || []).forEach((m) => {
+        if (!m) return;
+        const possibleIds = [m.id, m._id, m.idMedico, m.id_medico].filter(Boolean);
+        for (const id of possibleIds) medicosIndexById.set(String(id), m);
+        const nome = m.nome || m.name || m.nomeMedico || "";
+        if (nome) medicosIndexByName.set(normalizar(nome), m);
       });
 
-      const diasMes = new Date(anoAtual, mesAtual, 0).getDate() || 1;
-      const totalMes = plantaoMes.reduce((acc, p) => acc + (Number(p.quantidade) || 0), 0);
-      setMediaMensal(Math.round(totalMes / diasMes));
+      const hoje = new Date();
+      const diaHoje = hoje.getDate();
+      const mesAtual = hoje.getMonth();
+      const anoAtual = hoje.getFullYear();
 
-      // Médicos cadastrados
-      setMedicosCadastrados(medicosData.length || 0);
+      const plantaoHojeFiltrado = (plantaoData || []).filter((p) => {
+        const d = parseData(p?.data);
+        if (!d) return false;
+        return d.getFullYear() === anoAtual && d.getMonth() === mesAtual && d.getDate() === diaHoje;
+      });
+      setPlantaoHojeRaw(plantaoHojeFiltrado);
 
-      // Quantidade de especialidades distintas cadastradas (base médicos) - garante string
-      const espUnicasMedicos = [...new Set(medicosData.map((m) => m?.especialidade || "").filter(Boolean))];
-      setEspecialidades(espUnicasMedicos.length);
+      const totalHoje = plantaoHojeFiltrado.reduce((acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0), 0);
+      setAtendimentosHojeTotal(totalHoje);
 
-      // Agrupa plantões por especialidade (normaliza pra chave única)
-      const mapa = new Map();
-      for (const p of plantaoMes) {
-        const nome = p?.especialidade ? String(p.especialidade) : "";
-        const norm = normalizar(nome); // Agora lowercase, combina com getEspecialidadeInfo
-        if (!norm) continue;
-        const quantidade = Number(p.quantidade) || 0;
-        if (!mapa.has(norm)) {
-          mapa.set(norm, { nomeOriginal: nome, total: quantidade });
-        } else {
-          mapa.get(norm).total += quantidade;
-        }
+      const mapaMedicos = new Map();
+      for (const p of plantaoHojeFiltrado) {
+        const qtd = Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0;
+        const resolved = resolveMedicoFromPlantao(p, medicosIndexById, medicosIndexByName);
+        const nomeMed = resolved.name || "Desconhecido";
+        const key = normalizar(nomeMed);
+        const prev = mapaMedicos.get(key) || { nome: nomeMed, quantidade: 0, medicoObj: resolved.medicoObj || null };
+        prev.quantidade += qtd;
+        mapaMedicos.set(key, prev);
       }
 
-      // Cria array de totais por especialidade (sem média diária)
+      const atendHojeArr = Array.from(mapaMedicos.values()).map((m) => {
+        const medObj = m.medicoObj || null;
+        const espNome = medObj?.especialidade || medObj?.especialidadeNome || "";
+        const espInfo = espNome ? getEspecialidadeInfo(espNome) : { nome: "", icone: FaIcons.FaUserMd, cor: "#666" };
+        const IconComponent = (espInfo && espInfo.icone) ? espInfo.icone : FaIcons.FaUserMd;
+        return {
+          especialidade: m.nome,
+          quantidade: m.quantidade,
+          icon: IconComponent,
+          color: (espInfo && espInfo.cor) || "#444",
+        };
+      });
+
+      atendHojeArr.sort((a, b) => b.quantidade - a.quantidade);
+      setDadosAtendimentosHoje(atendHojeArr);
+
+      const plantaoMes = (plantaoData || []).filter((p) => {
+        const d = parseData(p?.data);
+        if (!d) return false;
+        return d.getFullYear() === anoAtual && d.getMonth() === mesAtual;
+      });
+      const diasMes = new Date(anoAtual, mesAtual + 1, 0).getDate() || 1;
+      const totalMes = plantaoMes.reduce((acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0), 0);
+      const mediaDiaCalc = Math.round(totalMes / diasMes);
+      setMediaDia(mediaDiaCalc);
+
+      const plantaoAno = (plantaoData || []).filter((p) => {
+        const d = parseData(p?.data);
+        if (!d) return false;
+        return d.getFullYear() === anoAtual;
+      });
+      const totalAnoCalc = plantaoAno.reduce((acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0), 0);
+      const mediaMesCalc = Math.round(totalAnoCalc / 12);
+      setTotalAno(totalAnoCalc);
+      setMediaMes(mediaMesCalc);
+
+      setMedicosCadastrados((medicosData || []).length || 0);
+
+      const espUnicasMedicos = [...new Set((medicosData || []).map(m => normalizar(m?.especialidade || m?.especialidadeNome || "")).filter(Boolean))];
+      setEspecialidadesCount(espUnicasMedicos.length);
+
+      const mapa = new Map();
+      for (const p of plantaoMes) {
+        let espRaw = p?.especialidade ? String(p.especialidade) : "";
+        if (!espRaw) {
+          const resolved = resolveMedicoFromPlantao(p, medicosIndexById, medicosIndexByName);
+          espRaw = resolved.medicoObj?.especialidade || resolved.medicoObj?.especialidadeNome || "";
+        }
+        if (!espRaw) espRaw = "Desconhecida";
+        const norm = normalizar(espRaw);
+        const quantidade = Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0;
+        if (!mapa.has(norm)) mapa.set(norm, { nomeOriginal: espRaw, total: quantidade });
+        else mapa.get(norm).total += quantidade;
+      }
+
       const mediasEsp = [];
-      for (const [norm, { nomeOriginal, total }] of mapa.entries()) {
-        if (total <= 0) continue;
-
-        // Usa getEspecialidadeInfo direto no nome original (cuida de sinonimos e normalização interna)
+      for (const [_, { nomeOriginal, total }] of mapa.entries()) {
+        if (!total) continue;
         const espInfo = getEspecialidadeInfo(nomeOriginal);
-
         mediasEsp.push({
-          especialidade: espInfo.nome.toUpperCase(), // Nome oficial, upper pra exibição
-          icon: espInfo.icone, // Componente React direto (ex: FaUserMd)
-          color: espInfo.cor, // Cor da especialidades.js
-          totalMensal: total, // Total do mês, não diária
+          especialidade: (espInfo && espInfo.nome) ? espInfo.nome.toUpperCase() : nomeOriginal.toUpperCase(),
+          icon: espInfo.icone || FaIcons.FaUserMd,
+          color: espInfo.cor || "#666",
+          totalMensal: total,
+          mediaDiaria: Math.round(total / (diasMes || 1)),
         });
       }
 
+      mediasEsp.sort((a, b) => (b.totalMensal || 0) - (a.totalMensal || 0));
       setMediaPorEspecialidade(mediasEsp);
+      setTotalMediaEspecialidades(mediasEsp.reduce((acc, i) => acc + (i.totalMensal || 0), 0));
 
-      const total = mediasEsp.reduce((acc, item) => acc + (item.totalMensal || 0), 0);
-      setTotalMediaEspecialidades(total);
     } catch (err) {
       console.error("Erro em atualizarDados Home:", err);
-      setAtendimentosHoje(0);
-      setMediaMensal(0);
+      setPlantaoHojeRaw([]);
+      setDadosAtendimentosHoje([]);
+      setAtendimentosHojeTotal(0);
+      setMediaDia(0);
+      setMediaMes(0);
+      setTotalAno(0);
       setMedicosCadastrados(0);
-      setEspecialidades(0);
+      setEspecialidadesCount(0);
       setMediaPorEspecialidade([]);
       setTotalMediaEspecialidades(0);
     }
@@ -140,59 +343,39 @@ export default function Home() {
       </section>
 
       <section className="resumo-sistema">
-        <div className="card-resumo">
-          <h3>Atendimentos hoje</h3>
-          <p>{atendimentosHoje}</p>
-        </div>
+        {/* Atendimentos hoje por médico */}
+        <CardEspecialidades titulo="Atendimentos Hoje (por médico)" dados={dadosAtendimentosHoje} />
 
-        <div className="card-resumo">
-          <h3>Média mensal (dia)</h3>
-          <p>{mediaMensal}</p>
-        </div>
+        {/* Card de Médias */}
+        <CardMedias
+          titulo="Médias"
+          total={atendimentosHojeTotal}
+          mediaDia={mediaDia}
+          mediaMes={mediaMes}
+          totalAno={totalAno}
+        />
 
         <div className="card-resumo">
           <h3>Médicos cadastrados</h3>
           <p>{medicosCadastrados}</p>
         </div>
-
         <div className="card-resumo">
           <h3>Especialidades</h3>
-          <p>{especialidades}</p>
+          <p>{especialidadesCount}</p>
         </div>
 
-        {mediaPorEspecialidade.length > 0 && (
-          <div
-            className={`card-resumo ${expandirEspecialidades ? "expandido" : ""}`}
-            onClick={() => setExpandirEspecialidades((s) => !s)}
-            style={{ cursor: "pointer" }}
-          >
-            <h3>Totais por Especialidades</h3> {/* Ajustado título pra refletir totais */}
-
-            {!expandirEspecialidades ? (
-              <p><strong>Total:</strong> {totalMediaEspecialidades}</p>
-            ) : (
-              <div className="lista-especialidades">
-                <p><strong>Total:</strong> {totalMediaEspecialidades}</p>
-                {mediaPorEspecialidade.map((item) => (
-                  <div key={item.especialidade} className="item-especialidade">
-                    {item.icon && typeof item.icon === "function" ? (
-                      <item.icon size={16} style={{ color: item.color, marginRight: 8 }} />
-                    ) : (
-                      <FaIcons.FaQuestion size={16} style={{ color: item.color || "#999", marginRight: 8 }} /> // Fallback do react-icons
-                    )}
-                    <strong>{item.especialidade} Total Atendido = {item.totalMensal}</strong> {/* Formato ajustado: Especialidade Total Atendido = Número */}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Totais por especialidade */}
+        <CardEspecialidades
+          titulo="Totais por Especialidades (mês / média dia)"
+          dados={mediaPorEspecialidade}
+          mostrarMedia={true}
+        />
       </section>
 
       <section className="novidades">
         <h2>Novidades</h2>
         <div className="novidades-list">
-          {novidades.map((item) => (
+          {novidades.map(item => (
             <div key={item.id} className="card-novidade">
               <h4>{item.titulo}</h4>
               <p>{item.descricao}</p>

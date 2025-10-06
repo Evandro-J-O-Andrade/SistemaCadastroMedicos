@@ -6,7 +6,7 @@ export default function GraficoBarra({ data }) {
     responsive: true,
     plugins: {
       legend: { 
-        display: false,
+        display: true,
         labels: { color: "#003366", font: { size: 14, weight: "500" } },
       },
       tooltip: { 
@@ -32,5 +32,15 @@ export default function GraficoBarra({ data }) {
     },
   };
 
-  return <Bar data={data} options={options} />;
+  // força as barras a ficarem finas
+  const newData = {
+    ...data,
+    datasets: data.datasets.map(ds => ({
+      ...ds,
+      barThickness: 40,     // 🔽 largura fixa em px (ajuste aqui)
+      maxBarThickness: 40,  // 🔽 garante que não expanda
+    }))
+  };
+
+  return <Bar data={newData} options={options} />;
 }
