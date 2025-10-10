@@ -656,3 +656,320 @@
     padding: 6px;
   }
 }
+/* ===== Responsivo ===== */
+@media (max-width: 768px) {
+  .resumo-sistema,
+  .novidades-list {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .card-resumo,
+  .card-novidade {
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 480px) {
+  .banner h1 {
+    font-size: 1.8rem;
+  }
+
+  .banner p {
+    font-size: 1rem;
+  }
+
+  .btn-login {
+    width: 100%;
+  }
+}@media (max-width: 768px) {
+  /* Lista suspensa deve ocupar quase toda a largura do container pai, sem overflow */
+  .lista-suspensa {
+    max-height: 180px;
+    width: 100% !important; /* Força ocupar toda a largura disponível no pai */
+    left: 0 !important; /* Alinha à esquerda do container do input */
+    right: auto !important;
+    border-radius: 6px;
+    overflow-y: auto;
+    font-size: 14px; /* Fonte um pouco menor para melhor encaixe */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+
+  /* Ajusta paddings e quebra de texto para caber */
+  .lista-suspensa li {
+    padding: 6px 10px;
+    white-space: nowrap; /* impede quebra no nome */
+    text-overflow: ellipsis; /* corta texto que extrapolar */
+    overflow: hidden;
+  }
+
+  /* Deixa mouse hover e seleção mais visíveis em mobile touch */
+  .lista-suspensa li:hover,
+  .lista-suspensa li.selected {
+    background: rgba(59, 130, 246, 0.3);
+    outline: none;
+  }
+
+  /* Para evitar que o botão lupa atrapalhe layout, deixe ele dimensionado melhor */
+  .input-com-lupa button.btn-lupa {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+
+  /* Input especialidade ocupa largura total */
+  .input-com-lupa input {
+    padding-right: 40px; /* espaço para a lupa */
+  }
+}
+/* Tabela responsiva: esconder coluna Observação no mobile */
+@media (max-width: 768px) {
+  /* Escondendo a coluna Observação */
+  #tabela-medicos th:nth-child(5),
+  #tabela-medicos td:nth-child(5) {
+    display: none;
+  }
+
+  /* Ajustar padding e fontes para caber melhor */
+  #tabela-medicos th,
+  #tabela-medicos td {
+    padding: 8px 6px;
+    font-size: 14px;
+  }
+
+  /* Esconder botões grandes para mobile */
+  .btn-editar,
+  .btn-excluir {
+    display: none !important;
+  }
+
+  /* Mostrar container do menu compacto em mobile */
+  .actions-menu {
+    display: inline-block !important;
+  }
+
+  /* Melhor visual da tabela e linhas */
+  #tabela-medicos tbody tr {
+    border-bottom: 1px solid #ddd;
+  }
+}
+/* Ajustes de responsividade e usabilidade para lista de especialidades no Plantão */
+
+@media (max-width: 768px) {
+  /* Container da lista suspensa deve ocupar 100% do container pai (input) */
+  .lista-medicos {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px; /* limita altura, habilita scroll */
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 1000;
+    font-size: 14px;
+  }
+
+  /* Itens da lista */
+  .lista-medicos div {
+    padding: 8px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* Degrade simulado com linha clara e linha escura alternada */
+  .lista-medicos div:nth-child(odd) {
+    background-color: #f0f0f0;
+  }
+  
+  .lista-medicos div:nth-child(even) {
+    background-color: #fff;
+  }
+
+  /* Hover e seleção mais claros para toque */
+  .lista-medicos div:hover {
+    background: linear-gradient(90deg, rgba(59,130,246,0.3), rgba(191,219,254,0.15));
+  }
+
+  /* Ajustes dos ícones, se houver */
+  .lista-medicos div .icone {
+    margin-right: 8px;
+  }
+
+  /* Espaço para o botão lupa sem sobreposição */
+  .lupa-wrapper input {
+    padding-right: 40px;
+  }
+
+  .lupa-wrapper i.fas.fa-search {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 18px;
+    color: #555;
+  }
+
+  /* Garante que o wrapper da lupa tenha posição relativa */
+  .lupa-wrapper {
+    position: relative;
+  }
+}
+@media (max-width: 990px) {
+  /* Exemplo para container que tem inputs lado a lado */
+  .linha-especialidade-crm {
+    flex-direction: column !important; /* muda para coluna */
+    gap: 15px; /* distância maior entre inputs */
+  }
+
+  /* Garante que os inputs ocupem 100% da largura para melhor aproveitamento */
+  .linha-especialidade-crm input,
+  .linha-especialidade-crm .input-com-lupa {
+    width: 100% !important;
+    min-width: 0; /* previne overflow */
+  }
+  
+  /* Se tiver formulários com vários inputs em linha, aplicar o mesmo */
+  #medicos-form {
+    flex-direction: column !important;
+  }
+  
+  /* Ajuste geral para inputs ocuparem largura total no mobile */
+  #medicos-form input,
+  #medicos-form select,
+  #medicos-form textarea {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+}
+@media (max-width: 990px) {
+  /* Para o container que organiza inputs em linha, por exemplo .linha-especialidade-crm */
+  .linha-especialidade-crm {
+    flex-direction: column !important; /* força coluna */
+    gap: 15px; /* espaçamento vertical agradável */
+  }
+
+  /* Inputs dentro da linha ocupam 100% */
+  .linha-especialidade-crm > input,
+  .linha-especialidade-crm > .input-com-lupa {
+    width: 100% !important;
+    min-width: 0; /* evita overflow em flex item */
+  }
+
+  /* Se o form usa flex para inputs lado a lado */
+  #medicos-form {
+    flex-direction: column !important;
+  }
+
+  /* Inputs, selects e textareas do formulário ficam 100% largura */
+  #medicos-form input,
+  #medicos-form select,
+  #medicos-form textarea {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+}
+@media (max-width: 990px) {
+  .form-plantao {
+    grid-template-columns: 1fr !important; /* força uma coluna só */
+    gap: 20px; /* espaço confortável entre inputs empilhados */
+  }
+
+  /* Se quiser, pode ajustar a largura dos botões para preencher 100% */
+  .btn-salvar-plantao {
+    width: 100%;
+  }
+}
+@media (max-width: 990px) {
+  .form-plantao {
+    grid-template-columns: 1fr !important; /* força uma coluna */
+    gap: 15px !important; /* espaçamento confortável */
+  }
+
+  .form-plantao label {
+    width: 100%;
+  }
+
+  /* Ajuste inputs e selects para largura 100% */
+  .form-plantao input,
+  .form-plantao select {
+    min-width: auto !important; /* remove restrição mínima */
+    width: 100% !important;
+    box-sizing: border-box; /* garante padding sem expandir largura */
+  }
+
+  /* Se botão salvar for largo */
+  .btn-salvar-plantao {
+    grid-column: 1 / -1 !important; /* ocupa fila inteira */
+    width: 100% !important;
+  }
+}
+/* Layout base: grade flexível com colunas de no mínimo 180px */
+.form-plantao {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 22px;
+  margin-bottom: 35px;
+}
+
+/* De 990px até 801px: adaptação suave com colunas maiores */
+@media only screen and (max-width: 990px) and (min-width: 801px) {
+  .form-plantao {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+  }
+}
+
+/* De 800px até 601px: menos colunas, inputs maiores */
+@media only screen and (max-width: 800px) and (min-width: 601px) {
+  .form-plantao {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+}
+
+/* Até 600px: coluna única para mobile */
+@media only screen and (max-width: 600px) {
+  .form-plantao {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+  .form-plantao label {
+    width: 100%;
+  }
+  .form-plantao input,
+  .form-plantao select {
+    width: 100% !important;
+    box-sizing: border-box;
+    min-width: auto !important;
+  }
+  .btn-salvar-plantao {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+}
+.form-plantao {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr; /* Médico recebe 2frações, CRM 1 fração */
+  grid-template-areas:
+    "medico crm especialidade"
+    "quantidade quantidade quantidade"
+    "data data hora"
+    "botao botao botao";
+  gap: 22px;
+  margin-bottom: 35px;
+}
+
+label.medico { grid-area: medico; }
+label.crm { grid-area: crm; }
+label.especialidade { grid-area: especialidade; }
+label.quantidade { grid-area: quantidade; }
+label.data { grid-area: data; }
+label.hora { grid-area: hora; }
+.btn-salvar-plantao { grid-area: botao; width: 100%; }

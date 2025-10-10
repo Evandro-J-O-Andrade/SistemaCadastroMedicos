@@ -301,3 +301,189 @@
 .btn-voz:hover {
   background: #ddd;
 }
+.lista-suspensa {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff; /* fundo branco para contraste */
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  z-index: 10;
+  margin-top: 2px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.lista-suspensa li {
+  padding: 8px 10px;
+  cursor: pointer;
+  background: transparent;
+  display: flex;
+  align-items: center;
+}
+
+.lista-suspensa li:nth-child(odd) {
+  background: #f9f9f9;
+}
+
+.lista-suspensa li:nth-child(even) {
+  background: #ffffff;
+}
+
+.lista-suspensa li:hover,
+.lista-suspensa li.selected {
+  background: linear-gradient(90deg, rgba(59,130,246,0.25), rgba(191,219,254,0.1));
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.lista-suspensa li .icone {
+  margin-right: 8px;
+}
+
+.lista-vazia {
+  padding: 8px 10px;
+  color: #999;
+  font-style: italic;
+}
+.lista-suspensa {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-top: 2px;
+}
+
+.lista-suspensa li {
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  background: transparent;
+  transition: background 0.3s ease;
+}
+
+.lista-suspensa li:nth-child(odd) {
+  background: #f0f0f0;
+}
+
+.lista-suspensa li:nth-child(even) {
+  background: #ffffff;
+}
+
+.lista-suspensa li:hover,
+.lista-suspensa li.selected {
+  background: linear-gradient(90deg, rgba(59,130,246,0.25), rgba(191,219,254,0.15));
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.lista-suspensa li .icone {
+  margin-right: 8px;
+}
+
+.lista-vazia {
+  padding: 8px 10px;
+  color: #999;
+  font-style: italic;
+}
+.lista-suspensa li:nth-child(odd) {
+  background: #d1d5db; /* cinza escuro claro - mais forte que antes */
+}
+
+.lista-suspensa li:nth-child(even) {
+  background: #f3f4f6; /* cinza bem claro, quase branco */
+}
+
+.lista-suspensa li:hover,
+.lista-suspensa li.selected {
+  background: #ffffff; /* branco puro para a seleção */
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* Estilos base para botões de ação - desktop */
+.btn-editar, .btn-excluir {
+  display: inline-flex;
+  padding: 5px 13px;
+  border-radius: 6px;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin: 0 5px;
+  font-size: 14px;
+}
+
+.btn-editar {
+  background: #f59e0b;
+}
+
+.btn-editar:hover {
+  background: #d97706;
+}
+
+.btn-excluir {
+  background: #ef4444;
+}
+
+.btn-excluir:hover {
+  background: #dc2626;
+}
+
+/* Menu de ações compacto para mobile - inicialmente escondido */
+.actions-menu {
+  position: relative;
+  display: none;
+}
+
+/* Botão principal do menu */
+.btn-acoes-toggle {
+  background: #3b82f6;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+/* Dropdown das ações */
+.actions-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  list-style: none;
+  padding: 5px 0;
+  margin: 4px 0 0 0;
+  min-width: 100px;
+  z-index: 20;
+}
+
+.actions-dropdown li button {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.actions-dropdown li button:hover {
+  background: #3b82f6;
+  color: white;
+}

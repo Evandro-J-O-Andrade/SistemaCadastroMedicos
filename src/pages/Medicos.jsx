@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
 import { especialidades, ordenarEspecialidades, getEspecialidadeInfo } from "../api/especialidades.js";
 import "./Medicos.css";
-import "./mobile.css"
+import "./mobile.css";
 import { toggleVoz, getVozStatus } from "../utils/tts.js";
 
 const normalizeString = (str) => {
@@ -28,22 +28,23 @@ function Medicos() {
   const [listaVisivel, setListaVisivel] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [vozLigada, setVozLigada] = useState(getVozStatus());
+  const [listaSelecionadaIndex, setListaSelecionadaIndex] = useState(-1);
   const inputRef = useRef(null);
   const LIMIT = 50;
 
-  // Limpa lista ao montar
   useEffect(() => setMedicos([]), []);
 
-  // Fecha dropdown ao clicar fora
   useEffect(() => {
     const handleClickFora = (event) => {
-      if (inputRef.current && !inputRef.current.contains(event.target)) setListaVisivel(false);
+      if (inputRef.current && !inputRef.current.contains(event.target)) {
+        setListaVisivel(false);
+        setListaSelecionadaIndex(-1);
+      }
     };
     document.addEventListener("mousedown", handleClickFora);
     return () => document.removeEventListener("mousedown", handleClickFora);
   }, []);
 
-  // 🔊 TTS
   useEffect(() => {
     if (!mensagem || !vozLigada) return;
     const synth = window.speechSynthesis;
@@ -99,7 +100,6 @@ function Medicos() {
       }
     }
 
-    // 🔥 Pega info completa (nome + cor + ícone como componente React)
     const espInfo = getEspecialidadeInfo(form.especialidade.nome);
 
     const medicoAtualizado = {
@@ -107,7 +107,7 @@ function Medicos() {
       especialidade: {
         nome: espInfo.nome,
         cor: espInfo.cor,
-        icone: espInfo.icone, // <- agora é componente React, não string
+        icone: espInfo.icone,
       },
     };
 
@@ -132,6 +132,7 @@ function Medicos() {
   const handleEditar = (medico) => {
     setForm(medico);
     window.scrollTo({ top: 0, behavior: "smooth" });
+    setFiltro("");
   };
 
   const handleExcluir = (id) => {
@@ -187,6 +188,55 @@ function Medicos() {
     filtro ? normalizeString(item.nome).includes(normalizeString(filtro)) : true
   );
 
+  const handleEspecialidadeChange = (e) => {
+    const valor = e.target.value.toUpperCase();
+    setFiltro(valor);
+    setListaVisivel(true);
+    setListaSelecionadaIndex(-1);
+  };
+
+  const handleEspecialidadeKeyDown = (e) => {
+    if (!listaVisivel) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setListaSelecionadaIndex((prev) =>
+        prev < especialidadesFiltradas.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setListaSelecionadaIndex((prev) =>
+        prev > 0 ? prev - 1 : especialidadesFiltradas.length - 1
+      );
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (listaSelecionadaIndex >= 0) {
+        const item = especialidadesFiltradas[listaSelecionadaIndex];
+        setForm({
+          ...form,
+          especialidade: { nome: item.nome, cor: item.cor, icone: item.icone },
+        });
+        setFiltro("");
+        setListaVisivel(false);
+        setListaSelecionadaIndex(-1);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setListaVisivel(false);
+      setListaSelecionadaIndex(-1);
+    }
+  };
+
+  const selecionarEspecialidade = (item) => {
+    setForm({
+      ...form,
+      especialidade: { nome: item.nome, cor: item.cor, icone: item.icone },
+    });
+    setFiltro("");
+    setListaVisivel(false);
+    setListaSelecionadaIndex(-1);
+  };
+
   const handleToggleVoz = () => {
     const status = toggleVoz();
     setVozLigada(status);
@@ -216,19 +266,18 @@ function Medicos() {
           className={erroCampos.nome ? "campo-erro" : ""}
         />
 
-        <div className="linha-especialidade-crm" ref={inputRef}>
+        <div className="linha-especialidade-crm" ref={inputRef} style={{ position: "relative" }}>
           <div className="input-com-lupa">
             <input
               type="text"
               name="especialidade"
               placeholder="Especialidade"
-              value={form.especialidade?.nome || ""}
-              onChange={(e) => {
-                setFiltro(e.target.value.toUpperCase());
-                setListaVisivel(true);
-              }}
+              value={filtro || form.especialidade?.nome || ""}
+              onChange={handleEspecialidadeChange}
               onFocus={() => setListaVisivel(true)}
+              onKeyDown={handleEspecialidadeKeyDown}
               className={erroCampos.especialidade ? "campo-erro" : ""}
+              autoComplete="off"
             />
             <button
               type="button"
@@ -236,41 +285,38 @@ function Medicos() {
               onClick={() => {
                 setFiltro("");
                 setListaVisivel(true);
+                setListaSelecionadaIndex(-1);
                 setForm({ ...form, especialidade: { nome: "", cor: "", icone: null } });
               }}
+              aria-label="Abrir lista de especialidades"
             >
               <FaSearch />
             </button>
 
             {listaVisivel && (
-              <ul className="lista-suspensa">
+              <ul className="lista-suspensa" role="listbox" aria-label="Lista de especialidades">
                 {especialidadesFiltradas.length > 0 ? (
-                  especialidadesFiltradas.map((item) => {
-                    const Icone = item.icone; // <- sempre é componente React
+                  especialidadesFiltradas.map((item, index) => {
+                    const Icone = item.icone;
+                    const isSelected = index === listaSelecionadaIndex;
                     return (
                       <li
                         key={item.id}
-                        onClick={() => {
-                          setForm({
-                            ...form,
-                            especialidade: {
-                              nome: item.nome,
-                              cor: item.cor,
-                              icone: item.icone,
-                            },
-                          });
-                          setListaVisivel(false);
-                          setFiltro("");
-                        }}
+                        onClick={() => selecionarEspecialidade(item)}
                         style={{ color: item.cor }}
+                        className={isSelected ? "selected" : ""}
+                        onMouseEnter={() => setListaSelecionadaIndex(index)}
+                        role="option"
+                        aria-selected={isSelected}
+                        tabIndex={-1}
                       >
                         {Icone && <Icone className="icone" />} {item.nome.toUpperCase()}
                       </li>
                     );
                   })
-                ) : filtro.trim() !== "" ? (
+                ) : (
                   <li className="lista-vazia">Nenhuma especialidade encontrada</li>
-                ) : null}
+                )}
               </ul>
             )}
           </div>
