@@ -177,3 +177,80 @@ canvas {
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
 }
+.botoes-relatorio {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.botoes-relatorio button {
+  flex: 1 2 160px; /* cresce até 2 vezes e fica no mínimo 160px */
+  min-width: 100px;
+  padding: 8px 20px;
+  font-size: 14px;
+  border-radius: 4px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.botoes-relatorio button:hover {
+  background-color: #45a049;
+}
+.chart-container {
+  position: relative;
+  width: 100%;
+  max-width: 600px;  /* ajuste o máximo conforme layout */
+  height: 0;
+  padding-bottom: 50%;  /* altura como % da largura para proporção */
+  margin: 0 auto;
+}
+
+.chart-container canvas {
+  position: absolute !important;
+  top: 0; left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+.botoes-relatorio button {
+  flex: 1 1 120px; /* largura base menor */
+  min-width: 60px;  /* mínimo menor */
+  padding: 6px 12px; /* padding menor */
+  font-size: 12px;   /* fonte menor */
+  border-radius: 4px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.botoes-relatorio button:hover {
+  background-color: #45a049;
+}
+.botoes-relatorio button {
+  display: flex;               /* define flexbox para o botão */
+  justify-content: center;     /* alinha horizontalmente ao centro */
+  align-items: center;         /* alinha verticalmente ao centro */
+  text-align: center;          /* garante alinhamento do texto */
+  padding: 6px 10px;           /* ajuste o padding para deixar confortável */
+  /* demais estilos do botão aqui */
+}
+/* Botão fixado no final */
+.card-medias-visoes > div button {
+  margin-top: auto;      /* empurra botão para o fim */
+  padding: 8px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4CAF50;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.card-medias-visoes > div button:hover {
+  background-color: #45a049;
+}

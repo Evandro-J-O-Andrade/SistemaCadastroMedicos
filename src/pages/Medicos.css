@@ -487,3 +487,17 @@
   background: #3b82f6;
   color: white;
 }
+.form-plantao {
+  display: grid;
+  grid-template-columns:
+    minmax(200px, 2.5fr)  /* Médico */
+    minmax(120px, 1fr)    /* CRM */
+    minmax(150px, 1.5fr); /* Especialidade */
+  grid-template-areas:
+    "medico crm especialidade"
+    "quantidade quantidade quantidade"
+    "data data hora"
+    "botao botao botao";
+  gap: 22px;
+  margin-bottom: 35px;
+}

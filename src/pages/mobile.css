@@ -202,7 +202,7 @@
   .card button {
     width: 100% !important;
     font-size: 13px !important;
-    padding: 8px !important;
+    padding: px !important;
   }
 
   /* Totais */
@@ -973,3 +973,254 @@ label.quantidade { grid-area: quantidade; }
 label.data { grid-area: data; }
 label.hora { grid-area: hora; }
 .btn-salvar-plantao { grid-area: botao; width: 100%; }
+.form-plantao {
+  display: grid;
+  grid-template-columns:
+    minmax(200px, 2.5fr)  /* Médico: no mínimo 200px */
+    minmax(120px, 1fr)    /* CRM: mínimo 120px */
+    minmax(150px, 1.5fr); /* Especialidade */
+  grid-template-areas:
+    "medico crm especialidade"
+    "quantidade quantidade quantidade"
+    "data data hora"
+    "botao botao botao";
+  gap: 22px;
+  margin-bottom: 35px;
+}
+
+/* De 900px até 801px */
+@media only screen and (min-width: 801px) and (max-width: 900px) {
+  .form-plantao {
+    grid-template-columns:
+      minmax(180px, 2fr)
+      minmax(110px, 1fr)
+      minmax(140px, 1.2fr);
+    gap: 18px;
+  }
+}
+
+/* De 700px até 800px */
+@media only screen and (min-width: 700px) and (max-width: 800px) {
+  .form-plantao {
+    grid-template-columns:
+      minmax(150px, 1.8fr)
+      minmax(90px, 1fr)
+      minmax(120px, 1fr);
+    gap: 16px;
+  }
+}
+
+/* De 200px até 699px */
+@media only screen and (min-width: 200px) and (max-width: 699px) {
+  .form-plantao {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "medico crm"
+      "especialidade quantidade"
+      "data hora"
+      "botao botao";
+    gap: 14px;
+  }
+}
+
+/* Abaixo de 200px */
+@media only screen and (max-width: 199px) {
+  .form-plantao {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "medico"
+      "crm"
+      "especialidade"
+      "quantidade"
+      "data"
+      "hora"
+      "botao";
+    gap: 12px;
+  }
+  .form-plantao input, .form-plantao select {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  .btn-salvar-plantao {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+}
+@media only screen and (max-width: 700px) {
+  .form-plantao {
+    grid-template-columns: 1fr !important; /* força uma coluna */
+    grid-template-areas:
+      "medico"
+      "crm"
+      "especialidade"
+      "quantidade"
+      "data"
+      "hora"
+      "botao";
+    gap: 16px;
+  }
+
+  /* Garantir que todos os labels ocupem 100% */
+  .form-plantao label {
+    width: 100% !important;
+  }
+
+  /* Inputs e selects ocupam a largura toda disponível */
+  .form-plantao input,
+  .form-plantao select {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Botão de salvar ocupa largura total */
+  .btn-salvar-plantao {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+}
+
+/* De 700px até 900px: ajustes finos nas larguras */
+@media only screen and (min-width: 700px) and (max-width: 900px) {
+  .form-plantao {
+    grid-template-columns:
+      minmax(180px, 2fr)
+      minmax(100px, 1fr)
+      minmax(130px, 1.3fr);
+    gap: 18px;
+  }
+}
+
+/* De 200px até 699px: dois inputs lado a lado */
+@media only screen and (min-width: 200px) and (max-width: 699px) {
+  .form-plantao {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "medico crm"
+      "especialidade quantidade"
+      "data hora"
+      "botao botao";
+    gap: 16px;
+  }
+}
+
+/* Até 199px: inputs empilhados verticalmente */
+@media only screen and (max-width: 199px) {
+  .form-plantao {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "medico"
+      "crm"
+      "especialidade"
+      "quantidade"
+      "data"
+      "hora"
+      "botao";
+    gap: 12px;
+  }
+
+  .form-plantao label,
+  .form-plantao input,
+  .form-plantao select,
+  .btn-salvar-plantao {
+    width: 100% !important;
+    box-sizing: border-box;
+    display: block;
+  }
+}
+@media only screen and (max-width: 700px) {
+  .form-plantao {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "medico"
+      "crm"
+      "especialidade"
+      "quantidade"
+      "data"
+      "hora"
+      "botao";
+    gap: 16px;
+  }
+
+  /* Faz labels e inputs ocuparem a largura */
+  .form-plantao label {
+    width: 100% !important;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-plantao input,
+  .form-plantao select {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Faz o botão ocupar a linha toda */
+  .btn-salvar-plantao {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+}
+@media only screen and (max-width: 790px) {
+  .form-plantao {
+    display: block !important;  /* Desativa grid para bloque vertical puro */
+    margin: 0 15px;             /* Pequeno padding lateral */
+  }
+
+  .form-plantao label {
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 15px;
+  }
+
+  .form-plantao input,
+  .form-plantao select {
+    width: 100% !important;
+    min-width: 0 !important;    /* Remove largura mínima para evitar overflow */
+    box-sizing: border-box;
+  }
+
+  .btn-salvar-plantao {
+    width: 100% !important;
+    margin-top: 10px;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .botoes-relatorio button {
+    flex-basis: 100%; /* botão ocupa largura total no mobile */
+    min-width: auto;
+    font-size: 12px;
+    padding: 6px 14px;
+  }
+}
+/* Tela até 768px: controle grid para coluna única */
+@media only screen and (max-width: 768px) {
+  .relatorios-controles .grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .field {
+    min-width: 100%;
+  }
+  .relatorios-grafico {
+    max-width: 100%;
+  }
+}
+
+/* Botões responsivos */
+@media only screen and (max-width: 600px) {
+  .botoes-relatorio button {
+    flex-basis: 100%; /* botões em coluna */
+    min-width: auto;
+    font-size: 12px;
+    padding: 6px 14px;
+  }
+}
+
+@media only screen and (max-width: 600px) {
+  .botoes-relatorio button {
+    flex-basis: 100%; /* botões ocupam largura total no celular */
+    min-width: auto;
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+}

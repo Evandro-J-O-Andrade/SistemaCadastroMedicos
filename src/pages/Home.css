@@ -112,32 +112,14 @@
 }
 
 /* ===== Botões Card Medias Visões ===== */
-.card-medias-visoes {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-top: 12px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 6px;
-}
+
+
+
 
 @supports (-webkit-overflow-scrolling: touch) {
   .card-medias-visoes {
     -webkit-overflow-scrolling: touch;
   }
-}
-
-.card-medias-visoes-btn {
-  flex: 0 0 auto;
-  padding: 10px 10px;
-  border: 1px solid #003366;
-  border-radius: 12px;
-  background-color: #fff;
-  color: #003366;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .card-medias-visoes-btn.active {
@@ -281,4 +263,109 @@
   display: flex !important;
   flex-direction: column !important;
   gap: 8px !important;
+}
+.card-medias-visoes {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 15px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  max-width: 400px; /* aumenta no expandido para caber botões */
+}
+
+.card-medias-visoes.expandido {
+  max-width: 100%; /* usa largura máxima do container */
+  flex-wrap: wrap; /* permite quebrar linha de botões */
+}
+
+.card-medias-visoes-btn {
+  padding: 6px 14px;
+  background-color: #0077cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.25s ease;
+  min-width: 80px;
+  max-width: 150px;
+  flex-shrink: 0;
+}
+
+.card-medias-visoes-btn.active,
+.card-medias-visoes-btn:hover {
+  background-color: #005fa3;
+}
+.card-resumo.expandido {
+  max-width: 400px;   /* Largura maior para expandir visualmente */
+  height: auto;       /* Altura flexível para caber conteúdo */
+}
+
+.botoes-relatorio {
+  margin-top: auto;   /* Fixa botões ao rodapé */
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.botoes-relatorio button {
+  min-width: 60px;
+  max-width: 120px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+/* Estilo base do card */
+.card-resumo {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 360px;
+  min-width: 300px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  /* altura automática para expandir */
+}
+
+/* Estilo para o card expandido */
+.card-resumo.expandido {
+  max-width: 100%;
+  /* você pode colocar aqui um height fixo ou auto */
+  /* ou usar flex-grow se necessário */
+}
+
+/* Conteúdo interno */
+.card-content {
+  flex: 1;
+}
+
+/* Botões no rodapé */
+.botoes-relatorio {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: auto; /* fixa ao rodapé */
+}
+
+/* Botões menores e ajustados ao container */
+.botoes-relatorio button {
+  flex: 0 1 auto;
+  min-width: 40px;
+  max-width: 100px;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  background-color: #4caf50;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
