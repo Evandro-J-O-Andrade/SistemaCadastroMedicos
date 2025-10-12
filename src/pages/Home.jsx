@@ -74,28 +74,44 @@ function CardEspecialidades({
 
   const itensExibidos = paginarDados();
 
+  // Inline style pequenos quando expandido para forçar layout a se ajustar bem
+  const rootStyle = {
+    cursor: 'pointer',
+    position: 'relative',
+    overflow: 'hidden',
+    transition: 'all 0.35s ease',
+    ...(expandido
+      ? {
+          flex: '1 1 100%',
+          maxWidth: '100%',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+          transform: 'translateY(-4px) scale(1.01)',
+        }
+      : {}),
+  };
+
   return (
     <div
       className={`card-resumo ${expandido ? 'expandido' : ''}`}
       onClick={() => setExpandido((s) => !s)}
-      style={{ cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
+      style={rootStyle}
+      aria-expanded={expandido}
     >
-      <h3>{titulo}</h3>     {' '}
+      <h3>{titulo}</h3>
       {!expandido ? (
         mostrarTotal && (
           <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
-                        <strong>Total:</strong> {total}         {' '}
+            <strong>Total:</strong> {total}
           </p>
         )
       ) : (
         <div className="lista-especialidades" style={{ marginTop: 4 }}>
-                   {' '}
           {mostrarTotal && (
-            <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
-                            <strong>Total:</strong> {total}           {' '}
+            <p style={{ margin: '4px 0', fontSize: '0.95rem' }}>
+              <strong>Total:</strong> {total}
             </p>
           )}
-                   {' '}
+
           {itensExibidos.map((item, idx) => {
             let Icone = FaIcons.FaUserMd;
             let cor = '#666';
@@ -117,76 +133,79 @@ function CardEspecialidades({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  margin: '6px 0',
-                  fontSize: '0.9rem',
+                  margin: '8px 0',
+                  fontSize: '0.95rem',
                   lineHeight: 1.3,
                 }}
               >
-                                <Icone size={16} style={{ color: cor, marginRight: 8 }} />         
-                     {' '}
-                <span style={{ fontWeight: '600' }}>
-                  {porMedico ? item.medico : item.especialidade}
-                </span>
-                               {' '}
+                <Icone size={16} style={{ color: cor, marginRight: 8 }} />
+                <span style={{ fontWeight: '600' }}>{porMedico ? item.medico : item.especialidade}</span>
                 <span style={{ marginLeft: 'auto', fontWeight: '500' }}>
-                                    Qt Atendida:{' '}
-                  {porMedico ? item.quantidade : item.totalDiario || item.quantidade}             
-                   {' '}
+                  Qt Atendida: {porMedico ? item.quantidade : item.totalDiario || item.quantidade}
                 </span>
-                             {' '}
               </div>
             );
           })}
-                   {' '}
+
           {paginado && totalPaginas > 1 && (
-            <div className="paginacao-setas-container">
-                           {' '}
-              <button
-                onClick={handleAnterior}
-                disabled={indiceAtual === 0}
-                className="paginacao-seta-btn"
-                aria-label="Página anterior"
-              >
-                                <FaChevronLeft />             {' '}
-              </button>
-                           {' '}
-              <span style={{ fontSize: '0.85rem', color: '#666' }}>
-                                Página {indiceAtual + 1} de {totalPaginas}             {' '}
-              </span>
-                           {' '}
-              <button
-                onClick={handleProximo}
-                disabled={indiceAtual === totalPaginas - 1}
-                className="paginacao-seta-btn"
-                aria-label="Próxima página"
-              >
-                                <FaChevronRight />             {' '}
-              </button>
-                         {' '}
-            </div>
+            <>
+              <div className="paginacao-setas-container" style={{ marginTop: 8 }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAnterior(e);
+                  }}
+                  disabled={indiceAtual === 0}
+                  className="paginacao-seta-btn"
+                  aria-label="Página anterior"
+                >
+                  <FaChevronLeft />
+                </button>
+
+                <span style={{ fontSize: '0.85rem', color: '#666' }}>
+                  Página {indiceAtual + 1} de {totalPaginas}
+                </span>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleProximo(e);
+                  }}
+                  disabled={indiceAtual === totalPaginas - 1}
+                  className="paginacao-seta-btn"
+                  aria-label="Próxima página"
+                >
+                  <FaChevronRight />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 10 }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAnterior(e);
+                  }}
+                  className="btn-pequeno"
+                  disabled={indiceAtual === 0}
+                >
+                  Anterior
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleProximo(e);
+                  }}
+                  className="btn-pequeno"
+                  disabled={indiceAtual === totalPaginas - 1}
+                >
+                  Próximo
+                </button>
+              </div>
+            </>
           )}
-                   {' '}
-          {paginado && totalPaginas > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 8 }}>
-                           {' '}
-              <button onClick={handleAnterior} className="btn-pequeno" disabled={indiceAtual === 0}>
-                Anterior
-              </button>
-                           {' '}
-              <button
-                onClick={handleProximo}
-                className="btn-pequeno"
-                disabled={indiceAtual === totalPaginas - 1}
-              >
-                Próximo
-              </button>
-                         {' '}
-            </div>
-          )}
-                 {' '}
         </div>
       )}
-         {' '}
     </div>
   );
 }
@@ -217,10 +236,7 @@ function CardMedias({
     : 1;
 
   const dadosPagina = visoes[visaoAtual].dados
-    ? visoes[visaoAtual].dados.slice(
-        paginaAtual * itensPorPagina,
-        (paginaAtual + 1) * itensPorPagina
-      )
+    ? visoes[visaoAtual].dados.slice(paginaAtual * itensPorPagina, (paginaAtual + 1) * itensPorPagina)
     : [];
 
   const trocarVisao = (id) => {
@@ -238,42 +254,52 @@ function CardMedias({
     if (paginaAtual < totalPaginas - 1) setPaginaAtual(paginaAtual + 1);
   };
 
+  const rootStyle = {
+    cursor: 'pointer',
+    position: 'relative',
+    transition: 'all 0.35s ease',
+    ...(expandido
+      ? {
+          flex: '1 1 100%',
+          maxWidth: '100%',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+          transform: 'translateY(-4px) scale(1.01)',
+        }
+      : {}),
+  };
+
   return (
     <div
       className={`card-resumo ${expandido ? 'expandido' : ''}`}
       onClick={() => setExpandido((s) => !s)}
-      style={{ cursor: 'pointer', position: 'relative' }}
+      style={rootStyle}
+      aria-expanded={expandido}
     >
-            <h3>{titulo}</h3>     {' '}
+      <h3>{titulo}</h3>
       {!expandido ? (
         <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
-                    <strong>Total de atendimentos:</strong> {total}       {' '}
+          <strong>Total de atendimentos:</strong> {total}
         </p>
       ) : (
         <>
-                   {' '}
           {visaoAtual === 0 && (
-            <div style={{ marginTop: 4, fontSize: '0.85rem', lineHeight: 1.3 }}>
-                           {' '}
+            <div style={{ marginTop: 6, fontSize: '0.9rem', lineHeight: 1.3 }}>
               <p>
                 <strong>Média/dia:</strong> {mediaDia}
               </p>
-                           {' '}
               <p>
                 <strong>Média/mês:</strong> {mediaMes}
               </p>
-                           {' '}
               <p>
                 <strong>Total ano:</strong> {totalAno}
               </p>
-                         {' '}
             </div>
           )}
-                   {' '}
+
           {(visaoAtual === 1 || visaoAtual === 2) && (
             <>
-                            {dadosPagina.length === 0 && <p>Nenhum dado disponível.</p>}           
-               {' '}
+              {dadosPagina.length === 0 && <p>Nenhum dado disponível.</p>}
+
               {dadosPagina.map((item, idx) => {
                 const isEsp = visaoAtual === 1;
                 let Icone = FaIcons.FaUserMd;
@@ -290,79 +316,71 @@ function CardMedias({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      margin: '6px 0',
-                      fontSize: '0.9rem',
+                      margin: '8px 0',
+                      fontSize: '0.95rem',
                       lineHeight: 1.3,
                     }}
                   >
-                                        <Icone size={16} style={{ color: cor, marginRight: 8 }} /> 
-                                     {' '}
-                    <span style={{ fontWeight: '600' }}>
-                      {isEsp ? item.especialidade : item.medico}
-                    </span>
-                                       {' '}
+                    <Icone size={16} style={{ color: cor, marginRight: 8 }} />
+                    <span style={{ fontWeight: '600' }}>{isEsp ? item.especialidade : item.medico}</span>
                     <span style={{ marginLeft: 'auto', fontWeight: '500' }}>
-                                            Dia: {item.mediaDiaria} | Mês: {item.mediaMes}         
-                               {' '}
+                      Dia: {item.mediaDiaria} | Mês: {item.mediaMes}
                     </span>
-                                     {' '}
                   </div>
                 );
               })}
-                           {' '}
+
               {totalPaginas > 1 && (
                 <div className="paginacao-setas-container" style={{ marginTop: 10 }}>
-                                   {' '}
                   <button
-                    onClick={handleAnteriorPagina}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAnteriorPagina(e);
+                    }}
                     disabled={paginaAtual === 0}
                     className="paginacao-seta-btn"
                     aria-label="Anterior página"
                   >
-                                        <FaChevronLeft />                 {' '}
+                    <FaChevronLeft />
                   </button>
-                                   {' '}
+
                   <span style={{ fontSize: '0.85rem', color: '#666', padding: '0 10px' }}>
-                                        Página {paginaAtual + 1} de {totalPaginas}               
-                     {' '}
+                    Página {paginaAtual + 1} de {totalPaginas}
                   </span>
-                                   {' '}
+
                   <button
-                    onClick={handleProximoPagina}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleProximoPagina(e);
+                    }}
                     disabled={paginaAtual === totalPaginas - 1}
                     className="paginacao-seta-btn"
                     aria-label="Próxima página"
                   >
-                                        <FaChevronRight />                 {' '}
+                    <FaChevronRight />
                   </button>
-                                 {' '}
                 </div>
               )}
-                         {' '}
             </>
           )}
-                   {' '}
+
           <div
-            className="card-medias-visoes"
+            className={`card-medias-visoes ${expandido ? 'expandido' : ''}`}
             style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 15 }}
             onClick={(e) => e.stopPropagation()}
           >
-                       {' '}
             {visoes.map((v) => (
               <button
                 key={v.id}
                 onClick={() => trocarVisao(v.id)}
                 className={`card-medias-visoes-btn ${visaoAtual === v.id ? 'active' : ''}`}
               >
-                                {v.titulo}             {' '}
+                {v.titulo}
               </button>
             ))}
-                     {' '}
           </div>
-                 {' '}
         </>
       )}
-         {' '}
     </div>
   );
 }
@@ -384,6 +402,10 @@ export default function Home() {
   const [mediasPorMedicos, setMediasPorMedicos] = useState([]); // Novo: médias por médico
   const [dadosDiariosPorEspecialidade, setDadosDiariosPorEspecialidade] = useState([]); // Totais diários por esp com ícones
   const [totalMediaEspecialidades, setTotalMediaEspecialidades] = useState(0);
+
+  // estados de expansão para os cards simples
+  const [expandMedicos, setExpandMedicos] = useState(false);
+  const [expandEspecialidades, setExpandEspecialidades] = useState(false);
 
   const novidades = [
     {
@@ -747,15 +769,13 @@ export default function Home() {
 
   return (
     <div className="home-container">
-           {' '}
       <section className="banner">
-                <img src={LogoAlpha} alt="Logo da empresa" className="logo-home" />       {' '}
-        <h1>Bem-vindo ao Sistema de Gestão Médica</h1>       {' '}
-        <p>Controle completo de atendimentos, relatórios e histórico do seu time.</p>     {' '}
+        <img src={LogoAlpha} alt="Logo da empresa" className="logo-home" />
+        <h1>Bem-vindo ao Sistema de Gestão Médica</h1>
+        <p>Controle completo de atendimentos, relatórios e histórico do seu time.</p>
       </section>
-           {' '}
+
       <section className="resumo-sistema">
-               {' '}
         <CardEspecialidades
           titulo="Total Atendido Hoje (por médico)"
           dados={dadosAtendimentosHoje}
@@ -763,7 +783,7 @@ export default function Home() {
           mostrarMedia={false}
           paginado={true}
         />
-               {' '}
+
         <CardMedias
           titulo="Médias"
           total={totalMes}
@@ -773,47 +793,91 @@ export default function Home() {
           mediasPorEspecialidade={mediaPorEspecialidade}
           mediasPorMedicos={mediasPorMedicos}
         />
-               {' '}
-        <div className="card-resumo">
-                    <h3>Médicos cadastrados</h3>          <p>{medicosCadastrados}</p>       {' '}
+
+        {/* Card simples para Médicos cadastrados — agora expansível */}
+        <div
+          className={`card-resumo ${expandMedicos ? 'expandido' : ''}`}
+          onClick={() => setExpandMedicos((s) => !s)}
+          style={{
+            cursor: 'pointer',
+            transition: 'all 0.35s ease',
+            ...(expandMedicos
+              ? {
+                  flex: '1 1 100%',
+                  maxWidth: '100%',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+                  transform: 'translateY(-4px) scale(1.01)',
+                }
+              : {}),
+          }}
+          aria-expanded={expandMedicos}
+        >
+          <h3>Médicos cadastrados</h3>
+          {!expandMedicos ? (
+            <p>{medicosCadastrados}</p>
+          ) : (
+            <div style={{ marginTop: 6 }}>
+              <p style={{ fontSize: '1.1rem', fontWeight: 700 }}>{medicosCadastrados}</p>
+              <p style={{ marginTop: 6, color: '#555' }}>Total de médicos cadastrados no sistema.</p>
+            </div>
+          )}
         </div>
-               {' '}
-        <div className="card-resumo">
-                    <h3>Especialidades</h3>          <p>{especialidadesCount}</p>       {' '}
+
+        {/* Card simples para Especialidades — agora expansível */}
+        <div
+          className={`card-resumo ${expandEspecialidades ? 'expandido' : ''}`}
+          onClick={() => setExpandEspecialidades((s) => !s)}
+          style={{
+            cursor: 'pointer',
+            transition: 'all 0.35s ease',
+            ...(expandEspecialidades
+              ? {
+                  flex: '1 1 100%',
+                  maxWidth: '100%',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+                  transform: 'translateY(-4px) scale(1.01)',
+                }
+              : {}),
+          }}
+          aria-expanded={expandEspecialidades}
+        >
+          <h3>Especialidades</h3>
+          {!expandEspecialidades ? (
+            <p>{especialidadesCount}</p>
+          ) : (
+            <div style={{ marginTop: 6 }}>
+              <p style={{ fontSize: '1.1rem', fontWeight: 700 }}>{especialidadesCount}</p>
+              <p style={{ marginTop: 6, color: '#555' }}>Quantidade de especialidades únicas cadastradas.</p>
+            </div>
+          )}
         </div>
-               {' '}
+
         <CardEspecialidades
           titulo="Total por Especialidades"
           dados={dadosDiariosPorEspecialidade}
           mostrarMedia={false}
           paginado={true}
         />
-             {' '}
       </section>
-           {' '}
+
       <section className="novidades">
-                <h2>Novidades</h2>       {' '}
+        <h2>Novidades</h2>
         <div className="novidades-list">
-                   {' '}
           {novidades.map((item) => (
             <div key={item.id} className="card-novidade">
-                            <h4>{item.titulo}</h4>              <p>{item.descricao}</p>         
-               {' '}
+              <h4>{item.titulo}</h4>
+              <p>{item.descricao}</p>
             </div>
           ))}
-                 {' '}
         </div>
-             {' '}
       </section>
-           {' '}
+
       <section className="acesso-rapido">
-                <h2>Acesso rápido</h2>       {' '}
+        <h2>Acesso rápido</h2>
         <button className="btn-login" onClick={handleEntrar}>
-                    Entrar no Sistema        {' '}
+          Entrar no Sistema
         </button>
-             {' '}
       </section>
-         {' '}
     </div>
   );
 }

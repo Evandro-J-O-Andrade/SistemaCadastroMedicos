@@ -254,3 +254,92 @@ canvas {
 .card-medias-visoes > div button:hover {
   background-color: #45a049;
 }
+/* ======== BOTÕES ======== */
+.botoes-relatorio {
+  display: flex;
+  justify-content: center; /* centraliza os botões */
+  align-items: center;
+  flex-wrap: wrap; /* permite quebrar linha no mobile */
+  gap: 18px; /* distância uniforme entre os botões */
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #ddd;
+}
+
+/* ======== ESTILO DOS BOTÕES ======== */
+.botoes-relatorio button {
+  flex: 1 1 180px; /* todos com o mesmo tamanho, mas adaptam se espaço permitir */
+  max-width: 180px;
+  height: 45px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  color: #fff;
+  background-color: #4caf50;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* ======== HOVER E CLICK ======== */
+.botoes-relatorio button:hover {
+  background-color: #43a047;
+  transform: translateY(-2px);
+}
+
+.botoes-relatorio button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ======== CORES DIFERENTES POR FUNÇÃO ======== */
+.btn-gerar {
+  background-color: #4caf50;
+}
+
+.btn-gerar:hover {
+  background-color: #43a047;
+}
+
+.btn-excel {
+  background-color: #2196f3;
+}
+
+.btn-excel:hover {
+  background-color: #1e88e5;
+}
+
+.btn-pdf {
+  background-color: #212121;
+}
+
+.btn-pdf:hover {
+  background-color: #000;
+}
+
+.btn-limpar {
+  background-color: #f44336;
+}
+
+.btn-limpar:hover {
+  background-color: #e53935;
+}
+
+/* ======== RESPONSIVIDADE ======== */
+@media (max-width: 900px) {
+  .botoes-relatorio {
+    gap: 14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .botoes-relatorio button {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}

@@ -1,0 +1,220 @@
+/* Filtros.css - Estilo otimizado para intranet de consolidação de atendimentos médicos */
+
+.filtros-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Arial', sans-serif;
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+.filtros-container h2 {
+  text-align: center;
+  color: #1f4e78;
+  margin-bottom: 30px;
+  font-size: 24px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid #e0e6ed;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.field label {
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #1f4e78;
+  font-size: 14px;
+}
+
+.field input, .field select {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.field input:focus, .field select:focus {
+  outline: none;
+  border-color: #1f4e78;
+  box-shadow: 0 0 5px rgba(31, 78, 120, 0.3);
+}
+
+.lista-dropdown {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  max-width: 250px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.lista-dropdown div {
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+}
+
+.lista-dropdown div:hover {
+  background-color: #f0f8ff;
+}
+
+.lista-dropdown div:last-child {
+  border-bottom: none;
+}
+
+.botoes-filtros button {
+  padding: 10px 20px;
+  background: #1f4e78;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.botoes-filtros button:hover:not(:disabled) {
+  background: #153a5a;
+}
+
+.botoes-filtros button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.erro-mensagem {
+  background: #fee;
+  color: #c33;
+  padding: 10px;
+  border-radius: 4px;
+  border-left: 4px solid #c33;
+}
+
+.resumo-totais {
+  text-align: center;
+}
+
+.resumo-totais p {
+  font-size: 16px;
+  margin: 10px 0;
+}
+
+.lista-media-esp {
+  list-style: none;
+  padding: 0;
+  text-align: left;
+}
+
+.lista-media-esp li {
+  padding: 5px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.tabela-consolidado h3 {
+  margin-top: 0;
+  color: #1f4e78;
+}
+
+.tabela-wrapper {
+  overflow-x: auto;
+  border: 1px solid #e0e6ed;
+  border-radius: 4px;
+}
+
+.tabela-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabela-wrapper th, .tabela-wrapper td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e0e6ed;
+}
+
+.tabela-wrapper th {
+  background: #f8f9fa;
+  font-weight: bold;
+  color: #1f4e78;
+}
+
+.tabela-wrapper tr:hover {
+  background: #f0f8ff;
+}
+
+.sem-dados {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 20px;
+}
+
+.graficos-container {
+  margin-top: 30px;
+}
+
+.graficos-container h3 {
+  text-align: center;
+  color: #1f4e78;
+  margin-bottom: 20px;
+}
+
+.grid-graficos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.grid-graficos > div {
+  background: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  height: 300px; /* Altura fixa para performance */
+}
+
+/* Responsivo para mobile */
+@media (max-width: 768px) {
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .botoes-filtros {
+    flex-direction: column;
+  }
+
+  .grid-graficos {
+    grid-template-columns: 1fr;
+  }
+
+  .tabela-wrapper {
+    font-size: 12px;
+  }
+
+  .tabela-wrapper th, .tabela-wrapper td {
+    padding: 8px;
+  }
+}
+
+/* Integração com mobile.css se necessário */
+.filtros-container .field input, .filtros-container .field select {
+  width: 100%;
+  box-sizing: border-box;
+}
