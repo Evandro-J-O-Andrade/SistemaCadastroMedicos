@@ -1,196 +1,248 @@
-/* Filtros.css - Estilo otimizado para intranet de consolidação de atendimentos médicos */
+/* Filtros.css – versão compatível com o novo JSX */
+
+:root {
+  --primary: #1f4e78;
+  --primary-light: #3b6ea3;
+  --bg: #f8f9fa;
+  --card-bg: #ffffff;
+  --border: #e0e6ed;
+  --hover: #f0f8ff;
+  --error: #b91c1c;
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
 
 .filtros-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
-  font-family: 'Arial', sans-serif;
-  background-color: #f8f9fa;
+  padding: 1.5rem;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg);
   color: #333;
 }
 
-.filtros-container h2 {
-  text-align: center;
-  color: #1f4e78;
-  margin-bottom: 30px;
-  font-size: 24px;
-}
-
+/* ---------- Cards e Grid ---------- */
 .card {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid #e0e6ed;
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
 }
 
 .grid-3 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
+/* ---------- Campos / Inputs ---------- */
 .field {
   display: flex;
   flex-direction: column;
+  position: relative; /* necessário pro dropdown */
 }
 
 .field label {
-  font-weight: bold;
-  margin-bottom: 5px;
-  color: #1f4e78;
-  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--primary);
+  font-size: 0.875rem;
 }
 
-.field input, .field select {
-  padding: 10px;
+.field input,
+.field select {
+  padding: 0.6rem 0.75rem;
   border: 1px solid #ccc;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.field input:focus, .field select:focus {
+.field input:focus,
+.field select:focus {
   outline: none;
-  border-color: #1f4e78;
-  box-shadow: 0 0 5px rgba(31, 78, 120, 0.3);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(31, 78, 120, 0.15);
 }
 
+/* ---------- Dropdown de pesquisa ---------- */
 .lista-dropdown {
-  border: 1px solid #ccc;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
   border-radius: 4px;
-  background: #fff;
-  max-width: 250px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: var(--shadow);
 }
 
 .lista-dropdown div {
-  padding: 10px;
+  padding: 0.6rem 0.75rem;
   cursor: pointer;
-  border-bottom: 1px solid #eee;
-}
-
-.lista-dropdown div:hover {
-  background-color: #f0f8ff;
+  border-bottom: 1px solid #f2f2f2;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .lista-dropdown div:last-child {
   border-bottom: none;
 }
 
+.lista-dropdown div:hover {
+  background: var(--hover);
+}
+
+/* ---------- Botões ---------- */
+.botoes-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
 .botoes-filtros button {
-  padding: 10px 20px;
-  background: #1f4e78;
-  color: white;
+  padding: 0.55rem 1.1rem;
+  background: var(--primary);
+  color: #fff;
   border: none;
   border-radius: 4px;
+  font-size: 0.875rem;
   cursor: pointer;
-  font-size: 14px;
-  transition: background 0.3s;
+  transition: background 0.25s;
 }
 
 .botoes-filtros button:hover:not(:disabled) {
-  background: #153a5a;
+  background: var(--primary-light);
 }
 
 .botoes-filtros button:disabled {
-  background: #ccc;
+  background: #c5c5c5;
   cursor: not-allowed;
 }
 
+/* ---------- Mensagem de erro ---------- */
 .erro-mensagem {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.8rem;
   background: #fee;
-  color: #c33;
-  padding: 10px;
+  color: var(--error);
+  border-left: 4px solid var(--error);
   border-radius: 4px;
-  border-left: 4px solid #c33;
+  font-size: 0.875rem;
 }
 
-.resumo-totais {
-  text-align: center;
+/* ---------- Resumo / Totais ---------- */
+.resumo-totais h3 {
+  margin-top: 0;
+  color: var(--primary);
+  font-size: 1.1rem;
 }
 
 .resumo-totais p {
-  font-size: 16px;
-  margin: 10px 0;
+  margin: 0.4rem 0;
+  font-size: 0.95rem;
 }
 
 .lista-media-esp {
   list-style: none;
   padding: 0;
-  text-align: left;
+  margin: 0.6rem 0 0;
+  font-size: 0.9rem;
 }
 
 .lista-media-esp li {
-  padding: 5px 0;
-  border-bottom: 1px solid #eee;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #f2f2f2;
 }
 
+/* ---------- Tabela Consolidado ---------- */
 .tabela-consolidado h3 {
-  margin-top: 0;
-  color: #1f4e78;
+  margin: 0 0 0.8rem;
+  color: var(--primary);
 }
 
 .tabela-wrapper {
   overflow-x: auto;
-  border: 1px solid #e0e6ed;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
 }
 
 .tabela-wrapper table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.9rem;
 }
 
-.tabela-wrapper th, .tabela-wrapper td {
-  padding: 12px;
+.tabela-wrapper th,
+.tabela-wrapper td {
+  padding: 0.7rem 0.75rem;
   text-align: left;
-  border-bottom: 1px solid #e0e6ed;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 
 .tabela-wrapper th {
-  background: #f8f9fa;
-  font-weight: bold;
-  color: #1f4e78;
+  background: var(--hover);
+  color: var(--primary);
+  font-weight: 600;
 }
 
 .tabela-wrapper tr:hover {
-  background: #f0f8ff;
+  background: var(--hover);
 }
 
 .sem-dados {
   text-align: center;
-  color: #999;
+  color: #888;
   font-style: italic;
-  padding: 20px;
+  padding: 1.2rem;
 }
 
-.graficos-container {
-  margin-top: 30px;
-}
-
+/* ---------- Gráficos ---------- */
 .graficos-container h3 {
   text-align: center;
-  color: #1f4e78;
-  margin-bottom: 20px;
+  color: var(--primary);
+  margin: 0 0 1.2rem;
 }
 
 .grid-graficos {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
+  gap: 1.2rem;
 }
 
-.grid-graficos > div {
-  background: #fff;
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  height: 300px; /* Altura fixa para performance */
+.grid-graficos > .grafico-wrapper {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  height: 320px;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Responsivo para mobile */
+.grafico-wrapper h4 {
+  margin: 0 0 0.6rem;
+  color: var(--primary);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.grafico-wrapper > *:last-child {
+  flex: 1;
+  min-height: 0; /* evita estouro de canvas */
+}
+
+/* ---------- Responsivo ---------- */
 @media (max-width: 768px) {
   .grid-3 {
     grid-template-columns: 1fr;
@@ -205,16 +257,11 @@
   }
 
   .tabela-wrapper {
-    font-size: 12px;
+    font-size: 0.8rem;
   }
 
-  .tabela-wrapper th, .tabela-wrapper td {
-    padding: 8px;
+  .tabela-wrapper th,
+  .tabela-wrapper td {
+    padding: 0.5rem 0.6rem;
   }
-}
-
-/* Integração com mobile.css se necessário */
-.filtros-container .field input, .filtros-container .field select {
-  width: 100%;
-  box-sizing: border-box;
 }

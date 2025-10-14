@@ -1,560 +1,699 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
-import "dayjs/locale/pt-br";
-import { jsPDF } from "jspdf";
-import "jspdf-autotable";
-import * as XLSX from "xlsx";
-import LogoAlpha from "../img/Logo_Alpha.png";
-import GraficoBarra from "./GraficoBarra.jsx";
-import GraficoPizza from "./GraficoPizza.jsx";
-import GraficoLinha from "./GraficoLinha.jsx";
-import GraficoArea from "./GraficoArea.jsx";
-import { especialidades as especialidadesList, getEspecialidadeInfo } from "../api/especialidades.js";
+dayjs.locale("pt-br");
+
+import {
+  cleanPlantaoArray,
+  buildOpcoesMedicosFromRaw,
+  agruparPorMedicoDiaEsp,
+  normalize,
+  sanitizeData,
+  computePeriodo,
+  fmtDate as fmt,
+} from "../utils/dadosConsolidados.js";
+
+// especialidades vêm da pasta /api (named export)
+import { especialidades as especialidadesListRaw, getEspecialidadeInfo } from "../api/especialidades.js";
+
+// componentes de gráfico na pasta pages
+import GraficoBarra from "./GraficoBarra";
+import GraficoLinha from "./GraficoLinha";
+import GraficoPizza from "./GraficoPizza";
+import GraficoArea from "./GraficoArea";
+
 import "./mobile.css";
 import "./Filtros.css";
 
-dayjs.locale("pt-br");
-const fmt = (d) => dayjs(d).format("DD/MM/YYYY");
+// garantia de variáveis seguras
+const especialidadesList = Array.isArray(especialidadesListRaw) ? especialidadesListRaw : [];
+const safeGetEspecialidadeInfo = typeof getEspecialidadeInfo === "function" ? getEspecialidadeInfo : () => ({ cor: undefined, icone: null });
 
-/**
- * Computa o período (Diurno/Noturno) baseado na hora do plantão
- * Diurno: 07:00 - 18:59
- * Noturno: 19:00 - 06:59
- */
-const computePeriodo = (hora) => {
-  if (!hora || !hora.includes(":")) return "Indefinido";
-  const [h, m] = hora.split(":").map(Number);
-  const minutos = h * 60 + m;
-  const inicioDiurno = 7 * 60;
-  const fimDiurno = 19 * 60;
-  if (minutos >= inicioDiurno && minutos < fimDiurno) return "Diurno";
-  return "Noturno";
-};
+// Componente Loader simples (fallback pro Suspense - anti-flicker)
+const Loader = () => (
+  <div style={{ 
+    display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', 
+    background: '#f0f8ff', fontSize: '18px', color: '#003366' 
+  }}>
+    <div>🔄 Carregando consolidação diária de atendimentos...</div>
+  </div>
+);
 
-/**
- * Mapeia um item de plantaoData para o formato esperado (atendimentos consolidado)
- * Como é consolidado por dia, agrupa por data + medico + especialidade, soma quantidade
- */
-const mapearParaAtendimentos = (plantaoData) => {
-  const agrupado = {};
-  plantaoData.forEach((p) => {
-    if (!p.data || !p.nome || !p.especialidade || p.quantidade == null) return;
-    const key = `${p.data}_${normalizeString(p.nome)}_${normalizeString(p.especialidade)}`;
-    if (!agrupado[key]) {
-      agrupado[key] = {
-        data: p.data,
-        periodo: computePeriodo(p.hora),
-        especialidade: p.especialidade, // Assume string
-        medico: p.nome,
-        crm: p.crm || "", // Adicionado para filtro por CRM
-        atendimentos: 0,
-      };
+// ErrorBoundary para evitar tela em branco em caso de erro de renderização
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error("ErrorBoundary capturou erro:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 20 }}>
+          <h3>Ocorreu um erro</h3>
+          <p>Algo deu errado ao renderizar a página. Recarregue ou contate o suporte.</p>
+          <pre style={{ whiteSpace: "pre-wrap" }}>{String(this.state.error)}</pre>
+          <button onClick={() => window.location.reload()}>Recarregar</button>
+        </div>
+      );
     }
-    agrupado[key].atendimentos += Number(p.quantidade || 0);
-  });
-  return Object.values(agrupado);
+    return this.props.children;
+  }
+}
+
+// Função simples de TTS (tenta voz Google se disponível)
+const speak = (text) => {
+  try {
+    if (!text || typeof window === "undefined" || !window.speechSynthesis) return;
+    const utter = new SpeechSynthesisUtterance(String(text));
+    const voices = window.speechSynthesis.getVoices() || [];
+    const googleVoice = voices.find((v) => /google/i.test(v.name));
+    if (googleVoice) utter.voice = googleVoice;
+    if (voices.length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        const vs = window.speechSynthesis.getVoices() || [];
+        const g = vs.find((v) => /google/i.test(v.name));
+        if (g) utter.voice = g;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
+      };
+      window.speechSynthesis.speak(utter);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+  } catch (e) {
+    console.warn("TTS falhou:", e);
+  }
 };
 
-const normalizeString = (str) => {
-  if (!str) return "";
-  return String(str).toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-};
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedValue(value), delay || 300);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debouncedValue;
+}
 
 export default function Filtros() {
   const navigate = useNavigate();
+
   const [periodo, setPeriodo] = useState("dia");
   const [dia, setDia] = useState(dayjs().format("YYYY-MM-DD"));
   const [mes, setMes] = useState(dayjs().format("YYYY-MM"));
   const [ano, setAno] = useState(dayjs().format("YYYY"));
-  const [especialidadeQuery, setEspecialidadeQuery] = useState(""); // Mudado para input searchável
-  const [medicoQuery, setMedicoQuery] = useState(""); // Mudado para input searchável como em Relatorios
-  const [crmQuery, setCrmQuery] = useState(""); // Novo filtro por CRM
+
+  const [especialidadeQuery, setEspecialidadeQuery] = useState("");
+  const [medicoQuery, setMedicoQuery] = useState("");
+  const [crmQuery, setCrmQuery] = useState("");
+
+  const debouncedEspecialidade = useDebounce(especialidadeQuery, 300);
+  const debouncedMedico = useDebounce(medicoQuery, 300);
+  const debouncedCrm = useDebounce(crmQuery, 300);
+
   const [opcoes, setOpcoes] = useState({ medicos: [], especialidades: [] });
   const [linhas, setLinhas] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Começa true pra Suspense pegar
   const [erro, setErro] = useState("");
-  const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false); // Para dropdown medicos
-  const [mostrarListaEspecialidades, setMostrarListaEspecialidades] = useState(false); // Para dropdown especialidades
-  const [tipoGrafico, setTipoGrafico] = useState("barra"); // Para otimização, usar os graficos custom
+  const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
+  const [mostrarListaEspecialidades, setMostrarListaEspecialidades] = useState(false);
+  const [tipoGrafico, setTipoGrafico] = useState("barra");
 
   const tabelaRef = useRef(null);
-  const graficoRef = useRef(null); // Ref único para o grafico dinâmico otimizado
 
+  // Anti-flicker CSS: Esconde body até carregar (comum em React SPAs)
   useEffect(() => {
-    try {
-      console.log("Carregando dados do localStorage..."); // Log pra debug
-      const medicosRaw = localStorage.getItem("medicos");
-      const plantaoRaw = localStorage.getItem("plantaoData");
-      console.log("Médicos raw:", medicosRaw ? "OK" : "Vazio");
-      console.log("Plantão raw:", plantaoRaw ? "OK" : "Vazio");
+    document.body.style.visibility = 'hidden';
+    return () => { document.body.style.visibility = 'visible'; };
+  }, []);
+  useEffect(() => {
+    if (!loading) document.body.style.visibility = 'visible';
+    else document.body.style.visibility = 'hidden';
+  }, [loading]);
 
-      const medicos = JSON.parse(medicosRaw || "[]");
-      // Normaliza especialidade para string (nome), integrando com Medicos.jsx
-      const medicosNormalizados = medicos.map((m) => ({
-        ...m,
-        especialidade: m.especialidade?.nome || m.especialidade || "",
-      }));
-      setOpcoes({
-        medicos: medicosNormalizados,
-        especialidades: especialidadesList || [], // De especialidades.js
-      });
+  // Carregamento único e robusto (substitui versões duplicadas)
+  useEffect(() => {
+    let mounted = true;
 
-      // Carrega plantaoData e mapeia para formato de atendimentos consolidado
-      const plantaoData = JSON.parse(plantaoRaw || "[]");
-      const atendimentosMapeados = mapearParaAtendimentos(plantaoData);
-      setLinhas(atendimentosMapeados);
-      console.log("Dados carregados:", { medicos: medicosNormalizados.length, atendimentos: atendimentosMapeados.length });
-    } catch (err) {
-      console.error("Erro no useEffect de load:", err); // Log detalhado
-      setOpcoes({ medicos: [], especialidades: especialidadesList || [] });
-      setLinhas([]);
-      setErro("Erro ao carregar dados: " + err.message);
-    }
-  }, []); // Dependências vazias, roda só no mount
+    const buildEspecialidadesFromFile = () =>
+      Array.isArray(especialidadesList) ? especialidadesList.map((e) => (typeof e === "string" ? { nome: e } : { nome: e?.nome || "" })) : [];
 
-  // Filtra medicos para dropdown (como em Relatorios)
-  const medicosFiltrados = useMemo(() => 
-    opcoes.medicos.filter((m) => 
-      normalizeString(m.nome).includes(normalizeString(medicoQuery)) ||
-      normalizeString(m.crm || "").includes(normalizeString(crmQuery))
-    ), [opcoes.medicos, medicoQuery, crmQuery]
-  );
+    const carregar = async () => {
+      setLoading(true);
+      setErro("");
+      try {
+        const medicosRaw = localStorage.getItem("medicos");
+        const plantaoRaw = localStorage.getItem("plantaoData");
 
-  // Filtra especialidades para dropdown
-  const especialidadesFiltradas = useMemo(() => 
-    opcoes.especialidades.filter((e) => 
-      normalizeString(e.nome).includes(normalizeString(especialidadeQuery))
-    ), [opcoes.especialidades, especialidadeQuery]
-  );
+        // parse seguro de médicos
+        let medicos = [];
+        try {
+          medicos = medicosRaw ? JSON.parse(medicosRaw) : [];
+          if (!Array.isArray(medicos)) medicos = [];
+        } catch (e) {
+          console.warn("Filtros: erro ao parsear medicos", e);
+          medicos = [];
+        }
 
-  const aplicar = () => {
-    setLoading(true);
-    setErro("");
-    // Recarrega dados frescos do localStorage (como em Relatorios)
-    try {
-      const plantaoData = JSON.parse(localStorage.getItem("plantaoData") || "[]");
-      if (!plantaoData.length) {
-        setLinhas([]);
-        setErro("⚠️ Nenhum plantão registrado para este período.");
-        setLoading(false);
-        return;
+        // construir opções de médicos
+        let opcoesMedicos = buildOpcoesMedicosFromRaw(medicos || []);
+        opcoesMedicos = Array.isArray(opcoesMedicos) ? opcoesMedicos.map((m) => {
+          try {
+            let nome = (m?.nome || "").toString().trim();
+            let crm = (m?.crm || "").toString().trim().toUpperCase();
+            if (!crm && /[-–—\/|]\s*[A-Za-z0-9]+$/u.test(nome)) {
+              const parts = nome.split(/[-–—\/|]/).map((s) => s.trim());
+              if (parts.length > 1) {
+                const possibleCrm = parts.pop();
+                if (/[A-Za-z0-9]/.test(possibleCrm)) {
+                  crm = possibleCrm.toUpperCase();
+                  nome = parts.join(" ").trim();
+                }
+              }
+            }
+            return { ...m, nome, crm };
+          } catch {
+            return m;
+          }
+        }) : [];
+
+        // especialidades: prioriza arquivo /api
+        const espFromFile = buildEspecialidadesFromFile();
+        let especialidades = espFromFile.length > 0 ? espFromFile : (() => {
+          const setEsp = new Set();
+          (opcoesMedicos || []).forEach((m) => { if (m && m.especialidade) setEsp.add(String(m.especialidade).trim()); });
+          return Array.from(setEsp).map((nome) => ({ nome }));
+        })();
+
+        if (!mounted) return;
+        setOpcoes({ medicos: opcoesMedicos, especialidades });
+
+        // parse plantão
+        let plantaoArr = [];
+        try {
+          plantaoArr = plantaoRaw ? JSON.parse(plantaoRaw) : [];
+          if (!Array.isArray(plantaoArr)) plantaoArr = [];
+        } catch (e) {
+          console.warn("Filtros: erro ao parsear plantaoData", e);
+          plantaoArr = [];
+        }
+
+        if (!plantaoArr || plantaoArr.length === 0) {
+          setLinhas([]);
+          setErro("Sem atendimentos consolidados hoje – cadastre em Plantão.");
+          if (mounted) setLoading(false);
+          return;
+        }
+
+        // limpeza principal
+        const cleaned = cleanPlantaoArray(plantaoArr, { logInvalid: false });
+
+        let dadosLimpos = cleaned.length ? cleaned : [];
+        if (dadosLimpos.length === 0) {
+          // tentativa permissiva de normalização
+          plantaoArr.forEach((p) => {
+            try {
+              const data = sanitizeData(p?.data);
+              const horaStr = p?.hora && typeof p.hora === "string" ? p.hora.trim() : "";
+              let quantidade = Number((p?.quantidade || p?.qtd || 0).toString().replace(/[^0-9.-]/g, ""));
+              if (isNaN(quantidade)) quantidade = 0;
+              const nome = (p?.nome || p?.medico || "").toString().trim();
+              const crm = (p?.crm || "").toString().trim().toUpperCase();
+              const espRaw = p?.especialidade;
+              const especialidade = (typeof espRaw === "object" && espRaw?.nome) ? espRaw.nome : espRaw || "";
+              if (!data || !nome || !especialidade || quantidade <= 0) return;
+              const periodoItem = computePeriodo(horaStr);
+              dadosLimpos.push({ ...p, data, hora: horaStr, quantidade, nome, crm, especialidade: especialidade.toString().trim(), periodo: periodoItem });
+            } catch { /* skip item */ }
+          });
+        }
+
+        if (dadosLimpos.length === 0) {
+          setLinhas([]);
+          setErro("⚠️ Dados inválidos no Plantão. Cadastre atendimentos válidos para consolidação diária.");
+          if (mounted) setLoading(false);
+          return;
+        }
+
+        const agrupado = agruparPorMedicoDiaEsp(dadosLimpos, opcoesMedicos);
+        if (!mounted) return;
+        setLinhas(agrupado);
+      } catch (err) {
+        console.error("Erro ao carregar dados em Filtros:", err);
+        if (mounted) {
+          setLinhas([]);
+          setOpcoes({ medicos: [], especialidades: buildEspecialidadesFromFile() });
+          setErro("Erro ao carregar dados. Verifique console.");
+        }
+      } finally {
+        if (mounted) setLoading(false);
       }
+    };
 
-      let atendimentosMapeados = mapearParaAtendimentos(plantaoData);
-      let filtrado = [...atendimentosMapeados];
+    carregar();
 
-      // Filtra por período (como em Relatorios, mas adaptado para consolidado)
-      if (periodo === "dia") filtrado = filtrado.filter(l => l.data === dia);
-      if (periodo === "mes") filtrado = filtrado.filter(l => l.data.startsWith(mes));
-      if (periodo === "ano") filtrado = filtrado.filter(l => l.data.startsWith(ano));
+    function onStorageListener(event) {
+      if (event.key === "medicos" || event.key === "plantaoData") {
+        setTimeout(() => carregar(), 150);
+      }
+    }
+    window.addEventListener("storage", onStorageListener);
+    return () => {
+      window.removeEventListener("storage", onStorageListener);
+    };
+  }, []);
 
-      // Se medicoQuery é "todos" ou vazio, não filtra por medico
-      const nomeMed = medicoQuery && medicoQuery.toLowerCase() !== "todos" ? medicoQuery : "";
-      const nomeEsp = especialidadeQuery && especialidadeQuery.toLowerCase() !== "todas" ? especialidadeQuery : "";
+  // fala erro quando mudar
+  useEffect(() => {
+    if (erro) speak(erro);
+  }, [erro]);
 
-      // Lógica combinada de filtros (igual ao original, mas usando strings normalizadas) + CRM
-      filtrado = filtrado.filter(l => {
-        const matchMed = !nomeMed || normalizeString(l.medico) === normalizeString(nomeMed);
-        const matchEsp = !nomeEsp || normalizeString(l.especialidade) === normalizeString(nomeEsp);
-        const matchCrm = !crmQuery || normalizeString(l.crm).includes(normalizeString(crmQuery));
-        return matchMed && matchEsp && matchCrm;
-      });
+  // --- Totais ---
+  const totais = useMemo(() => {
+    if (!linhas || !Array.isArray(linhas) || linhas.length === 0)
+      return { totalPeriodo: 0, mediaDia: 0, mediaMes: 0, mediaEspecialidade: {} };
+    const totalPeriodo = linhas.reduce((s, l) => s + (Number(l.atendimentos) || 0), 0);
+    const datasUnicas = [...new Set(linhas.map((l) => l.data))];
+    const diasUnicos = datasUnicas.length || 1;
+    const mediaDia = Math.round(totalPeriodo / diasUnicos);
+    const mediaMes = Math.round(mediaDia * 30);
 
+    const mediaEsp = {};
+    linhas.forEach((l) => {
+      const espNorm = normalize(l.especialidade || "");
+      mediaEsp[espNorm] = (mediaEsp[espNorm] || 0) + (Number(l.atendimentos) || 0);
+    });
+    Object.keys(mediaEsp).forEach((k) => {
+      mediaEsp[k] = Math.round(mediaEsp[k] / diasUnicos);
+    });
+
+    return { totalPeriodo, mediaDia, mediaMes, mediaEspecialidade: mediaEsp };
+  }, [linhas]);
+
+  const montarChartData = (key) => {
+    if (!linhas || !Array.isArray(linhas) || linhas.length === 0) return null;
+    const map = {};
+    linhas.forEach((l) => {
+      const valor = key === "dia" ? l.data : normalize(l[key] || "");
+      if (!valor) return;
+      map[valor] = (map[valor] || 0) + (Number(l.atendimentos) || 0);
+    });
+    return {
+      labels: Object.keys(map).map((k) => (key === "dia" ? fmt(k) : k.toUpperCase())),
+      data: Object.values(map),
+    };
+  };
+
+  const chartDataPorEspecialidade = montarChartData("especialidade");
+  const chartDataPorMedico = montarChartData("medico");
+  const chartDataPorPeriodo = montarChartData("periodo");
+  const chartDataPorDia = montarChartData("dia");
+
+  // Filtros dropdown filtrados com debounce
+  const medicosFiltrados = useMemo(() => {
+    const q = (debouncedMedico || "").toString().toLowerCase().trim();
+    const qCrm = (debouncedCrm || "").toString().toLowerCase().trim();
+    if (!opcoes.medicos || opcoes.medicos.length === 0) return [];
+    return opcoes.medicos.filter((m) => {
+      const nome = (m.nome || "").toString().toLowerCase();
+      const crm = (m.crm || "").toString().toLowerCase();
+      return (!q || nome.includes(q)) && (!qCrm || crm.includes(qCrm));
+    });
+  }, [opcoes.medicos, debouncedMedico, debouncedCrm]);
+
+  const especialidadesFiltradas = useMemo(() => {
+    const q = (debouncedEspecialidade || "").toString().toLowerCase().trim();
+    if (!opcoes.especialidades || opcoes.especialidades.length === 0) return [];
+    return opcoes.especialidades.filter((e) => {
+      const nome = (e.nome || "").toString().toLowerCase();
+      return !q || nome.includes(q);
+    });
+  }, [opcoes.especialidades, debouncedEspecialidade]);
+
+  // Aplica filtros atuais (usa linhas já agrupadas) com validação
+  const aplicar = () => {
+    try {
+      if (periodo === "dia" && !dia) { setErro("Por favor selecione uma data (dia)."); return; }
+      if (periodo === "mes" && !mes) { setErro("Por favor selecione um mês."); return; }
+      if (periodo === "ano" && (!ano || String(ano).length !== 4)) { setErro("Por favor selecione um ano válido."); return; }
+
+      setErro("");
+      let filtrado = [...linhas];
+      if (especialidadeQuery && especialidadeQuery !== "todas") {
+        const q = normalize(especialidadeQuery);
+        filtrado = filtrado.filter((l) => normalize(l.especialidade || "").includes(q));
+      }
+      if (medicoQuery && medicoQuery !== "todos") {
+        const q = normalize(medicoQuery);
+        filtrado = filtrado.filter((l) => normalize(l.medico || "").includes(q));
+      }
+      if (crmQuery) {
+        const q = crmQuery.toString().toUpperCase();
+        filtrado = filtrado.filter((l) => (l.crm || "").toString().toUpperCase().includes(q));
+      }
+      if (periodo === "dia" && dia) filtrado = filtrado.filter((l) => l.data === dia);
+      else if (periodo === "mes" && mes) filtrado = filtrado.filter((l) => (l.data || "").startsWith(mes));
+      else if (periodo === "ano" && ano) filtrado = filtrado.filter((l) => (l.data || "").startsWith(ano));
       setLinhas(filtrado);
-      if (!filtrado.length) setErro("⚠️ Nenhum atendimento encontrado com os filtros aplicados.");
-    } catch (err) {
-      console.error("Erro no aplicar:", err);
-      setErro("Erro ao aplicar filtros: " + err.message);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error("Erro aplicar filtros:", e);
+      setErro("Erro ao aplicar filtros.");
     }
   };
 
   const limpar = () => {
-    setPeriodo("dia");
-    setDia(dayjs().format("YYYY-MM-DD"));
-    setMes(dayjs().format("YYYY-MM"));
-    setAno(dayjs().format("YYYY"));
     setEspecialidadeQuery("");
     setMedicoQuery("");
     setCrmQuery("");
-    setMostrarListaMedicos(false);
-    setMostrarListaEspecialidades(false);
-    // Recarrega dados completos
-    try {
-      const plantaoData = JSON.parse(localStorage.getItem("plantaoData") || "[]");
-      const atendimentosMapeados = mapearParaAtendimentos(plantaoData);
-      setLinhas(atendimentosMapeados);
-    } catch (err) {
-      console.error("Erro no limpar:", err);
-      setLinhas([]);
-    }
-    setErro("");
-  };
-
-  // Selecionar medico do dropdown
-  const handleSelecionarMedico = (medico) => {
-    setMedicoQuery(medico.nome);
-    setMostrarListaMedicos(false);
-  };
-
-  // Selecionar especialidade do dropdown
-  const handleSelecionarEspecialidade = (esp) => {
-    setEspecialidadeQuery(esp.nome);
-    setMostrarListaEspecialidades(false);
-  };
-
-  // Integração com Relatórios: Mapeia filtros atuais para os de Relatórios e navega
-  const integrarComRelatorios = () => {
-    let dataDe, dataAte, horaDe, horaAte;
-
-    if (periodo === "dia") {
-      dataDe = dataAte = dia;
-      horaDe = "00:00";
-      horaAte = "23:59";
-    } else if (periodo === "mes") {
-      dataDe = mes + "-01";
-      const ultimoDia = dayjs(mes + "-01").add(1, 'month').subtract(1, 'day').format("YYYY-MM-DD");
-      dataAte = ultimoDia;
-      horaDe = "00:00";
-      horaAte = "23:59";
-    } else if (periodo === "ano") {
-      dataDe = ano + "-01-01";
-      dataAte = ano + "-12-31";
-      horaDe = "00:00";
-      horaAte = "23:59";
-    }
-
-    const especialidade = especialidadeQuery && especialidadeQuery.toLowerCase() !== "todas" ? especialidadeQuery : "";
-    const medicoQueryFinal = medicoQuery && medicoQuery.toLowerCase() !== "todos" ? medicoQuery : "";
-
-    // Salva filtros no localStorage para Relatórios carregar
-    localStorage.setItem("relatorios_filtros", JSON.stringify({
-      dataDe, dataAte, horaDe, horaAte, especialidade, medicoQuery: medicoQueryFinal, crmQuery, visao: "profissional", ordem: "alfabetica"
-    }));
-
-    navigate("/relatorios");
-  };
-
-  const totais = useMemo(() => {
-    const totalPeriodo = linhas.reduce((acc, l) => acc + Number(l.atendimentos || 0), 0);
-    const dias = new Set(linhas.map(l => l.data));
-    const mediaDia = dias.size ? (totalPeriodo / dias.size).toFixed(2) : 0;
-    const mediaMes = (totalPeriodo / 30).toFixed(2);
-    const mediaEspecialidade = {};
-    linhas.forEach(l => {
-      mediaEspecialidade[l.especialidade] = (mediaEspecialidade[l.especialidade] || 0) + Number(l.atendimentos || 0);
-    });
-    return { totalPeriodo, mediaDia, mediaMes, mediaEspecialidade };
-  }, [linhas]);
-
-  // Dados para graficos otimizados (como em Relatorios)
-  const chartDataPorEspecialidade = useMemo(() => {
-    const m = new Map();
-    linhas.forEach(l => m.set(l.especialidade, (m.get(l.especialidade) || 0) + Number(l.atendimentos || 0)));
-    return [...m.entries()].map(([name, total]) => {
-      const info = getEspecialidadeInfo(name);
-      return { label: name, data: total, cor: info.cor || "#3b82f6" };
-    });
-  }, [linhas]);
-
-  const chartDataPorMedico = useMemo(() => {
-    const m = new Map();
-    linhas.forEach(l => m.set(l.medico || "—", (m.get(l.medico || "—") || 0) + Number(l.atendimentos || 0)));
-    return [...m.entries()].map(([name, total]) => ({ label: name, data: total }));
-  }, [linhas]);
-
-  const chartDataPorPeriodo = useMemo(() => {
-    const m = new Map();
-    linhas.forEach(l => m.set(l.periodo, (m.get(l.periodo) || 0) + Number(l.atendimentos || 0)));
-    return [...m.entries()].map(([name, total]) => ({ label: name, data: total }));
-  }, [linhas]);
-
-  const chartDataPorDia = useMemo(() => {
-    const m = new Map();
-    linhas.forEach(l => m.set(l.data, (m.get(l.data) || 0) + Number(l.atendimentos || 0)));
-    return [...m.entries()].map(([name, total]) => ({ label: name, data: total }));
-  }, [linhas]);
-
-  // Renderiza grafico dinâmico otimizado
-  const renderGraficoDinamico = (data, titulo) => {
-    let GraficoComponent;
-    switch (tipoGrafico) {
-      case "pizza": GraficoComponent = GraficoPizza; break;
-      case "linha": GraficoComponent = GraficoLinha; break;
-      case "area": GraficoComponent = GraficoArea; break;
-      default: GraficoComponent = GraficoBarra;
-    }
-    return (
-      <div ref={graficoRef}>
-        <h3>{titulo}</h3>
-        <GraficoComponent data={data} />
-      </div>
-    );
+    const medicosRaw = localStorage.getItem("medicos");
+    const plantaoRaw = localStorage.getItem("plantaoData");
+    let medicos = [];
+    try { medicos = medicosRaw ? JSON.parse(medicosRaw) : []; } catch (e) { medicos = []; }
+    let plantaoArr = [];
+    try { plantaoArr = plantaoRaw ? JSON.parse(plantaoRaw) : []; } catch (e) { plantaoArr = []; }
+    const cleaned = cleanPlantaoArray(plantaoArr, { logInvalid: false });
+    const grouped = agruparPorMedicoDiaEsp(cleaned, buildOpcoesMedicosFromRaw(medicos));
+    setLinhas(grouped);
   };
 
   const exportarPDF = () => {
-    const doc = new jsPDF("p", "mm", "a4");
-    const { totalPeriodo, mediaDia, mediaMes, mediaEspecialidade } = totais;
-
-    // Adiciona logo
-    const logoImg = new Image();
-    logoImg.src = LogoAlpha;
-    logoImg.onload = () => {
-      doc.addImage(logoImg, "PNG", 14, 10, 40, 15);
-
-      doc.setFontSize(16);
-      doc.text("Relatório de Atendimentos Consolidados", 60, 16);
-      doc.setFontSize(10);
-      doc.text(`Data do relatório: ${fmt(new Date())}`, 60, 22);
-
-      let startY = 32;
-      doc.setFontSize(12);
-      doc.text(`TOTAL DE ATENDIMENTOS: ${totalPeriodo}`, 14, startY);
-      startY += 6;
-      doc.text(`MÉDIA DIÁRIA: ${mediaDia}`, 14, startY);
-      startY += 6;
-      doc.text(`MÉDIA MÊS (aprox.): ${mediaMes}`, 14, startY);
-      startY += 8;
-
-      // Resumo por Especialidade (tabela simples)
-      doc.text("RESUMO POR ESPECIALIDADE:", 14, startY);
-      startY += 6;
-      let espData = Object.entries(mediaEspecialidade).map(([esp, valor]) => [esp, valor]);
-      doc.autoTable({
-        startY,
-        head: [["Especialidade", "Total Atendimentos"]],
-        body: espData,
-        theme: "grid",
-        headStyles: { fillColor: [59, 130, 246] },
-        styles: { fontSize: 9 },
-        columnStyles: { 0: { cellWidth: 80 } }
-      });
-      startY = doc.lastAutoTable.finalY + 10;
-
-      // Tabela principal de atendimentos
-      doc.text("DETALHAMENTO DE ATENDIMENTOS:", 14, startY);
-      startY += 6;
-      const tableData = linhas.map(l => [
-        dayjs(l.data).format("DD/MM/YYYY"),
-        l.periodo,
-        l.especialidade,
-        l.medico,
-        l.crm,
-        l.atendimentos
-      ]);
-      doc.autoTable({
-        startY,
-        head: [["Data", "Período", "Especialidade", "Médico", "CRM", "Atendimentos"]],
-        body: tableData,
-        theme: "grid",
-        headStyles: { fillColor: [59, 130, 246] },
-        styles: { fontSize: 8 },
-        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 15 }, 2: { cellWidth: 30 }, 3: { cellWidth: 40 }, 4: { cellWidth: 20 }, 5: { cellWidth: 15 } }
-      });
-
-      // Salva o PDF
-      doc.save("relatorio_filtros_consolidado.pdf");
-    };
+    if (!linhas || linhas.length === 0) return alert("Sem dados para exportar.");
+    try {
+      const doc = new window.jsPDF();
+      doc.text("Relatório de Atendimentos Consolidados", 10, 10);
+      const body = linhas.map((l) => [fmt(l.data), l.periodo, l.especialidade, l.medico, l.crm, l.atendimentos]);
+      if (doc.autoTable) doc.autoTable({ head: [["Data", "Período", "Especialidade", "Médico", "CRM", "Atendimentos"]], body, startY: 20 });
+      doc.save(`relatorio_consolidado_${dayjs().format("YYYYMMDD_HHmm")}.pdf`);
+    } catch (e) {
+      console.error("Erro exportar PDF:", e);
+      alert("Erro ao exportar PDF.");
+    }
   };
 
   const exportarExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(linhas.map(l => ({
-      Data: l.data,
-      Periodo: l.periodo,
-      Especialidade: l.especialidade,
-      Medico: l.medico,
-      CRM: l.crm,
-      Atendimentos: l.atendimentos,
-    })));
-
-    const resumoWS = XLSX.utils.json_to_sheet([
-      { Total_Periodo: totais.totalPeriodo, Media_Dia: totais.mediaDia, Media_Mes: totais.mediaMes },
-      ...Object.entries(totais.mediaEspecialidade).map(([esp, valor]) => ({ Especialidade: esp, Total: valor })),
-    ]);
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Detalhamento");
-    XLSX.utils.book_append_sheet(wb, resumoWS, "Resumo");
-    XLSX.writeFile(wb, "relatorio_filtros.xlsx");
+    if (!linhas || linhas.length === 0) return alert("Sem dados para exportar.");
+    try {
+      if (!window.XLSX) return alert("Biblioteca XLSX não encontrada.");
+      const ws = window.XLSX.utils.json_to_sheet(linhas);
+      const wb = window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(wb, ws, "Consolidado");
+      window.XLSX.writeFile(wb, `relatorio_consolidado_${dayjs().format("YYYYMMDD_HHmm")}.xlsx`);
+    } catch (e) {
+      console.error("Erro exportar Excel:", e);
+      alert("Erro ao exportar Excel.");
+    }
   };
 
+  const integrarComRelatorios = () => {
+    navigate("/relatorios", { state: { filtros: { periodo, dia, mes, ano, especialidadeQuery, medicoQuery, crmQuery } } });
+  };
+
+  const handleSelecionarMedico = (medico) => {
+    setMedicoQuery(medico.nome || "");
+    setMostrarListaMedicos(false);
+  };
+  const handleSelecionarEspecialidade = (e) => {
+    setEspecialidadeQuery(e.nome || "");
+    setMostrarListaEspecialidades(false);
+  };
+
+  const normalizeChartData = (chartData) => {
+    try {
+      if (!chartData) return null;
+      if (chartData.labels && chartData.data) return chartData;
+      if (Array.isArray(chartData)) {
+        return { labels: chartData.map(i => i.label || ""), data: chartData.map(i => Number(i.data || 0)), backgroundColor: chartData.map(i => i.cor || "#3b82f6") };
+      }
+      if (typeof chartData === "object") {
+        const keys = Object.keys(chartData);
+        return { labels: keys, data: keys.map(k => Number(chartData[k] || 0)) };
+      }
+      return null;
+    } catch (e) {
+      console.error("normalizeChartData falhou:", e);
+      return null;
+    }
+  };
+
+  const renderGraficoDinamico = (chartData, titulo) => {
+    try {
+      const data = normalizeChartData(chartData);
+      if (!data || !Array.isArray(data.labels) || !Array.isArray(data.data)) return null;
+      const ComponentMap = {
+        barra: GraficoBarra || window.GraficoBarra,
+        linha: GraficoLinha || window.GraficoLinha,
+        pizza: GraficoPizza || window.GraficoPizza,
+        area: GraficoArea || window.GraficoArea,
+      };
+      const Component = ComponentMap[tipoGrafico] || GraficoBarra || window.GraficoBarra;
+      if (!Component) return null;
+      return (
+        <div className="grafico-wrapper" key={titulo}>
+          <h4>{titulo}</h4>
+          <Component data={data} />
+        </div>
+      );
+    } catch (e) {
+      console.error("Erro renderGraficoDinamico:", e);
+      return null;
+    }
+  };
+
+  // Render global com Suspense - anti-flicker full
+  if (loading) return <Loader />;
+
   return (
-    <div className="filtros-container">
-      <h2>🔎 Filtros & Consolidados</h2>
+    <ErrorBoundary>
+      <Suspense fallback={<Loader />}>
+        <div className="filtros-container">
+          <h2>Consolidação Diária de Atendimentos - Intranet da Empresa</h2>
 
-      {/* Controles de Filtros - Integrado com Relatorios */}
-      <div className="filtros-controles card">
-        <div className="grid-3">
-          <div className="field">
-            <label>Período</label>
-            <select value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
-              <option value="dia">Dia</option>
-              <option value="mes">Mês</option>
-              <option value="ano">Ano</option>
-            </select>
-          </div>
-          {periodo === "dia" && (
-            <div className="field">
-              <label>Data</label>
-              <input type="date" value={dia} onChange={(e) => setDia(e.target.value)} />
-            </div>
-          )}
-          {periodo === "mes" && (
-            <div className="field">
-              <label>Mês</label>
-              <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} />
-            </div>
-          )}
-          {periodo === "ano" && (
-            <div className="field">
-              <label>Ano</label>
-              <input type="number" min="2000" max="2100" value={ano} onChange={(e) => setAno(e.target.value)} style={{ width: 100 }} />
-            </div>
-          )}
+          {/* Erro global */}
+          {erro && <div className="erro" style={{ marginBottom: 10 }}>{erro}</div>}
 
-          <div className="field">
-            <label>Tipo de Gráfico</label>
-            <select value={tipoGrafico} onChange={(e) => setTipoGrafico(e.target.value)}>
-              <option value="barra">Barra</option>
-              <option value="linha">Linha</option>
-              <option value="pizza">Pizza</option>
-              <option value="area">Área</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid-3">
-          {/* Especialidade searchável como em Relatorios */}
-          <div className="field" style={{ position: "relative" }}>
-            <label>Especialidade</label>
-            <input
-              type="text"
-              placeholder="Todas"
-              value={especialidadeQuery}
-              onChange={(e) => setEspecialidadeQuery(e.target.value)}
-              onFocus={() => setMostrarListaEspecialidades(true)}
-              onBlur={() => setTimeout(() => setMostrarListaEspecialidades(false), 200)}
-            />
-            {mostrarListaEspecialidades && (
-              <div className="lista-dropdown" style={{ position: "absolute", top: "100%", zIndex: 10, background: "#fff", border: "1px solid #ccc", maxHeight: 200, overflowY: "auto" }}>
-                <div onClick={() => { setEspecialidadeQuery("todas"); setMostrarListaEspecialidades(false); }}>Todas</div>
-                {especialidadesFiltradas.map((e) => {
-                  const info = getEspecialidadeInfo(e.nome);
-                  const Icone = info.icone;
-                  return (
-                    <div key={e.id} onMouseDown={() => handleSelecionarEspecialidade(e)}>
-                      {Icone && typeof Icone === "function" && <Icone size={16} style={{ marginRight: 5 }} />}
-                      {e.nome}
-                    </div>
-                  );
-                })}
+          <div className="filtros-controles card">
+            <div className="grid-3">
+              <div className="field">
+                <label>Período</label>
+                <select value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
+                  <option value="dia">Dia</option>
+                  <option value="mes">Mês</option>
+                  <option value="ano">Ano</option>
+                </select>
               </div>
-            )}
-          </div>
 
-          {/* Medico searchável como em Relatorios */}
-          <div className="field" style={{ position: "relative" }}>
-            <label>Médico</label>
-            <input
-              type="text"
-              placeholder="Todos"
-              value={medicoQuery}
-              onChange={(e) => setMedicoQuery(e.target.value)}
-              onFocus={() => setMostrarListaMedicos(true)}
-              onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)}
-            />
-            {mostrarListaMedicos && (
-              <div className="lista-dropdown" style={{ position: "absolute", top: "100%", zIndex: 10, background: "#fff", border: "1px solid #ccc", maxHeight: 200, overflowY: "auto" }}>
-                <div onClick={() => { setMedicoQuery("todos"); setMostrarListaMedicos(false); }}>Todos</div>
-                {medicosFiltrados.map((m) => (
-                  <div key={m.id} onMouseDown={() => handleSelecionarMedico(m)}>
-                    {m.nome} - {m.crm}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="field">
-            <label>CRM</label>
-            <input type="text" value={crmQuery} onChange={(e) => setCrmQuery(e.target.value.toUpperCase())} placeholder="Filtrar por CRM" />
-          </div>
-        </div>
-
-        <div className="botoes-filtros" style={{ display: "flex", gap: 10, marginTop: 15 }}>
-          <button onClick={aplicar} disabled={loading}>{loading ? "Carregando..." : "Aplicar Filtros"}</button>
-          <button onClick={limpar}>Limpar</button>
-          <button onClick={exportarPDF}>Exportar PDF</button>
-          <button onClick={exportarExcel}>Exportar Excel</button>
-          <button onClick={integrarComRelatorios}>Ver em Relatórios</button>
-        </div>
-        {erro && <p className="erro-mensagem" style={{ color: "#b91c1c", marginTop: 8 }}>{erro}</p>}
-      </div>
-
-      {/* Totais & Médias */}
-      {linhas.length > 0 && (
-        <div className="card resumo-totais">
-          <h3>📊 Totais & Médias</h3>
-          <p><strong>Total de Atendimentos:</strong> {totais.totalPeriodo}</p>
-          <p><strong>Média Diária:</strong> {totais.mediaDia}</p>
-          <p><strong>Média Mensal (aprox.):</strong> {totais.mediaMes}</p>
-          <ul className="lista-media-esp">
-            {Object.entries(totais.mediaEspecialidade).map(([esp, valor]) => (
-              <li key={esp}>{esp}: {valor}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Tabela Consolidado */}
-      <div ref={tabelaRef} className="card tabela-consolidado">
-        <h3>Consolidado de Atendimentos</h3>
-        <div className="tabela-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Período</th>
-                <th>Especialidade</th>
-                <th>Médico</th>
-                <th>CRM</th>
-                <th>Atendimentos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.length === 0 ? (
-                <tr><td colSpan="6" className="sem-dados">Sem dados para exibir</td></tr>
-              ) : (
-                linhas.map((l, i) => (
-                  <tr key={i}>
-                    <td>{dayjs(l.data).format("DD/MM/YYYY")}</td>
-                    <td>{l.periodo}</td>
-                    <td style={{ color: getEspecialidadeInfo(l.especialidade)?.cor }}>{l.especialidade}</td>
-                    <td>{l.medico}</td>
-                    <td>{l.crm}</td>
-                    <td>{l.atendimentos}</td>
-                  </tr>
-                ))
+              {periodo === "dia" && (
+                <div className="field">
+                  <label>Data</label>
+                  <input type="date" value={dia} onChange={(e) => setDia(e.target.value)} />
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      {/* Gráficos Otimizados - Um consolidado por categoria, usando components custom */}
-      {linhas.length > 0 && (
-        <div className="graficos-container">
-          <h3>Gráficos Consolidados</h3>
-          <div className="grid-graficos">
-            {renderGraficoDinamico(chartDataPorEspecialidade, "Por Especialidade")}
-            {renderGraficoDinamico(chartDataPorMedico, "Por Médico")}
-            {renderGraficoDinamico(chartDataPorPeriodo, "Por Período")}
-            {renderGraficoDinamico(chartDataPorDia, "Por Dia")}
+              {periodo === "mes" && (
+                <div className="field">
+                  <label>Mês</label>
+                  <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} />
+                </div>
+              )}
+
+              {periodo === "ano" && (
+                <div className="field">
+                  <label>Ano</label>
+                  <input type="number" min="2000" max="2100" value={ano} onChange={(e) => setAno(e.target.value)} style={{ width: 100 }} />
+                </div>
+              )}
+
+              <div className="field">
+                <label>Tipo de Gráfico</label>
+                <select value={tipoGrafico} onChange={(e) => setTipoGrafico(e.target.value)}>
+                  <option value="barra">Barra</option>
+                  <option value="linha">Linha</option>
+                  <option value="pizza">Pizza</option>
+                  <option value="area">Área</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid-3">
+              <div className="field" style={{ position: "relative" }}>
+                <label>Especialidade</label>
+                <input
+                  type="text"
+                  placeholder="Todas"
+                  value={especialidadeQuery}
+                  onChange={(e) => setEspecialidadeQuery(e.target.value)}
+                  onFocus={() => setMostrarListaEspecialidades(true)}
+                  onBlur={() => setTimeout(() => setMostrarListaEspecialidades(false), 150)}
+                />
+                {mostrarListaEspecialidades && (
+                  <div
+                    className="lista-dropdown"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      zIndex: 10,
+                      background: "#fff",
+                      border: "1px solid #ccc",
+                      maxHeight: 200,
+                      overflowY: "auto",
+                    }}
+                  >
+                    <div onMouseDown={() => { setEspecialidadeQuery("todas"); setMostrarListaEspecialidades(false); }} style={{ padding: 6, cursor: "pointer" }}>
+                      Todas
+                    </div>
+                    {(especialidadesFiltradas || []).map((e, idx) => {
+                      const info = safeGetEspecialidadeInfo ? safeGetEspecialidadeInfo(e?.nome) : {};
+                      const Icone = info?.icone;
+                      return (
+                        <div key={idx} onMouseDown={() => handleSelecionarEspecialidade(e)} style={{ padding: 6, cursor: "pointer", display: "flex", alignItems: "center" }}>
+                          {Icone && typeof Icone === "function" && <Icone size={16} style={{ marginRight: 5 }} />}
+                          {(e?.nome || "").toUpperCase()}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="field" style={{ position: "relative" }}>
+                <label>Médico</label>
+                <input
+                  type="text"
+                  placeholder="Todos"
+                  value={medicoQuery}
+                  onChange={(e) => setMedicoQuery(e.target.value)}
+                  onFocus={() => setMostrarListaMedicos(true)}
+                  onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 150)}
+                />
+                {mostrarListaMedicos && (
+                  <div
+                    className="lista-dropdown"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      zIndex: 10,
+                      background: "#fff",
+                      border: "1px solid #ccc",
+                      maxHeight: 200,
+                      overflowY: "auto",
+                    }}
+                  >
+                    <div onMouseDown={() => { setMedicoQuery("todos"); setMostrarListaMedicos(false); }} style={{ padding: 6, cursor: "pointer" }}>
+                      Todos
+                    </div>
+                    {(medicosFiltrados || []).map((m) => (
+                      <div key={m?.id || m?.nome} onMouseDown={() => handleSelecionarMedico(m)} style={{ padding: 6, cursor: "pointer" }}>
+                        {(m?.nome || "").toUpperCase()} - {(m?.crm || "").toUpperCase()}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="field">
+                <label>CRM</label>
+                <input type="text" value={crmQuery} onChange={(e) => setCrmQuery(e.target.value.toUpperCase())} placeholder="Filtrar por CRM" />
+              </div>
+            </div>
+
+            <div className="botoes-filtros" style={{ display: "flex", gap: 10, marginTop: 15 }}>
+              <button onClick={aplicar} disabled={loading}>
+                {loading ? "Carregando..." : "Aplicar Filtros"}
+              </button>
+              <button onClick={limpar}>Limpar</button>
+              <button onClick={exportarPDF}>Exportar PDF</button>
+              <button onClick={exportarExcel}>Exportar Excel</button>
+              <button onClick={integrarComRelatorios}>Ver em Relatórios</button>
+            </div>
+
+            {erro && (
+              <p className="erro-mensagem" style={{ color: "#b91c1c", marginTop: 8 }}>
+                {erro}
+              </p>
+            )}
           </div>
+
+          {(linhas && linhas.length > 0) ? (
+            <div className="card resumo-totais">
+              <h3>📐 Totais & Médias</h3>
+              <p>
+                <strong>Total de Atendimentos:</strong> {totais.totalPeriodo}
+              </p>
+              <p>
+                <strong>Média Diária:</strong> {totais.mediaDia}
+              </p>
+              <p>
+                <strong>Média Mensal (aprox.):</strong> {totais.mediaMes}
+              </p>
+              <ul className="lista-media-esp">
+                {Object.entries(totais.mediaEspecialidade || {}).map(([esp, valor]) => (
+                  <li key={esp}>
+                    {esp.toUpperCase()}: {valor}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <div ref={tabelaRef} className="card tabela-consolidado">
+            <h3>Consolidado de Atendimentos</h3>
+            <div className="tabela-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Período</th>
+                    <th>Especialidade</th>
+                    <th>Médico</th>
+                    <th>CRM</th>
+                    <th>Atendimentos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(!linhas || linhas.length === 0) ? (
+                    <tr>
+                      <td colSpan="6" className="sem-dados">
+                        Sem dados para exibir
+                      </td>
+                    </tr>
+                  ) : (
+                    (linhas || []).map((l, i) => (
+                      <tr key={i}>
+                        <td>{fmt(l.data) || "—"}</td>
+                        <td>{l.periodo || "—"}</td>
+                        <td style={{ color: safeGetEspecialidadeInfo((l.especialidade || "").toLowerCase())?.cor }}>
+                          {l.especialidade || "—"}
+                        </td>
+                        <td>{l.medico || "—"}</td>
+                        <td>{l.crm || "—"}</td>
+                        <td>{l.atendimentos || 0}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {(linhas && linhas.length > 0) && (
+            <div className="graficos-container">
+              <h3>Gráficos Consolidados</h3>
+              <div className="grid-graficos">
+                {renderGraficoDinamico(chartDataPorEspecialidade, "Por Especialidade")}
+                {renderGraficoDinamico(chartDataPorMedico, "Por Médico")}
+                {renderGraficoDinamico(chartDataPorPeriodo, "Por Período")}
+                {renderGraficoDinamico(chartDataPorDia, "Por Dia")}
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
