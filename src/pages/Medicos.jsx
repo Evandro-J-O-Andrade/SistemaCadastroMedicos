@@ -6,6 +6,9 @@ import "./Medicos.css";
 import "./mobile.css";
 import { toggleVoz, getVozStatus } from "../utils/tts.js";
 
+/*import { getMedicosFromStorage } from "../utils/storagePlantao";*/
+
+
 const normalizeString = (str) => {
   if (!str) return "";
   return str.toUpperCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -44,7 +47,15 @@ function Medicos() {
     document.addEventListener("mousedown", handleClickFora);
     return () => document.removeEventListener("mousedown", handleClickFora);
   }, []);
-
+ useEffect(() => {
+    try {
+      const dados = getMedicosFromStorage();
+      setMedicos(dados || []);
+    } catch (e) {
+      console.error("Erro ao carregar médicos do storage:", e);
+      setMedicos([]);
+    }
+  }, []);
   useEffect(() => {
     if (!mensagem || !vozLigada) return;
     const synth = window.speechSynthesis;

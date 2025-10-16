@@ -10,6 +10,14 @@ import {
   especialidades as especialidadesList,
 } from "../api/especialidades.js";
 
+import { savePlantaoToStorage, getPlantaoFromStorage } from "../utils/storagePlantao";
+
+const handleAdicionarPlantao = (novoPlantao) => {
+  const plantaoAtual = getPlantaoFromStorage();
+  plantaoAtual.push(novoPlantao); // ou merge se quiser evitar duplicados
+  savePlantaoToStorage(plantaoAtual);
+};
+
 /**
  * Formata data/hora para salvar no localStorage (YYYY-MM-DD e HH:mm)
  */
