@@ -152,30 +152,9 @@ export default function Relatorios() {
   const [tipoMensagem, setTipoMensagem] = useState("");
 
   useEffect(() => {
-    const falar = () => {
-      if (!mensagemGlobal) return;
-
-      const synth = window.speechSynthesis;
-      const utterance = new SpeechSynthesisUtterance(mensagemGlobal);
-      utterance.lang = "pt-BR";
-      utterance.rate = 1;
-      utterance.pitch = 1;
-
-      const voices = synth.getVoices();
-      const vozGoogleBR = voices.find(
-        (v) => v.lang === "pt-BR" && v.name.toLowerCase().includes("google")
-      );
-      if (vozGoogleBR) utterance.voice = vozGoogleBR;
-
-      synth.speak(utterance);
-    };
-
-    window.speechSynthesis.addEventListener("voiceschanged", falar);
-    falar(); // Tenta falar imediatamente
-
-    return () => {
-      window.speechSynthesis.removeEventListener("voiceschanged", falar);
-    };
+    if (!mensagemGlobal) return;
+    // Usa util central para manter comportamento consistente (pt-BR/Google quando disponível)
+    falarMensagem(mensagemGlobal);
   }, [mensagemGlobal]);
 
   const graficoRefs = useRef({});
