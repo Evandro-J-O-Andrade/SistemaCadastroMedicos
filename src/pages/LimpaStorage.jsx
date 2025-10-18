@@ -1,5 +1,5 @@
-// Componente Limpeza.jsx
-import React from "react";
+// src/pages/Limpeza.jsx
+import React, { useState } from "react";
 import {
   clearPlantaoStorage,
   restorePlantaoStorage,
@@ -7,6 +7,8 @@ import {
 } from "../utils/storagePlantao";
 
 function Limpeza() {
+  const [mensagem, setMensagem] = useState("");
+
   // Limpa os dados de plantão com backup
   const handleClear = () => {
     if (
@@ -15,6 +17,7 @@ function Limpeza() {
       )
     ) {
       clearPlantaoStorage({ backup: true });
+      setMensagem("✅ Dados limpos e backup criado!");
     }
   };
 
@@ -26,35 +29,78 @@ function Limpeza() {
       )
     ) {
       restorePlantaoStorage();
+      setMensagem("🔄 Backup restaurado com sucesso!");
     }
   };
 
   // Mostra os dados atuais e backup no console
   const handleDebug = () => {
     debugStorage();
+    setMensagem("🔍 Verifique o console para debug do storage.");
   };
 
   return (
-    <div style={{ display: "flex", gap: "10px" }}>
-      <button onClick={handleClear} style={{ background: "#f44336", color: "#fff", padding: "8px 12px", border: "none", borderRadius: "4px" }}>
-        Limpar Dados
-      </button>
+    <div style={{ padding: "20px" }}>
+      <h1>Gerenciamento de Plantão</h1>
 
-      <button onClick={handleRestore} style={{ background: "#4CAF50", color: "#fff", padding: "8px 12px", border: "none", borderRadius: "4px" }}>
-        Restaurar Backup
-      </button>
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+        <button
+          onClick={handleClear}
+          style={{
+            background: "#f44336",
+            color: "#fff",
+            padding: "8px 12px",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Limpar Dados
+        </button>
 
-      <button onClick={handleDebug} style={{ background: "#2196F3", color: "#fff", padding: "8px 12px", border: "none", borderRadius: "4px" }}>
-        Debug Storage
-      </button>
+        <button
+          onClick={handleRestore}
+          style={{
+            background: "#4CAF50",
+            color: "#fff",
+            padding: "8px 12px",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Restaurar Backup
+        </button>
+
+        <button
+          onClick={handleDebug}
+          style={{
+            background: "#2196F3",
+            color: "#fff",
+            padding: "8px 12px",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Debug Storage
+        </button>
+      </div>
+
+      {mensagem && (
+        <div
+          style={{
+            marginBottom: "20px",
+            padding: "10px",
+            background: "#f0f0f0",
+            borderRadius: "4px",
+          }}
+        >
+          {mensagem}
+        </div>
+      )}
     </div>
   );
 }
 
-export default Limpeza;{
-    console.log("🔍 Estado atual do localStorage:");
-    Object.keys(localStorage).forEach((key) => {
-        console.log(`${key}:`, JSON.parse(localStorage.getItem(key)));
-    });
-  console.log("🔍 Estado do backup (se existir):", JSON.parse(localStorage.getItem("plantaoBackup")));
-}   
+export default Limpeza;
