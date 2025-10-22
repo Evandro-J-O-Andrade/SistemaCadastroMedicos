@@ -1,3 +1,15 @@
+/**
+ * storagePlantao.js
+ * --------------------------------------------------------
+ * Responsável por ler, salvar e limpar dados de plantão e médicos no localStorage.
+ * - Aplica normalização básica e remoção de duplicados.
+ * - Usa utilitários de dadosConsolidados (normalize, sanitizeData).
+ * - Não faz agrupamento nem cálculos — apenas persistência local.
+ * --------------------------------------------------------
+ * Fluxo:
+ *   UI  <->  storagePlantao  <->  dadosConsolidados  <->  especialidades
+ */
+
 // src/utils/storagePlantao.js
 import dayjs from "dayjs";
 dayjs.locale("pt-br");
