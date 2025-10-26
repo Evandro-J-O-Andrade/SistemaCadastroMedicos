@@ -106,6 +106,44 @@ export const storageManager = {
     return true;
   },
 
+  // ======== MIGRAÇÃO DE DADOS ANTIGOS ========
+  migrateOldKeys() {
+    try {
+      const oldMedicos = safeParse(localStorage.getItem("medicos"), []);
+      const oldPlantao = safeParse(localStorage.getItem("plantao"), []);
+      const oldEspecialidades = safeParse(localStorage.getItem("especialidades"), []);
+      const oldUsuario = safeParse(localStorage.getItem("usuario"), null);
+
+      const existeAntigo =
+        (Array.isArray(oldMedicos) && oldMedicos.length > 0) ||
+        (Array.isArray(oldPlantao) && oldPlantao.length > 0) ||
+        (Array.isArray(oldEspecialidades) && oldEspecialidades.length > 0) ||
+        oldUsuario;
+
+      if (!existeAntigo) return;
+
+      console.log("⚙️ Migrando dados antigos para formato unificado (plantaoData)...");
+
+      const atual = getAllData();
+      atual.medicos = oldMedicos.length ? oldMedicos : atual.medicos;
+      atual.plantao = oldPlantao.length ? oldPlantao : atual.plantao;
+      atual.especialidades = oldEspecialidades.length ? oldEspecialidades : atual.especialidades;
+      atual.usuario = oldUsuario || atual.usuario;
+
+      safeSave(STORAGE_KEY, atual);
+
+      // Limpa chaves antigas (opcional — descomente se quiser limpar)
+      // localStorage.removeItem("medicos");
+      // localStorage.removeItem("plantao");
+      // localStorage.removeItem("especialidades");
+      // localStorage.removeItem("usuario");
+
+      console.log("✅ Migração concluída com sucesso.");
+    } catch (err) {
+      console.error("❌ Erro ao migrar dados antigos:", err);
+    }
+  },
+
   // ======== OUTROS ========
   clear() {
     localStorage.removeItem(STORAGE_KEY);
@@ -116,3 +154,8 @@ export const storageManager = {
     console.table(getAllData());
   },
 };
+
+// =========================================================
+// 🔹 EXECUÇÃO AUTOMÁTICA DA MIGRAÇÃO
+// =========================================================
+storageManager.migrateOldKeys();

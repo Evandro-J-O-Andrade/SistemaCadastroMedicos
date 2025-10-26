@@ -29,6 +29,10 @@ function formatarDataHora(data, hora) {
   };
 }
 
+function salvarPlantao(novosDados) {
+  storageManager.setPlantao(novosDados);
+  window.dispatchEvent(new Event("dadosAtualizados"));
+}
 /**
  * Normaliza string removendo acentos e espaços, retornando lowercase.
  * Se receber objeto com .nome, usa isso.
