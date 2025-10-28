@@ -1,181 +1,72 @@
-// Imports principais
+// src/components/Filtros.jsx
 import React, { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 
-// Utils de storage
+// Utils de storage (usado no controller)
 import { getMedicosFromStorage, getPlantaoFromStorage } from "../utils/storagePlantao";
 
-// Utils de dados consolidados (fallback)
+// Utils de dados consolidados (integra no controller)
 import {
-  agruparPorMedicoDiaEsp,
   normalize,
   fmtDate as fmt,
+  parsePlantaoDate,
+  agruparPorMedicoDiaEsp,
+  normalizePlantao,
+  cleanPlantaoArray  // Destrincha raw no controller
 } from "../utils/dadosConsolidados.js";
 
 import { especialidades as especialidadesListRaw, getEspecialidadeInfo } from "../api/especialidades.js";
 
-// TTS
+// TTS original
 import { falarMensagem, toggleVoz, getVozStatus } from "../utils/tts.js";
 
-// Gráficos
+// Gráficos original
 import GraficoBarra from "./GraficoBarra";
 import GraficoLinha from "./GraficoLinha";
-import GraficoPizza from "./GraficoPizza"; 
+import GraficoPizza from "./GraficoPizza";
 import GraficoArea from "./GraficoArea";
 
-// Estilos
+// Estilos original
 import "./mobile.css";
 import "./Filtros.css";
 
 dayjs.locale("pt-br");
 
-// Helpers
+// Helpers original
 const safeArray = (v) => Array.isArray(v) ? v : [];
 const safeString = (v) => v === null || v === undefined ? "" : String(v);
 
-// ===== Suas funções integradas =====
-const normalizarPlantao = (plantaoRaw = []) => {
-  return safeArray(plantaoRaw).map((l) => {
-    const data = l.data ? dayjs(l.data).format("YYYY-MM-DD") : null;
-    const periodo = l.periodo || "—";
-    const especialidade = normalize(safeString(l.especialidade)).toLowerCase();
-    const medico = normalize(safeString(l.medico)).toLowerCase();
-    let crm = safeString(l.crm).toUpperCase().trim();
-
-    // Tenta extrair CRM do nome, se não existir
-    if (!crm && medico) {
-      const parts = medico.split(/[-–—\/|]/).map(s => s.trim());
-      if (parts.length > 1) {
-        const possibleCrm = parts.pop();
-        if (/[A-Za-z0-9]/.test(possibleCrm)) crm = possibleCrm.toUpperCase();
-      }
-    }
-
-    const atendimentos = Number(l.atendimentos) || 0;
-
-    return { ...l, data, periodo, especialidade, medico, crm, atendimentos };
-  }).filter(l => l.data && l.medico); // Remove registros sem data ou médico
-};
-
-const construirOpcoes = (medicosRaw = [], especialidadesRaw = []) => {
-  const medicos = safeArray(medicosRaw).map((m) => ({
-    nome: normalize(safeString(m.nome)).toLowerCase(),
-    crm: safeString(m.crm).toUpperCase().trim(),
-    especialidade: normalize(safeString(m.especialidade)).toLowerCase(),
-  }));
-
-  const especialidadesSet = new Set(
-    safeArray(especialidadesRaw)
-      .map(e => normalize(safeString(e.nome)).toLowerCase())
-      .filter(Boolean)
-  );
-
-  medicos.forEach(m => {
-    if (m.especialidade) especialidadesSet.add(m.especialidade);
-  });
-
-  const especialidades = Array.from(especialidadesSet).map(nome => ({ nome }));
-
-  return { medicos, especialidades };
-};
-// Função para sincronizar os campos com dados do storage e API
-const sincronizarCampos = () => {
+// Wrapper original
+const safeGetEspecialidadeInfo = (nome) => {
   try {
-    // 1️⃣ Médicos
-    const medicosRaw = safeArray(getMedicosFromStorage());
-    const medicos = medicosRaw.map(m => ({
-      nome: normalize(safeString(m.nome)),
-      crm: safeString(m.crm).toUpperCase().trim(),
-      especialidade: normalize(safeString(m.especialidade))
-    }));
-
-    // 2️⃣ Especialidades
-    const especialidades = safeArray(especialidadesListRaw).map(e => ({
-      nome: normalize(safeString(e.nome))
-    }));
-
-    // 3️⃣ Atualiza inputs de forma segura
-    if (medicos.length > 0 && medicoQuery) {
-      const mSelecionado = medicos.find(m => normalize(m.nome) === normalize(medicoQuery));
-      if (mSelecionado) setMedicoQuery(mSelecionado.nome);
-    }
-
-    if (especialidades.length > 0 && especialidadeQuery) {
-      const eSelecionada = especialidades.find(e => normalize(e.nome) === normalize(especialidadeQuery));
-      if (eSelecionada) setEspecialidadeQuery(eSelecionada.nome);
-    }
-
-    if (crmQuery) {
-      const crmValido = medicos.some(m => m.crm === crmQuery.toUpperCase().trim());
-      if (!crmValido) setCrmQuery(""); // limpa se não existir
-    }
-
-    // Hora fica como estava (opcional)
-    // setHoraQuery(horaQuery || ""); // opcional
-
-    // 4️⃣ Reconstrói opções para dropdowns
-    setOpcoes({ medicos, especialidades });
-
-    // 5️⃣ Reaplica filtros nos dados consolidados
-    const filtros = { periodo, dia, mes, ano, medicoQuery, especialidadeQuery, crmQuery, horaQuery };
-    const filtrado = aplicarFiltrosSeguros({ plantao: linhasOriginais, filtros });
-    setLinhas(filtrado);
-
-    mostrarMensagem("Campos sincronizados com sucesso.", vozAtiva);
-
+    return getEspecialidadeInfo(nome);
   } catch (e) {
-    console.error("Erro sincronizarCampos:", e);
-    mostrarMensagem("Erro ao sincronizar campos.", vozAtiva);
+    return { nome: nome || "Desconhecido", icone: null, cor: "#999" };
   }
 };
 
-const aplicarFiltrosSeguros = ({
-  plantao = [],
-  filtros = { periodo: "dia", dia: "", mes: "", ano: "", medicoQuery: "", especialidadeQuery: "", crmQuery: "", horaQuery: "" }  // Adicionei hora
-}) => {
-  let linhas = safeArray(plantao);
-
-  const { periodo, dia, mes, ano, medicoQuery, especialidadeQuery, crmQuery, horaQuery } = filtros;
-
-  // Filtragem por período
-  linhas = linhas.filter((l) => {
-    if (periodo === "dia" && dia) return l.data === dia;
-    if (periodo === "mes" && mes) return l.data.startsWith(mes);
-    if (periodo === "ano" && ano) return l.data.startsWith(ano);
-    return true;
-  });
-
-  // Filtro por hora (nova)
-  if (horaQuery) {
-    linhas = linhas.filter(l => safeString(l.hora).includes(horaQuery));
+// timeToMinutes original (fixado sem JSX bug)
+const timeToMinutes = (hhmm = "") => {
+  if (!hhmm) return null;
+  const cleaned = String(hhmm).trim();
+  if (!cleaned.includes(":")) {
+    if (/^\d{3,4}$/.test(cleaned)) {
+      const pad = cleaned.padStart(4, "0");
+      return Number(pad.slice(0, 2)) * 60 + Number(pad.slice(2));
+    }
+    return null;  // Fix: Null se inválido
   }
-
-  // Filtros de texto
-  if (medicoQuery && medicoQuery.toLowerCase() !== "todos") {
-    const q = normalize(medicoQuery);
-    linhas = linhas.filter(l => l.medico.includes(q));
-  }
-
-  if (especialidadeQuery && especialidadeQuery.toLowerCase() !== "todas") {
-    const q = normalize(especialidadeQuery);
-    linhas = linhas.filter(l => l.especialidade.includes(q));
-  }
-
-  if (crmQuery) {
-    const q = crmQuery.toUpperCase().trim();
-    linhas = linhas.filter(l => (l.crm || "").includes(q));
-  }
-
-  return linhas;
+  const [h, m] = cleaned.split(":").map(n => Number(n));
+  if (isNaN(h) || isNaN(m)) return null;
+  return h * 60 + m;
 };
 
-// Loader e ErrorBoundary (igual)
 const Loader = () => (
   <div style={{
-    display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', 
-    background: '#f0f8ff', fontSize: '18px', color: '#003366' 
+    display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh',
+    background: '#f0f8ff', fontSize: '18px', color: '#003366'
   }}>
     <div>🔄 Carregando consolidação diária de atendimentos...</div>
   </div>
@@ -221,15 +112,136 @@ function useDebounce(value, delay) {
   return debouncedValue;
 }
 
+// GlobalController como intermediário (lógica de busca/tratamento)
+export const GlobalController = {
+  MEDICOS_KEY: "medicos",
+  PLANTOES_KEY: "plantaoData",
+  getMedicos() {
+    return getMedicosFromStorage() || [];
+  },
+  getPlantoes() {
+    let raw = getPlantaoFromStorage() || [];
+    raw = cleanPlantaoArray(raw);  // Normaliza/destrincha raw do save
+    return raw;
+  },
+  findMedicoByName(name) {
+    if (!name) return null;
+    const medicos = this.getMedicos();
+    return medicos.find((m) => (m.nome || "").toLowerCase() === name.toLowerCase()) || null;
+  },
+  searchMedicos(query) {
+    if (!query) return this.getMedicos();
+    return this.getMedicos().filter((m) => (m.nome || "").toLowerCase().includes(query.toLowerCase()));
+  },
+  listEspecialidades() {
+    const medicos = this.getMedicos();
+    const set = new Set();
+    medicos.forEach((m) => {
+      const esp = m.especialidades || m.especialidade || [];
+      if (Array.isArray(esp)) {
+        esp.forEach((e) => set.add((e || "").toString()));
+      } else if (esp) set.add(esp.toString());
+    });
+    return Array.from(set).sort();
+  },
+  searchEspecialidades(query) {
+    if (!query) return this.listEspecialidades();
+    return this.listEspecialidades().filter((e) => e.toLowerCase().includes(query.toLowerCase()));
+  },
+  getPlantaoRecords({ medicoName, especialidade, crm, date, time }) {
+    const plantoes = this.getPlantoes();  // Já normalizado
+    const medicos = this.getMedicos();
+    function sameDate(dStr, targetDate) {
+      if (!dStr || !targetDate) return false;
+      const d = new Date(dStr);
+      if (isNaN(d)) return false;
+      return (
+        d.getFullYear() === targetDate.getFullYear() &&
+        d.getMonth() === targetDate.getMonth() &&
+        d.getDate() === targetDate.getDate()
+      );
+    }
+    function sameTime(tStr, targetTime) {
+      if (!tStr || !targetTime) return false;
+      const pad = (s) => (s || "").toString().padStart(2, "0");
+      const [h, m] = (tStr || "").split(":");
+      const [ht, mt] = [pad(h), pad(m)];
+      const [h2, m2] = [pad(targetTime.getHours()), pad(targetTime.getMinutes())];
+      return ht === h2 && mt === m2;
+    }
+    const targetDate = date ? new Date(date) : null;
+    const targetTime = time ? (() => { const now = new Date(); const [hh, mm] = (time || "").split(":"); now.setHours(Number(hh||0)); now.setMinutes(Number(mm||0)); now.setSeconds(0); now.setMilliseconds(0); return now; })() : null;
+    let medicoObj = medicoName ? medicos.find(m => (m.nome||"").toLowerCase() === medicoName.toLowerCase()) : null;
+    if (!medicoObj && crm) {
+      medicoObj = medicos.find(m => (m.crm||"").toString() === crm.toString());
+    }
+    let results = plantoes.filter(p => {
+      const pMedNome = (p.medicoNome || p.medico || "").toString();
+      const pMedCrm = (p.crm || p.medicoCrm || "").toString();
+      const pEsp = (p.especialidade || p.specialty || "").toString();
+      const pDate = p.data || p.date || p.dt || null;
+      const pTime = p.hora || p.time || p.horaInicio || null;
+      if (medicoName && pMedNome.toLowerCase() !== medicoName.toLowerCase()) return false;
+      if (crm && pMedCrm !== crm.toString()) return false;
+      if (especialidade && pEsp.toLowerCase() !== especialidade.toLowerCase()) return false;
+      if (targetDate && !sameDate(pDate, targetDate)) return false;
+      if (targetTime && !sameTime(pTime, targetTime)) return false;
+      return true;
+    });
+    if (medicoObj && results.length === 0) {
+      const medId = medicoObj.id || medicoObj._id || medicoObj.crm || medicoObj.nome;
+      results = plantoes.filter(p => {
+        if (p.medicoId && (p.medicoId === medId)) return true;
+        if (p.medico && (p.medico === medId)) return true;
+        if ((p.medicoNome || "").toLowerCase() === (medicoObj.nome || "").toLowerCase()) return true;
+        return false;
+      }).filter(p => {
+        if (especialidade && ((p.especialidade||"").toLowerCase() !== especialidade.toLowerCase())) return false;
+        if (targetDate && !sameDate(p.data || p.date, targetDate)) return false;
+        if (targetTime && !sameTime(p.hora || p.time, targetTime)) return false;
+        return true;
+      });
+    }
+    const enriched = results.map(p => {
+      const pMedNome = p.medicoNome || p.medico || "";
+      const medico = medicos.find(m => ((m.nome||"").toLowerCase() === (pMedNome||"").toLowerCase()) || (m.crm && m.crm.toString() === (p.crm||p.medicoCrm||"").toString()));
+      return {
+        ...p,
+        medico: medico || null,
+      };
+    });
+    return enriched;
+  },
+  calcStats(plantoes) {
+    if (!plantoes || plantoes.length === 0) return { total: 0, mediaDia: 0, mediaMes: 0, mediaAno: 0 };
+    const total = plantoes.reduce((sum, p) => sum + (Number(p.quantidade) || Number(p.atendimentos) || 1), 0);
+    const dias = new Set();
+    const meses = new Set();
+    const anos = new Set();
+    plantoes.forEach(p => {
+      const d = new Date(p.data || p.date || p.dt || null);
+      if (!isNaN(d)) {
+        dias.add(d.toISOString().slice(0,10));
+        meses.add(`${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`);
+        anos.add(d.getFullYear());
+      }
+    });
+    const mediaDia = dias.size ? +(total / dias.size).toFixed(2) : 0;
+    const mediaMes = meses.size ? +(total / meses.size).toFixed(2) : 0;
+    const mediaAno = anos.size ? +(total / anos.size).toFixed(2) : 0;
+    return { total, mediaDia, mediaMes, mediaAno };
+  },
+};
+
 export default function Filtros() {
   const navigate = useNavigate();
 
-  // Estados
+  // Estados original
   const [periodo, setPeriodo] = useState("dia");
   const [dia, setDia] = useState(dayjs().format("YYYY-MM-DD"));
   const [mes, setMes] = useState(dayjs().format("YYYY-MM"));
   const [ano, setAno] = useState(dayjs().format("YYYY"));
-  const [horaQuery, setHoraQuery] = useState("");  // Novo: filtro hora
+  const [horaQuery, setHoraQuery] = useState("");
 
   const [especialidadeQuery, setEspecialidadeQuery] = useState("");
   const [medicoQuery, setMedicoQuery] = useState("");
@@ -250,8 +262,7 @@ export default function Filtros() {
 
   const [vozAtiva, setVozAtiva] = useState(getVozStatus());
 
-  const inputRefMedico = useRef();  // Ref pra lupa médico
-
+  const inputRefMedico = useRef();
   const tabelaRef = useRef(null);
 
   const handleToggleVoz = () => {
@@ -260,17 +271,16 @@ export default function Filtros() {
     mostrarMensagem(novoStatus ? "Voz ativada" : "Voz desativada", novoStatus);
   };
 
-  // Anti-flicker
+  // Anti-flicker original
   useEffect(() => {
     document.body.style.visibility = 'hidden';
     return () => { document.body.style.visibility = 'visible'; };
   }, []);
   useEffect(() => {
-    if (!loading) document.body.style.visibility = 'visible';
-    else document.body.style.visibility = 'hidden';
+    document.body.style.visibility = loading ? 'hidden' : 'visible';
   }, [loading]);
 
-  // Carregamento (com suas funções)
+  // Carregar dados via controller (intermediário)
   useEffect(() => {
     let mounted = true;
 
@@ -278,42 +288,27 @@ export default function Filtros() {
       setLoading(true);
       setErro("");
       try {
-        console.log('🔄 Load Filtros...');
+        const medicos = GlobalController.getMedicos();  // Intermediário
+        const plantao = GlobalController.getPlantoes();  // Normaliza raw
 
-        const medicosRaw = safeArray(getMedicosFromStorage());
-        const plantaoArr = safeArray(getPlantaoFromStorage());
-        console.log('📊 Raw: Médicos', medicosRaw.length, 'Plantões', plantaoArr.length);
-
-        // Suas funções
-        const dadosLimpos = normalizarPlantao(plantaoArr);
-        const opcoesNovas = construirOpcoes(medicosRaw, especialidadesList);
-        console.log('🔧 Normalizado', dadosLimpos.length, 'Opções med', opcoesNovas.medicos.length);
+        const especialidades = GlobalController.listEspecialidades();  // Union
 
         if (!mounted) return;
-        setOpcoes(opcoesNovas);
+        setOpcoes({ medicos, especialidades });
 
-        if (dadosLimpos.length === 0) {
-          setLinhasOriginais([]);
-          setLinhas([]);
-          setErro("Sem atendimentos – cadastre em Plantão.");
-          if (mounted) setLoading(false);
-          return;
-        }
-
-        const agrupado = agruparPorMedicoDiaEsp(dadosLimpos, opcoesNovas.medicos);
+        // Agrupa normalizado
+        const agrupado = agruparPorMedicoDiaEsp(plantao, medicos);
         const dadosFinais = safeArray(agrupado);
+
+        if (!mounted) return;
         setLinhasOriginais(dadosFinais);
         setLinhas(dadosFinais);
 
-        if (dadosFinais.length === 0) {
-          setErro("Sem linhas após agrupar.");
-        } else {
-          console.log('🎉 Load ok: Linhas', dadosFinais.length);
-        }
+        if (dadosFinais.length === 0) setErro("Sem atendimentos – cadastre em Plantão.");
 
       } catch (err) {
-        console.error("Erro load:", err);
-        if (mounted) setErro("Erro ao carregar.");
+        console.error("Erro ao carregar dados:", err);
+        if (mounted) setErro("Erro ao carregar dados do plantão.");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -321,44 +316,35 @@ export default function Filtros() {
 
     carregar();
 
+    // Listener original
     function onStorageListener(event) {
       const keysToWatch = ["medicos", "medicosList", "plantaoData", "relatorioPlantao", "dadosPlantao"];
-      if (keysToWatch.includes(event.key)) setTimeout(carregar, 150);
+      if (!event.key || keysToWatch.includes(event.key)) setTimeout(carregar, 150);
     }
     window.addEventListener("storage", onStorageListener);
+
     return () => {
       mounted = false;
       window.removeEventListener("storage", onStorageListener);
     };
   }, []);
 
-  // Totais
+  // Totais via controller
   const totais = useMemo(() => {
-    if (!linhas || linhas.length === 0) return { totalPeriodo: 0, mediaDia: 0, mediaMes: 0, mediaEspecialidade: {} };
-    const totalPeriodo = linhas.reduce((s, l) => s + (Number(l.atendimentos) || 0), 0);
-    const datasUnicas = [...new Set(linhas.map(l => l.data))];
-    const diasUnicos = datasUnicas.length || 1;
-    const mediaDia = Math.round(totalPeriodo / diasUnicos);
-    const mediaMes = Math.round(mediaDia * 30);
-
-    const mediaEsp = {};
-    linhas.forEach(l => {
-      const espNorm = normalize(l.especialidade || "");
-      mediaEsp[espNorm] = (mediaEsp[espNorm] || 0) + (Number(l.atendimentos) || 0);
-    });
-    Object.keys(mediaEsp).forEach(k => mediaEsp[k] = Math.round(mediaEsp[k] / diasUnicos));
-
-    return { totalPeriodo, mediaDia, mediaMes, mediaEspecialidade: mediaEsp };
+    const plantao = GlobalController.getPlantoes();  // Intermediário
+    const stats = GlobalController.calcStats(plantao);
+    return { totalPeriodo: stats.total, mediaDia: stats.mediaDia, mediaMes: stats.mediaMes, mediaEspecialidade: {} };
   }, [linhas]);
 
-  // Charts
+  // Charts via controller
   const montarChartData = (key) => {
-    if (!linhas || linhas.length === 0) return null;
+    const plantao = GlobalController.getPlantoes();  // Intermediário
+    if (!plantao || plantao.length === 0) return null;
     const map = {};
-    linhas.forEach(l => {
-      const valor = key === "dia" ? l.data : normalize(l[key] || "");
+    plantao.forEach(p => {
+      const valor = key === "dia" ? sanitizeData(p.data) : normalize(p[key] || "");
       if (!valor) return;
-      map[valor] = (map[valor] || 0) + (Number(l.atendimentos) || 0);
+      map[valor] = (map[valor] || 0) + (Number(p.quantidade) || 0);
     });
     return {
       labels: Object.keys(map).map(k => (key === "dia" ? fmt(k) : k.toUpperCase())),
@@ -371,39 +357,46 @@ export default function Filtros() {
   const chartDataPorPeriodo = montarChartData("periodo");
   const chartDataPorDia = montarChartData("dia");
 
-  // Dropdowns
+  // Dropdowns via controller
   const medicosFiltrados = useMemo(() => {
-    const q = debouncedMedico.toLowerCase().trim();
-    const qCrm = debouncedCrm.toLowerCase().trim();
+    const q = (debouncedMedico || "").toString().toLowerCase().trim();
+    const qCrm = (debouncedCrm || "").toString().toLowerCase().trim();
     if (!opcoes.medicos || opcoes.medicos.length === 0) return [];
     return opcoes.medicos.filter(m => {
-      const nome = m.nome.toLowerCase();
-      const crm = m.crm.toLowerCase();
+      const nome = (m.nome || "").toString().toLowerCase();
+      const crm = (m.crm || "").toString().toLowerCase();
       return (!q || nome.includes(q)) && (!qCrm || crm.includes(qCrm));
     });
   }, [opcoes.medicos, debouncedMedico, debouncedCrm]);
 
   const especialidadesFiltradas = useMemo(() => {
-    const q = debouncedEspecialidade.toLowerCase().trim();
+    const q = (debouncedEspecialidade || "").toString().toLowerCase().trim();
     if (!opcoes.especialidades || opcoes.especialidades.length === 0) return [];
     return opcoes.especialidades.filter(e => {
-      const nome = e.nome.toLowerCase();
+      const nome = (e.nome || "").toString().toLowerCase();
       return !q || nome.includes(q);
     });
   }, [opcoes.especialidades, debouncedEspecialidade]);
 
-  // Aplicar com sua função
+  // Aplicar filtros via controller
   const aplicar = () => {
     try {
-      const filtros = { periodo, dia, mes, ano, medicoQuery, especialidadeQuery, crmQuery, horaQuery };
-      const filtrado = aplicarFiltrosSeguros({ plantao: linhasOriginais, filtros });
-
-      setLinhas(filtrado);
+      setErro("");
+      const filters = {
+        medicoName: medicoQuery,
+        especialidade: especialidadeQuery,
+        crm: crmQuery,
+        date: dia,
+        time: horaQuery
+      };
+      const filtrado = GlobalController.getPlantaoRecords(filters);  // Intermediário faz cross + valida
       if (filtrado.length === 0) {
-        setErro("Nenhum dado encontrado.");
+        setErro("Nenhum dado encontrado. Verifique médico/esp/data.");
         mostrarMensagem("Nenhum dado pros filtros.", vozAtiva);
       } else {
-        mostrarMensagem(`Filtros ok: ${filtrado.length} registros.`, vozAtiva);
+        setLinhas(filtrado);
+        const stats = GlobalController.calcStats(filtrado);
+        mostrarMensagem(`Filtros ok: ${filtrado.length} registros, total ${stats.total}.`, vozAtiva);
       }
     } catch (e) {
       console.error("Erro aplicar:", e);
@@ -420,7 +413,7 @@ export default function Filtros() {
     mostrarMensagem("Filtros limpos.", vozAtiva);
   };
 
-  // Exportar (com hora no ws)
+  // Exportações original
   const exportarPDF = () => {
     if (linhas.length === 0) { mostrarMensagem("Sem dados pra PDF.", vozAtiva); return alert("Sem dados."); }
     try {
@@ -428,7 +421,7 @@ export default function Filtros() {
       const doc = new jsPDF();
       doc.text("Consolidado Atendimentos", 10, 10);
       const body = linhas.map(l => [fmt(l.data), l.periodo, l.especialidade, l.medico, l.crm, l.atendimentos, l.hora || '—']);
-      doc.autoTable({ head: [["Data", "Período", "Esp", "Médico", "CRM", "Atend", "Hora"]], body, startY: 20 });
+      if (doc.autoTable) doc.autoTable({ head: [["Data", "Período", "Esp", "Médico", "CRM", "Atend", "Hora"]], body, startY: 20 });
       doc.save(`consolidado_${dayjs().format("YYYYMMDD")}.pdf`);
       mostrarMensagem("PDF salvo!", vozAtiva);
     } catch (e) { console.error(e); mostrarMensagem("Erro PDF.", vozAtiva); alert("Erro PDF."); }
@@ -438,7 +431,10 @@ export default function Filtros() {
     if (linhas.length === 0) { mostrarMensagem("Sem dados pra Excel.", vozAtiva); return alert("Sem dados."); }
     try {
       if (!window.XLSX) { mostrarMensagem("XLSX não.", vozAtiva); return alert("XLSX não."); }
-      const ws = window.XLSX.utils.json_to_sheet(linhas.map(l => ({ Data: fmt(l.data), Período: l.periodo, Esp: l.especialidade, Médico: l.medico, CRM: l.crm, Atend: l.atendimentos, Hora: l.hora || '—' })));
+      const ws = window.XLSX.utils.json_to_sheet(linhas.map(l => ({
+        Data: fmt(l.data), Periodo: l.periodo, Especialidade: l.especialidade,
+        Medico: l.medico, CRM: l.crm, Atendimentos: l.atendimentos, Hora: l.hora || '—'
+      })));
       const wb = window.XLSX.utils.book_new();
       window.XLSX.utils.book_append_sheet(wb, ws, "Consolidado");
       window.XLSX.writeFile(wb, `consolidado_${dayjs().format("YYYYMMDD")}.xlsx`);
@@ -446,226 +442,64 @@ export default function Filtros() {
     } catch (e) { console.error(e); mostrarMensagem("Erro Excel.", vozAtiva); alert("Erro Excel."); }
   };
 
-  const integrarComRelatorios = () => {
-    mostrarMensagem("Indo relatórios.", vozAtiva);
-    navigate("/relatorios", { state: { filtros: { periodo, dia, mes, ano, especialidadeQuery, medicoQuery, crmQuery, horaQuery } } });
-  };
-
-  const handleSelecionarMedico = (medico) => {
-    setMedicoQuery(medico.nome || "");
-    setMostrarListaMedicos(false);
-    mostrarMensagem(`Médico: ${medico.nome}`, vozAtiva);
-  };
-
-  const handleSelecionarEspecialidade = (e) => {
-    setEspecialidadeQuery(e.nome || "");
-    setMostrarListaEspecialidades(false);
-    mostrarMensagem(`Esp: ${e.nome}`, vozAtiva);
-  };
-
-  // Lupa médico: Abre lista no click
-  const abrirListaMedico = () => {
-    setMostrarListaMedicos(true);
-  };
-
-  // Normalize chart (simplificado)
-  const normalizeChartData = (chartData) => {
-    if (!chartData) return null;
-    if (chartData.labels && chartData.data) return chartData;
-    return null;
-  };
-
-  const renderGraficoDinamico = (chartData, titulo) => {
-    const data = normalizeChartData(chartData);
-    if (!data) return null;
-    const ComponentMap = { barra: GraficoBarra, linha: GraficoLinha, pizza: GraficoPizza, area: GraficoArea };
-    const Component = ComponentMap[tipoGrafico];
-    if (!Component) return <div>Gráfico indisponível.</div>;
-    return (
-      <div className="grafico-wrapper" key={titulo}>
-        <h4>{titulo}</h4>
-        <Component data={data} />
-      </div>
-    );
-  };
-
   if (loading) return <Loader />;
 
   return (
     <ErrorBoundary>
-      <Suspense fallback={<Loader />}>
-        <div className="filtros-container">
-          <h2>Consolidação Diária Atendimentos - Intranet Empresa</h2>
-          <button onClick={handleToggleVoz}>{vozAtiva ? "🔈 Desativar Voz" : "🔊 Ativar Voz"}</button>
-
-          {erro && <div style={{color: "#b91c1c", padding: 10, background: "#fee"}}>{erro}</div>}
-
-          <div className="filtros-controles card">
-            <div className="grid-3">
-              <div className="field">
-                <label>Período</label>
-                <select value={periodo} onChange={e => setPeriodo(e.target.value)}>
-                  <option value="dia">Dia</option>
-                  <option value="mes">Mês</option>
-                  <option value="ano">Ano</option>
-                </select>
-              </div>
-
-              {periodo === "dia" && (
-                <div className="field">
-                  <label>Data</label>
-                  <input type="date" value={dia} onChange={e => setDia(e.target.value)} />
-                </div>
-              )}
-
-              {periodo === "mes" && (
-                <div className="field">
-                  <label>Mês</label>
-                  <input type="month" value={mes} onChange={e => setMes(e.target.value)} />
-                </div>
-              )}
-
-              {periodo === "ano" && (
-                <div className="field">
-                  <label>Ano</label>
-                  <input type="number" min="2000" max="2100" value={ano} onChange={e => setAno(e.target.value)} style={{width:100}} />
-                </div>
-              )}
-
-              <div className="field">
-                <label>Tipo Gráfico</label>
-                <select value={tipoGrafico} onChange={e => setTipoGrafico(e.target.value)}>
-                  <option value="barra">Barra</option>
-                  <option value="linha">Linha</option>
-                  <option value="pizza">Pizza</option>
-                  <option value="area">Área</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Grid com hora */}
-            <div className="grid-3">
-              <div className="field">
-                <label>Hora (opcional)</label>
-                <input type="time" value={horaQuery} onChange={e => setHoraQuery(e.target.value)} placeholder="HH:MM" />
-              </div>
-
-              <div className="field" style={{position: "relative"}}>
-                <label>Especialidade</label>
-                <input type="text" placeholder="Todas" value={especialidadeQuery} onChange={e => setEspecialidadeQuery(e.target.value)} onFocus={() => setMostrarListaEspecialidades(true)} onBlur={() => setTimeout(() => setMostrarListaEspecialidades(false), 150)} />
-                {mostrarListaEspecialidades && (
-                  <div className="lista-dropdown" style={{position: "absolute", top: "100%", zIndex: 10, background: "#fff", border: "1px solid #ccc", maxHeight: 200, overflowY: "auto"}}>
-                    <div onMouseDown={() => { setEspecialidadeQuery("todas"); setMostrarListaEspecialidades(false); }} style={{padding:6, cursor:"pointer"}}>Todas</div>
-                    {especialidadesFiltradas.map((e, idx) => {
-                      const info = safeGetEspecialidadeInfo(e.nome);
-                      const Icone = info?.icone;
-                      return (
-                        <div key={idx} onMouseDown={() => handleSelecionarEspecialidade(e)} style={{padding:6, cursor:"pointer", display:"flex", alignItems:"center"}}>
-                          {Icone && typeof Icone === "function" && <Icone size={16} style={{marginRight:5}} />}
-                          {e.nome.toUpperCase()}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Médico com lupa */}
-              <div className="field" style={{display: "flex", alignItems: "center", position: "relative"}}>
-                <label>Médico</label>
-                <div style={{display: "flex"}}>
-                  <input
-                    ref={inputRefMedico}
-                    type="text"
-                    placeholder="Todos"
-                    value={medicoQuery}
-                    onChange={e => setMedicoQuery(e.target.value)}
-                    onFocus={() => setMostrarListaMedicos(true)}
-                    onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)}
-                    style={{flex:1}}
-                  />
-                  <span style={{cursor: "pointer", marginLeft: "5px", fontSize: "18px"}} onClick={abrirListaMedico}>🔍</span>
-                </div>
-                {mostrarListaMedicos && (
-                  <div style={{border: "1px solid #ccc", maxHeight: "200px", overflowY: "auto", background: "#fff", position: "absolute", top: "100%", width: "100%", zIndex: 10}}>
-                    <div onMouseDown={() => { setMedicoQuery("todos"); setMostrarListaMedicos(false); }} style={{padding: "5px", cursor: "pointer"}}>Todos</div>
-                    {medicosFiltrados.map(m => (
-                      <div key={m.crm || m.nome} onMouseDown={() => handleSelecionarMedico(m)} style={{padding: "5px", cursor: "pointer"}}>
-                        {m.nome.toUpperCase()} - {m.crm}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="field">
-                <label>CRM</label>
-                <input type="text" value={crmQuery} onChange={e => setCrmQuery(e.target.value.toUpperCase())} placeholder="Filtrar CRM" />
-              </div>
-            </div>
-
-            <div className="botoes-filtros" style={{display: "flex", gap: 10, marginTop: 15}}>
-              <button onClick={aplicar} disabled={loading}>{loading ? "Carregando..." : "Aplicar Filtros"}</button>
-              <button onClick={limpar}>Limpar</button>
-              <button onClick={exportarPDF}>PDF</button>
-              <button onClick={exportarExcel}>Excel</button>
-              <button onClick={integrarComRelatorios}>Relatórios</button>
-            </div>
-
-            {erro && <p style={{color: "#b91c1c", marginTop: 8}}>{erro}</p>}
-          </div>
-
-          {linhas.length > 0 && (
-            <div className="card resumo-totais">
-              <h3>📐 Totais & Médias</h3>
-              <p><strong>Total Atendimentos:</strong> {totais.totalPeriodo}</p>
-              <p><strong>Média Diária:</strong> {totais.mediaDia}</p>
-              <p><strong>Média Mensal:</strong> {totais.mediaMes}</p>
-              <ul className="lista-media-esp">
-                {Object.entries(totais.mediaEspecialidade).map(([esp, valor]) => <li key={esp}>{esp.toUpperCase()}: {valor}</li>)}
-              </ul>
-            </div>
-          )}
-
-          <div ref={tabelaRef} className="card tabela-consolidado">
-            <h3>Consolidado Atendimentos</h3>
-            <div className="tabela-wrapper">
-              <table>
-                <thead><tr><th>Data</th><th>Período</th><th>Especialidade</th><th>Médico</th><th>CRM</th><th>Atendimentos</th><th>Hora</th></tr></thead>
-                <tbody>
-                  {linhas.length === 0 ? (
-                    <tr><td colSpan="7" className="sem-dados">Sem dados</td></tr>
-                  ) : (
-                    linhas.map((l, i) => (
-                      <tr key={i}>
-                        <td>{fmt(l.data) || "—"}</td>
-                        <td>{l.periodo || "—"}</td>
-                        <td style={{color: safeGetEspecialidadeInfo(l.especialidade)?.cor}}>{l.especialidade || "—"}</td>
-                        <td>{l.medico || "—"}</td>
-                        <td>{l.crm || "—"}</td>
-                        <td>{l.atendimentos || 0}</td>
-                        <td>{l.hora || "—"}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {linhas.length > 0 && (
-            <div className="graficos-container">
-              <h3>Gráficos Consolidados</h3>
-              <div className="grid-graficos">
-                {renderGraficoDinamico(chartDataPorEspecialidade, "Por Especialidade")}
-                {renderGraficoDinamico(chartDataPorMedico, "Por Médico")}
-                {renderGraficoDinamico(chartDataPorPeriodo, "Por Período")}
-                {renderGraficoDinamico(chartDataPorDia, "Por Dia")}
-              </div>
-            </div>
-          )}
+      <div className="filtros-container">
+        <h2>Consolidação de Plantão</h2>
+        <div className="filtros-topo">
+          <input placeholder="Médico" value={medicoQuery} ref={inputRefMedico} onChange={e => setMedicoQuery(e.target.value)} />
+          <input placeholder="CRM" value={crmQuery} onChange={e => setCrmQuery(e.target.value)} />
+          <input placeholder="Especialidade" value={especialidadeQuery} onChange={e => setEspecialidadeQuery(e.target.value)} />
+          <input placeholder="Hora" value={horaQuery} onChange={e => setHoraQuery(e.target.value)} />
+          <button onClick={aplicar}>Filtrar</button>
+          <button onClick={limpar}>Limpar</button>
+          <button onClick={handleToggleVoz}>{vozAtiva ? "🔊" : "🔈"}</button>
         </div>
-      </Suspense>
+        {erro && <div className="erro">{erro}</div>}
+
+        <div className="totais">
+          <span>Total: {totais.totalPeriodo}</span>
+          <span>Média/dia: {totais.mediaDia}</span>
+          <span>Média/mês: {totais.mediaMes}</span>
+        </div>
+
+        <div className="botoes-export">
+          <button onClick={exportarPDF}>Exportar PDF</button>
+          <button onClick={exportarExcel}>Exportar Excel</button>
+        </div>
+
+        <div className="graficos">
+          {tipoGrafico === "barra" && chartDataPorEspecialidade && <GraficoBarra data={chartDataPorEspecialidade} />}
+          {tipoGrafico === "linha" && chartDataPorDia && <GraficoLinha data={chartDataPorDia} />}
+          {tipoGrafico === "pizza" && chartDataPorMedico && <GraficoPizza data={chartDataPorMedico} />}
+          {tipoGrafico === "area" && chartDataPorPeriodo && <GraficoArea data={chartDataPorPeriodo} />}
+        </div>
+
+        <div className="tabela" ref={tabelaRef}>
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th><th>Período</th><th>Especialidade</th><th>Médico</th><th>CRM</th><th>Atendimentos</th><th>Hora</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linhas.map((l, idx) => (
+                <tr key={idx}>
+                  <td>{fmt(l.data)}</td>
+                  <td>{l.periodo}</td>
+                  <td>{l.especialidade}</td>
+                  <td>{l.medico}</td>
+                  <td>{l.crm}</td>
+                  <td>{l.atendimentos}</td>
+                  <td>{l.hora || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </ErrorBoundary>
   );
 }
