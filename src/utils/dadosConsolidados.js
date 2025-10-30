@@ -1,4 +1,3 @@
-// src/utils/dadosConsolidados.js
 import dayjs from "dayjs";
 
 /**
@@ -27,9 +26,9 @@ export const fmtDate = (d) => {
 
 /** Converte datas variadas para dayjs
  * Aceita:
- *  - "YYYY-MM-DD" ou "YYYY-MM-DD HH:mm"
- *  - "DD/MM/YYYY" ou "DD/MM/YYYY HH:mm"
- *  - timestamps (número)
+ *  - "YYYY-MM-DD" ou "YYYY-MM-DD HH:mm"
+ *  - "DD/MM/YYYY" ou "DD/MM/YYYY HH:mm"
+ *  - timestamps (número)
  */
 export const parsePlantaoDate = (dataStr, horaStr = "00:00") => {
   if (!dataStr && !horaStr) return null;
@@ -138,14 +137,14 @@ export const computePeriodo = (hora) => {
 /** Sanitiza um item bruto de plantão e retorna objeto limpo ou null se inválido.
  * Resultado padrão:
  * {
- *   original: <object original>,
- *   data: "YYYY-MM-DD",
- *   hora: "HH:mm" | "",
- *   quantidade: number,
- *   nome: "NOME",
- *   crm: "CRMUPPER",
- *   especialidade: "ESPECIALIDADE",
- *   periodo: "Diurno" | "Noturno" | "Indefinido"
+ *   original: <object original>,
+ *   data: "YYYY-MM-DD",
+ *   hora: "HH:mm" | "",
+ *   quantidade: number,
+ *   nome: "NOME",
+ *   crm: "CRMUPPER",
+ *   especialidade: "ESPECIALIDADE",
+ *   periodo: "Diurno" | "Noturno" | "Indefinido"
  * }
  */
 export const cleanPlantaoItem = (p, options = { logInvalid: false, idx: null }) => {
@@ -224,7 +223,7 @@ export const cleanPlantaoItem = (p, options = { logInvalid: false, idx: null }) 
 
 /** Limpa um array bruto de plantões e retorna apenas os válidos
  * options:
- *  - logInvalid: bool -> ativa console.warn para itens inválidos
+ *  - logInvalid: bool -> ativa console.warn para itens inválidos
  */
 export const cleanPlantaoArray = (plantaoArray, options = { logInvalid: false }) => {
   if (!Array.isArray(plantaoArray)) return [];
@@ -289,27 +288,39 @@ export const agruparPorMedicoDiaEsp = (plantaoData, medicosData = []) => {
     // busca médico por crm ou nome normalizado
     const med = medicosMap.get((p.crm || "").toString().toUpperCase()) || medicosMap.get(normalize(p.nome));
     const medicoNome = med?.nome || p.nome || "";
-    const espNome = med?.especialidade?.nome || med?.especialidade || p.especialidade || "";
+    // CORREÇÃO: Usar a especialidade do plantão (p.especialidade) como primária
+    // A especialidade do cadastro de médico (med?.especialidade) pode ser geral (ex: "CLINICO", "CIRURGIAO")
+    // A especialidade do plantão é a específica daquele dia (ex: "CLINICO - PA", "CIRURGIA - SOBREAVISO")
+    const espNome = p.especialidade || med?.especialidade?.nome || med?.especialidade || "";
     const dia = sanitizeData(p.data, p.hora) || p.data || "";
 
     if (!dia) return;
+    // Usar o CRM do cadastro (med?.crm) se encontrado, senão o do plantão (p.crm)
+    const crmFinal = (med?.crm || p.crm || "").toString().toUpperCase();
+    const medicoNomeFinal = (medicoNome || "").toUpperCase();
+    const espNomeFinal = (espNome || "").toUpperCase();
 
-    const key = `${normalize(medicoNome)}‖${normalize(espNome)}‖${dia}`;
+    const key = `${normalize(medicoNomeFinal)}‖${normalize(espNomeFinal)}‖${dia}`;
 
     if (!map[key]) {
       map[key] = {
-        medico: (medicoNome || "").toUpperCase(),
-        crm: (med?.crm || p.crm || "").toString().toUpperCase(),
-        especialidade: (espNome || "").toUpperCase(),
+        medico: medicoNomeFinal,
+        crm: crmFinal,
+        especialidade: espNomeFinal,
         data: dia,
         periodo: p.periodo || computePeriodo(p.hora || ""),
         atendimentos: 0,
+        hora: p.hora || "", // Adiciona a primeira hora encontrada
         items: [],
       };
     }
 
     const qtd = Number(p.quantidade ?? p.qtd ?? p.quantity ?? 0) || 0;
     map[key].atendimentos += qtd;
+    // Concatena horas se houver mais de uma
+    if (p.hora && map[key].hora.indexOf(p.hora) === -1) {
+      map[key].hora = map[key].hora ? `${map[key].hora}, ${p.hora}` : p.hora;
+    }
     map[key].items.push(p.original || p);
   });
 
@@ -332,9 +343,21 @@ export const normalizarEMapearPlantaoData = (plantaoData) => {
     const crm = p.crm ? p.crm.toUpperCase() : "";
     const especialidade = (p.especialidade || "").toUpperCase();
 
-    return { data: dataISO, periodo, especialidade, medico, crm, atendimentos: quantidade, items: [p.original || p] };
+    return {
+      data: dataISO,
+      periodo,
+      especialidade,
+      medico,
+      crm,
+      atendimentos: quantidade,
+      hora: p.hora || "",
+      items: [p.original || p]
+    };
   });
 };
+
+// ADICIONADO: Exporta 'normalizePlantao' como um alias
+export const normalizePlantao = normalizarEMapearPlantaoData;
 
 export default {
   normalize,
@@ -348,4 +371,5 @@ export default {
   buildOpcoesMedicosFromRaw,
   agruparPorMedicoDiaEsp,
   normalizarEMapearPlantaoData,
+  normalizePlantao, // ADICIONADO
 };

@@ -265,3 +265,53 @@
     padding: 0.5rem 0.6rem;
   }
 }
+
+/* Exemplo de estilos que devem estar no seu Filtros.css */
+
+.input-group label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 500;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.input-group .input-select,
+.input-group .input-field {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card-bg);
+  color: #333;
+  transition: border-color 0.2s;
+  box-sizing: border-box; /* Garante que padding e border não aumentem a largura total */
+  height: 40px; /* Altura padrão para campos */
+}
+
+.input-group .input-select:focus,
+.input-group .input-field:focus {
+  border-color: var(--primary-light);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(31, 78, 120, 0.2);
+}
+
+/* Estilo para a mensagem global */
+.mensagem-global {
+  background: #e6f7ff; /* Cor clara de informação */
+  color: #1f4e78;
+  border: 1px solid #bae0ff;
+  padding: 0.8rem 1.25rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  text-align: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ... restante do seu Filtros.css ... */

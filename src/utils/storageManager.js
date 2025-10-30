@@ -3,8 +3,9 @@
 // 🌐 GERENCIADOR CENTRALIZADO DE LOCALSTORAGE DO SISTEMA
 // =========================================================
 
-const STORAGE_KEY = "plantaoData";
-const BACKUP_KEY = `${STORAGE_KEY}Backup`;
+// CORRIGIDO: Adicionando 'export' para que dataServices.js consiga importar.
+export const STORAGE_KEY = "plantaoData";
+export const BACKUP_KEY = `${STORAGE_KEY}Backup`;
 
 /**
  * 🔧 Helper: leitura segura do localStorage
@@ -30,8 +31,9 @@ const baseData = {
 
 /**
  * 🔧 Helper: salva no storage com stringify seguro
+ * EXPORTADO para uso em dataServices.js.
  */
-const safeSave = (key, data) => {
+export const safeSave = (key, data) => { // <-- EXPORT CORRIGIDO
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (err) {
@@ -41,78 +43,48 @@ const safeSave = (key, data) => {
 
 /**
  * 🔧 Helper: lê a estrutura completa do storage
+ * EXPORTADO para uso em dataServices.js.
  */
-const getAllData = () => {
+export const getAllData = () => { // <-- EXPORT CORRIGIDO
   return safeParse(localStorage.getItem(STORAGE_KEY), { ...baseData });
 };
 
-// =========================================================
-// 🔹 API PRINCIPAL
-// =========================================================
+
+// ----------------------------------------------------
+// storageManager API
+// ----------------------------------------------------
+
 export const storageManager = {
-  // ======== GETS ========
-  getAll: () => getAllData(),
+  // Acesso direto aos arrays internos
+  getMedicos: () => getAllData().medicos,
+  getPlantao: () => getAllData().plantao,
+  getEspecialidades: () => getAllData().especialidades,
+  getUsuario: () => getAllData().usuario,
 
-  getMedicos: () => getAllData().medicos || [],
-  getEspecialidades: () => getAllData().especialidades || [],
-  getPlantao: () => getAllData().plantao || [],
-  getUsuario: () => getAllData().usuario || null,
-
-  // ======== SETS ========
-  setAll(data = {}) {
-    const novo = { ...baseData, ...data };
-    safeSave(STORAGE_KEY, novo);
-  },
-
-  setMedicos(medicos = []) {
+  // Funções de escrita/atualização (usadas internamente ou por dataServices)
+  setMedicos: (medicosList) => {
     const data = getAllData();
-    data.medicos = medicos;
+    data.medicos = medicosList;
     safeSave(STORAGE_KEY, data);
   },
-
-  setEspecialidades(especialidades = []) {
+  setPlantao: (plantaoList) => {
     const data = getAllData();
-    data.especialidades = especialidades;
+    data.plantao = plantaoList;
     safeSave(STORAGE_KEY, data);
   },
+  // ... outras funções de set ...
 
-  setPlantao(plantao = []) {
-    const data = getAllData();
-    data.plantao = plantao;
-    safeSave(STORAGE_KEY, data);
-  },
 
-  setUsuario(usuario = null) {
-    const data = getAllData();
-    data.usuario = usuario;
-    safeSave(STORAGE_KEY, data);
-  },
-
-  // ======== BACKUP & RESTAURAÇÃO ========
-  createBackup() {
-    const data = getAllData();
-    safeSave(BACKUP_KEY, data);
-    console.log("💾 Backup criado com sucesso.");
-  },
-
-  restoreBackup() {
-    const backup = safeParse(localStorage.getItem(BACKUP_KEY), null);
-    if (!backup) {
-      console.warn("⚠️ Nenhum backup encontrado.");
-      return false;
-    }
-    safeSave(STORAGE_KEY, backup);
-    console.log("🔄 Backup restaurado com sucesso.");
-    return true;
-  },
-
-  // ======== MIGRAÇÃO DE DADOS ANTIGOS ========
-  migrateOldKeys() {
+  // ----------------------------------------------------
+  // Migração de dados antigos (MUITO IMPORTANTE)
+  // ----------------------------------------------------
+  migrateOldData: () => {
     try {
-      const oldMedicos = safeParse(localStorage.getItem("medicos"), []);
-      const oldPlantao = safeParse(localStorage.getItem("plantao"), []);
-      const oldEspecialidades = safeParse(localStorage.getItem("especialidades"), []);
-      const oldUsuario = safeParse(localStorage.getItem("usuario"), null);
+      // Tenta ler chaves antigas
+      const oldMedicos = safeParse(localStorage.getItem("medicos") || "[]", []);
+      const oldPlantao = safeParse(localStorage.getItem("plantao") || "[]", []);
+      const oldEspecialidades = safeParse(localStorage.getItem("especialidades") || "[]", []);
+      const oldUsuario = safeParse(localStorage.getItem("usuario") || "null", null);
 
       const existeAntigo =
         (Array.isArray(oldMedicos) && oldMedicos.length > 0) ||
@@ -150,12 +122,7 @@ export const storageManager = {
     console.log("🧹 Storage limpo com sucesso.");
   },
 
-  debug() {
-    console.table(getAllData());
-  },
+  debug: () => {
+    console.log('DEBUG STORAGE:', getAllData());
+  }
 };
-
-// =========================================================
-// 🔹 EXECUÇÃO AUTOMÁTICA DA MIGRAÇÃO
-// =========================================================
-storageManager.migrateOldKeys();

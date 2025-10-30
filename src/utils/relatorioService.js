@@ -2,13 +2,17 @@
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import "jspdf-autotable"; // Necessário para doc.autoTable
 import * as XLSX from "xlsx";
-import { getEspecialidadeInfo } from "../api/especialidades.js";
+import { getEspecialidadeInfo } from "../api/especialidades.js"; // Função para buscar informações da especialidade, como cor
 
 dayjs.locale("pt-br");
 
-// Normaliza string (remove acentos, caixa alta, etc)
+// ===============================================
+// 🔹 Funções de Filtragem (para uso em dataServices.js)
+// ===============================================
+
+// Normaliza string (remove acentos, caixa alta, trim)
 export const normalizeString = (str) =>
   !str ? "" : str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -25,102 +29,134 @@ export const filtrarPorMedico = (dados, nomeBusca, crmBusca) => {
   if (!nomeBusca && !crmBusca) return dados;
   return dados.filter((p) => {
     const okMed = nomeBusca ? normalizeString(p.medico) === normalizeString(nomeBusca) : true;
-    const okCrm = crmBusca ? p.crm.includes(crmBusca) : true;
+    const okCrm = crmBusca ? normalizeString(p.crm) === normalizeString(crmBusca) : true;
     return okMed && okCrm;
   });
 };
 
 // Filtra por especialidade
-export const filtrarPorEspecialidade = (dados, espBusca) => {
-  if (!espBusca) return dados;
-  return dados.filter((p) => normalizeString(p.especialidade) === normalizeString(espBusca));
+export const filtrarPorEspecialidade = (dados, especialidadeBusca) => {
+  if (!especialidadeBusca) return dados;
+  return dados.filter((p) =>
+    normalizeString(p.especialidade).includes(normalizeString(especialidadeBusca))
+  );
 };
 
-// Filtra por intervalo de data e hora
-export const filtrarPorDataHora = (dados, inicio, fim, horaDe = "07:00", horaAte = "19:00") => {
+// Filtra por intervalo de data/hora
+export const filtrarPorDataHora = (
+  dados,
+  dataInicio,
+  dataFim,
+  horaDe = "07:00",
+  horaAte = "19:00"
+) => {
+  if (!dataInicio || !dataFim) return dados;
+
+  const dataInicioDayjs = dayjs(dataInicio).startOf("day");
+  const dataFimDayjs = dayjs(dataFim).endOf("day");
+
+  // Transforma horaDe/horaAte em minutos para fácil comparação
+  const [h1, m1] = horaDe.split(":").map(Number);
+  const minDe = h1 * 60 + m1;
+  const [h2, m2] = horaAte.split(":").map(Number);
+  const minAte = h2 * 60 + m2;
+
   return dados.filter((p) => {
-    const registro = parsePlantaoDate(p.data, p.hora);
-    if (!registro) return false;
+    const dataPlantao = dayjs(parsePlantaoDate(p.data, p.hora));
+    if (!dataPlantao.isValid()) return false;
 
-    let okDataHora = registro >= inicio && registro <= fim;
+    // 1. Filtro de Data (inclusivo)
+    const dataOK = dataPlantao.isSame(dataInicioDayjs, "day") ||
+                   dataPlantao.isSame(dataFimDayjs, "day") ||
+                   (dataPlantao.isAfter(dataInicioDayjs, "day") &&
+                    dataPlantao.isBefore(dataFimDayjs, "day"));
 
-    if (horaDe === "00:00" && horaAte === "23:59") return okDataHora;
-    if (horaDe === "19:00" && horaAte === "07:00") {
-      const horaRegistro = registro.getHours() * 60 + registro.getMinutes();
-      const limInicio = 19 * 60;
-      const limFim = 7 * 60;
-      const dataRegistro = new Date(registro);
-      dataRegistro.setHours(0, 0, 0, 0);
+    if (!dataOK) return false;
 
-      if (registro >= inicio && horaRegistro >= limInicio) return true;
+    // 2. Filtro de Hora (se a data for a mesma, verifica a hora)
+    if (!p.hora) return true; // Se não tem hora, assume que está ok
 
-      const inicioDiaSeguinte = new Date(dataRegistro);
-      inicioDiaSeguinte.setDate(inicioDiaSeguinte.getDate() + 1);
-      inicioDiaSeguinte.setHours(0, 0, 0, 0);
-      const fimTurno = new Date(inicioDiaSeguinte);
-      fimTurno.setHours(7, 0, 0, 0);
-      if (registro >= inicioDiaSeguinte && registro <= fimTurno && horaRegistro <= limFim) return true;
+    const [hp, mp] = p.hora.split(":").map(Number);
+    const minPlantao = hp * 60 + mp;
 
-      return false;
-    }
-
-    const horaRegistro = dayjs(registro).format("HH:mm");
-    return horaRegistro >= horaDe && horaRegistro <= horaAte && okDataHora;
+    return minPlantao >= minDe && minPlantao <= minAte;
   });
 };
 
-// Agrupa dados para gerar cards (médico + especialidade + dia)
+// Agrupa dados para exibição em cards de resumo
 export const agruparCards = (dados) => {
-  const agrup = dados.reduce((acc, p) => {
-    const diaFormatado = dayjs(p.data, ["YYYY-MM-DD", "DD/MM/YYYY"]).format("DD/MM/YYYY");
-    const key = `${p.medico}||${p.especialidade}||${diaFormatado}`;
+  if (!dados || dados.length === 0) return { total: 0, especialidades: [] };
 
-    if (!acc[key]) {
-      acc[key] = {
-        chave: key,
-        medico: p.medico,
-        especialidade: p.especialidade,
-        dia: diaFormatado,
-        totalDia: 0,
-        items: [],
+  const total = dados.reduce((acc, p) => acc + (p.quantidade || p.atendimentos || 0), 0);
+  const espMap = {};
+
+  dados.forEach((p) => {
+    const esp = p.especialidade || "Desconhecido";
+    const qtd = p.quantidade || p.atendimentos || 0;
+    if (!espMap[esp]) {
+      espMap[esp] = {
+        nome: esp,
+        atendimentos: 0,
+        ...getEspecialidadeInfo(esp), // Adiciona cor e ícone, se houver
       };
     }
+    espMap[esp].atendimentos += qtd;
+  });
 
-    acc[key].totalDia += Number(p.quantidade);
-    acc[key].items.push(p);
-    return acc;
-  }, {});
+  const especialidades = Object.values(espMap).sort((a, b) => b.atendimentos - a.atendimentos);
 
-  return Object.values(agrup);
+  return { total, especialidades };
 };
 
-// Gera PDF do relatório
+
+// ===============================================
+// 🚀 Funções de Geração de Relatório (PDF e Excel)
+// ===============================================
+
+/**
+ * Gera um PDF do relatório.
+ * @param {Array<Object>} linhas - Dados consolidados do relatório, já agrupados.
+ * Linhas no formato: [{ chave: '...', items: [{ medico, crm, data, hora, quantidade, ... }] }]
+ * @returns {string|null} Nome do arquivo gerado.
+ */
 export const gerarPDF = (linhas) => {
   if (!linhas.length) return null;
-  const doc = new jsPDF();
-  doc.setFontSize(18);
-  doc.text("DASHBOARD DE PRODUTIVIDADE MÉDICA", 14, 20);
+  const doc = new jsPDF("p", "pt", "a4");
+
+  doc.setFontSize(16);
+  doc.text("Relatório Consolidado de Plantões", 40, 40);
 
   linhas.forEach((grupo, indexGrupo) => {
-    const dadosTabela = (grupo.items || []).map((item) => [
-      item.medico,
-      item.crm,
-      item.especialidade,
-      dayjs(item.data).format("DD/MM/YYYY"),
-      item.hora,
-      item.quantidade,
+    // Adiciona título do grupo (Médico, Especialidade, ou Data)
+    doc.setFontSize(14);
+    // Usa um startY diferente para a primeira página vs. páginas subsequentes
+    doc.text(`Grupo: ${grupo.chave}`, 40, indexGrupo === 0 ? 70 : 40); 
+
+    const headers = [
+      ["Médico", "CRM", "Especialidade", "Data", "Hora", "Quantidade"],
+    ];
+
+    const body = (grupo.items || []).map((p) => [
+      p.medico,
+      p.crm,
+      p.especialidade,
+      dayjs(p.data).format("DD/MM/YYYY"),
+      p.hora,
+      p.quantidade,
     ]);
 
+    // Cria a tabela com jspdf-autotable
     doc.autoTable({
-      startY: doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 30,
-      head: [["Médico", "CRM", "Especialidade", "Data", "Hora", "Quantidade"]],
-      body: dadosTabela,
-      theme: "grid",
+      startY: indexGrupo === 0 ? 80 : 50,
+      head: headers,
+      body: body,
+      theme: "striped",
       headStyles: { fillColor: [31, 78, 120], textColor: 255 },
       bodyStyles: { textColor: 0 },
       styles: { fontSize: 10 },
     });
 
+    // Adiciona nova página para o próximo grupo, se não for o último
     if (indexGrupo < linhas.length - 1) doc.addPage();
   });
 
@@ -129,14 +165,19 @@ export const gerarPDF = (linhas) => {
   return filename;
 };
 
-// Gera Excel do relatório
+/**
+ * Gera um arquivo Excel (xlsx) do relatório.
+ * @param {Array<Object>} linhas - Dados consolidados do relatório, já agrupados.
+ * @returns {string|null} Nome do arquivo gerado.
+ */
 export const gerarExcel = (linhas) => {
   if (!linhas.length) return null;
   const wb = XLSX.utils.book_new();
 
+  // Cria uma planilha (sheet) para cada grupo (médico/especialidade/data)
   linhas.forEach((grupo) => {
     const wsData = [
-      ["Médico", "CRM", "Especialidade", "Data", "Hora", "Quantidade"],
+      ["Médico", "CRM", "Especialidade", "Data", "Hora", "Quantidade"], // Cabeçalho
       ...(grupo.items || []).map((p) => [
         p.medico,
         p.crm,
@@ -146,24 +187,13 @@ export const gerarExcel = (linhas) => {
         p.quantidade,
       ]),
     ];
+    // Converte Array of Array (AOA) para planilha
     const ws = XLSX.utils.aoa_to_sheet(wsData);
+    // Adiciona a planilha ao livro de trabalho (workbook), limitando o nome da aba a 31 caracteres
     XLSX.utils.book_append_sheet(wb, ws, `${grupo.chave}`.substring(0, 31));
   });
 
   const filename = `relatorio_${dayjs().format("YYYYMMDD_HHmm")}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  XLSX.writeFile(wb, filename); // Salva o arquivo
   return filename;
-};
-
-// Gera resumo por especialidade
-export const gerarResumoPorEspecialidade = (linhas) => {
-  const totais = {};
-  linhas.forEach((grupo) => {
-    (grupo.items || []).forEach((item) => {
-      const espKey = item.especialidade || "—";
-      if (!totais[espKey]) totais[espKey] = 0;
-      totais[espKey] += Number(item.quantidade);
-    });
-  });
-  return Object.keys(totais).map((esp) => `${esp}: ${totais[esp]} atendimentos`);
 };

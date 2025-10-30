@@ -1,505 +1,491 @@
-// src/components/Filtros.jsx
-import React, { useState, useEffect, useRef, useMemo, Suspense } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
-
-// Utils de storage (usado no controller)
-import { getMedicosFromStorage, getPlantaoFromStorage } from "../utils/storagePlantao";
-
-// Utils de dados consolidados (integra no controller)
 import {
-  normalize,
-  fmtDate as fmt,
-  parsePlantaoDate,
-  agruparPorMedicoDiaEsp,
-  normalizePlantao,
-  cleanPlantaoArray  // Destrincha raw no controller
-} from "../utils/dadosConsolidados.js";
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  LineElement,
+  PointElement,
+  Filler,
+} from "chart.js";
+import { Pie } from "react-chartjs-2"; // Mantendo Pie aqui
+import * as FaIcons from "react-icons/fa";
 
-import { especialidades as especialidadesListRaw, getEspecialidadeInfo } from "../api/especialidades.js";
-
-// TTS original
-import { falarMensagem, toggleVoz, getVozStatus } from "../utils/tts.js";
-
-// Gráficos original
-import GraficoBarra from "./GraficoBarra";
-import GraficoLinha from "./GraficoLinha";
-import GraficoPizza from "./GraficoPizza";
-import GraficoArea from "./GraficoArea";
-
-// Estilos original
-import "./mobile.css";
+// 1. IMPORT DO ARQUIVO CSS EXTERNO
 import "./Filtros.css";
+
+// 2. IMPORTAÇÕES DE MÓDULOS DO PROJETO
+// Assumindo que Filtros.jsx está em src/pages e os módulos em src/utils, src/services, etc.
+
+// 2.1. Funções de Serviços e Utilitários
+import { getDadosConsolidados } from "../services/dataServices"; 
+import { getEspecialidadeInfo, especialidades as especialidadesList } from "../api/especialidades.js"; 
+import { fmtDate } from "../utils/index.js"; // Para formatar data na tabela
+import { gerarPDF, gerarExcel } from "../utils/relatorioService.js";
+import { GlobalController, LocalStorageService } from "../pages/GlobalController.jsx"; // Serviços de Storage
+import { falarMensagem } from "../utils/tts.js"; // IMPORT TTS CORRIGIDO
+
+// 2.2. Componentes de Gráfico Separados
+import GraficoBarra from "./GraficoBarra.jsx";
+import GraficoArea from "./GraficoArea.jsx"; 
+import GraficoPizza from "./GraficoPizza.jsx";
+import GraficoLinha from "./GraficoLinha.jsx";
+
+// Configuração do ChartJS (necessário para todos os tipos de gráfico)
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  LineElement,
+  PointElement,
+  Filler
+);
 
 dayjs.locale("pt-br");
 
-// Helpers original
-const safeArray = (v) => Array.isArray(v) ? v : [];
-const safeString = (v) => v === null || v === undefined ? "" : String(v);
 
-// Wrapper original
-const safeGetEspecialidadeInfo = (nome) => {
-  try {
-    return getEspecialidadeInfo(nome);
-  } catch (e) {
-    return { nome: nome || "Desconhecido", icone: null, cor: "#999" };
-  }
-};
-
-// timeToMinutes original (fixado sem JSX bug)
-const timeToMinutes = (hhmm = "") => {
-  if (!hhmm) return null;
-  const cleaned = String(hhmm).trim();
-  if (!cleaned.includes(":")) {
-    if (/^\d{3,4}$/.test(cleaned)) {
-      const pad = cleaned.padStart(4, "0");
-      return Number(pad.slice(0, 2)) * 60 + Number(pad.slice(2));
-    }
-    return null;  // Fix: Null se inválido
-  }
-  const [h, m] = cleaned.split(":").map(n => Number(n));
-  if (isNaN(h) || isNaN(m)) return null;
-  return h * 60 + m;
-};
-
-const Loader = () => (
-  <div style={{
-    display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh',
-    background: '#f0f8ff', fontSize: '18px', color: '#003366'
-  }}>
-    <div>🔄 Carregando consolidação diária de atendimentos...</div>
-  </div>
-);
-
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, info) {
-    console.error("ErrorBoundary capturou erro:", error, info);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: 20 }}>
-          <h3>Ocorreu um erro</h3>
-          <p>Algo deu errado ao renderizar a página. Recarregue ou contate o suporte.</p>
-          <pre style={{ whiteSpace: "pre-wrap" }}>{String(this.state.error)}</pre>
-          <button onClick={() => window.location.reload()}>Recarregar</button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-const mostrarMensagem = (texto, vozAtiva = true) => {
-  if (vozAtiva) falarMensagem(texto);
-  console.log(`Mensagem: ${texto}`);
-};
-
-function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedValue(value), delay || 300);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debouncedValue;
-}
-
-// GlobalController como intermediário (lógica de busca/tratamento)
-export const GlobalController = {
-  MEDICOS_KEY: "medicos",
-  PLANTOES_KEY: "plantaoData",
-  getMedicos() {
-    return getMedicosFromStorage() || [];
-  },
-  getPlantoes() {
-    let raw = getPlantaoFromStorage() || [];
-    raw = cleanPlantaoArray(raw);  // Normaliza/destrincha raw do save
-    return raw;
-  },
-  findMedicoByName(name) {
-    if (!name) return null;
-    const medicos = this.getMedicos();
-    return medicos.find((m) => (m.nome || "").toLowerCase() === name.toLowerCase()) || null;
-  },
-  searchMedicos(query) {
-    if (!query) return this.getMedicos();
-    return this.getMedicos().filter((m) => (m.nome || "").toLowerCase().includes(query.toLowerCase()));
-  },
-  listEspecialidades() {
-    const medicos = this.getMedicos();
-    const set = new Set();
-    medicos.forEach((m) => {
-      const esp = m.especialidades || m.especialidade || [];
-      if (Array.isArray(esp)) {
-        esp.forEach((e) => set.add((e || "").toString()));
-      } else if (esp) set.add(esp.toString());
-    });
-    return Array.from(set).sort();
-  },
-  searchEspecialidades(query) {
-    if (!query) return this.listEspecialidades();
-    return this.listEspecialidades().filter((e) => e.toLowerCase().includes(query.toLowerCase()));
-  },
-  getPlantaoRecords({ medicoName, especialidade, crm, date, time }) {
-    const plantoes = this.getPlantoes();  // Já normalizado
-    const medicos = this.getMedicos();
-    function sameDate(dStr, targetDate) {
-      if (!dStr || !targetDate) return false;
-      const d = new Date(dStr);
-      if (isNaN(d)) return false;
-      return (
-        d.getFullYear() === targetDate.getFullYear() &&
-        d.getMonth() === targetDate.getMonth() &&
-        d.getDate() === targetDate.getDate()
-      );
-    }
-    function sameTime(tStr, targetTime) {
-      if (!tStr || !targetTime) return false;
-      const pad = (s) => (s || "").toString().padStart(2, "0");
-      const [h, m] = (tStr || "").split(":");
-      const [ht, mt] = [pad(h), pad(m)];
-      const [h2, m2] = [pad(targetTime.getHours()), pad(targetTime.getMinutes())];
-      return ht === h2 && mt === m2;
-    }
-    const targetDate = date ? new Date(date) : null;
-    const targetTime = time ? (() => { const now = new Date(); const [hh, mm] = (time || "").split(":"); now.setHours(Number(hh||0)); now.setMinutes(Number(mm||0)); now.setSeconds(0); now.setMilliseconds(0); return now; })() : null;
-    let medicoObj = medicoName ? medicos.find(m => (m.nome||"").toLowerCase() === medicoName.toLowerCase()) : null;
-    if (!medicoObj && crm) {
-      medicoObj = medicos.find(m => (m.crm||"").toString() === crm.toString());
-    }
-    let results = plantoes.filter(p => {
-      const pMedNome = (p.medicoNome || p.medico || "").toString();
-      const pMedCrm = (p.crm || p.medicoCrm || "").toString();
-      const pEsp = (p.especialidade || p.specialty || "").toString();
-      const pDate = p.data || p.date || p.dt || null;
-      const pTime = p.hora || p.time || p.horaInicio || null;
-      if (medicoName && pMedNome.toLowerCase() !== medicoName.toLowerCase()) return false;
-      if (crm && pMedCrm !== crm.toString()) return false;
-      if (especialidade && pEsp.toLowerCase() !== especialidade.toLowerCase()) return false;
-      if (targetDate && !sameDate(pDate, targetDate)) return false;
-      if (targetTime && !sameTime(pTime, targetTime)) return false;
-      return true;
-    });
-    if (medicoObj && results.length === 0) {
-      const medId = medicoObj.id || medicoObj._id || medicoObj.crm || medicoObj.nome;
-      results = plantoes.filter(p => {
-        if (p.medicoId && (p.medicoId === medId)) return true;
-        if (p.medico && (p.medico === medId)) return true;
-        if ((p.medicoNome || "").toLowerCase() === (medicoObj.nome || "").toLowerCase()) return true;
-        return false;
-      }).filter(p => {
-        if (especialidade && ((p.especialidade||"").toLowerCase() !== especialidade.toLowerCase())) return false;
-        if (targetDate && !sameDate(p.data || p.date, targetDate)) return false;
-        if (targetTime && !sameTime(p.hora || p.time, targetTime)) return false;
-        return true;
-      });
-    }
-    const enriched = results.map(p => {
-      const pMedNome = p.medicoNome || p.medico || "";
-      const medico = medicos.find(m => ((m.nome||"").toLowerCase() === (pMedNome||"").toLowerCase()) || (m.crm && m.crm.toString() === (p.crm||p.medicoCrm||"").toString()));
-      return {
-        ...p,
-        medico: medico || null,
-      };
-    });
-    return enriched;
-  },
-  calcStats(plantoes) {
-    if (!plantoes || plantoes.length === 0) return { total: 0, mediaDia: 0, mediaMes: 0, mediaAno: 0 };
-    const total = plantoes.reduce((sum, p) => sum + (Number(p.quantidade) || Number(p.atendimentos) || 1), 0);
-    const dias = new Set();
-    const meses = new Set();
-    const anos = new Set();
-    plantoes.forEach(p => {
-      const d = new Date(p.data || p.date || p.dt || null);
-      if (!isNaN(d)) {
-        dias.add(d.toISOString().slice(0,10));
-        meses.add(`${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`);
-        anos.add(d.getFullYear());
-      }
-    });
-    const mediaDia = dias.size ? +(total / dias.size).toFixed(2) : 0;
-    const mediaMes = meses.size ? +(total / meses.size).toFixed(2) : 0;
-    const mediaAno = anos.size ? +(total / anos.size).toFixed(2) : 0;
-    return { total, mediaDia, mediaMes, mediaAno };
-  },
-};
-
-export default function Filtros() {
-  const navigate = useNavigate();
-
-  // Estados original
-  const [periodo, setPeriodo] = useState("dia");
-  const [dia, setDia] = useState(dayjs().format("YYYY-MM-DD"));
-  const [mes, setMes] = useState(dayjs().format("YYYY-MM"));
-  const [ano, setAno] = useState(dayjs().format("YYYY"));
-  const [horaQuery, setHoraQuery] = useState("");
-
-  const [especialidadeQuery, setEspecialidadeQuery] = useState("");
-  const [medicoQuery, setMedicoQuery] = useState("");
-  const [crmQuery, setCrmQuery] = useState("");
-
-  const debouncedEspecialidade = useDebounce(especialidadeQuery, 300);
-  const debouncedMedico = useDebounce(medicoQuery, 300);
-  const debouncedCrm = useDebounce(crmQuery, 300);
-
-  const [opcoes, setOpcoes] = useState({ medicos: [], especialidades: [] });
-  const [linhasOriginais, setLinhasOriginais] = useState([]);
-  const [linhas, setLinhas] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState("");
-  const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
-  const [mostrarListaEspecialidades, setMostrarListaEspecialidades] = useState(false);
-  const [tipoGrafico, setTipoGrafico] = useState("barra");
-
-  const [vozAtiva, setVozAtiva] = useState(getVozStatus());
-
-  const inputRefMedico = useRef();
-  const tabelaRef = useRef(null);
-
-  const handleToggleVoz = () => {
-    const novoStatus = toggleVoz();
-    setVozAtiva(novoStatus);
-    mostrarMensagem(novoStatus ? "Voz ativada" : "Voz desativada", novoStatus);
-  };
-
-  // Anti-flicker original
-  useEffect(() => {
-    document.body.style.visibility = 'hidden';
-    return () => { document.body.style.visibility = 'visible'; };
-  }, []);
-  useEffect(() => {
-    document.body.style.visibility = loading ? 'hidden' : 'visible';
-  }, [loading]);
-
-  // Carregar dados via controller (intermediário)
-  useEffect(() => {
-    let mounted = true;
-
-    const carregar = async () => {
-      setLoading(true);
-      setErro("");
-      try {
-        const medicos = GlobalController.getMedicos();  // Intermediário
-        const plantao = GlobalController.getPlantoes();  // Normaliza raw
-
-        const especialidades = GlobalController.listEspecialidades();  // Union
-
-        if (!mounted) return;
-        setOpcoes({ medicos, especialidades });
-
-        // Agrupa normalizado
-        const agrupado = agruparPorMedicoDiaEsp(plantao, medicos);
-        const dadosFinais = safeArray(agrupado);
-
-        if (!mounted) return;
-        setLinhasOriginais(dadosFinais);
-        setLinhas(dadosFinais);
-
-        if (dadosFinais.length === 0) setErro("Sem atendimentos – cadastre em Plantão.");
-
-      } catch (err) {
-        console.error("Erro ao carregar dados:", err);
-        if (mounted) setErro("Erro ao carregar dados do plantão.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    carregar();
-
-    // Listener original
-    function onStorageListener(event) {
-      const keysToWatch = ["medicos", "medicosList", "plantaoData", "relatorioPlantao", "dadosPlantao"];
-      if (!event.key || keysToWatch.includes(event.key)) setTimeout(carregar, 150);
-    }
-    window.addEventListener("storage", onStorageListener);
-
-    return () => {
-      mounted = false;
-      window.removeEventListener("storage", onStorageListener);
-    };
-  }, []);
-
-  // Totais via controller
-  const totais = useMemo(() => {
-    const plantao = GlobalController.getPlantoes();  // Intermediário
-    const stats = GlobalController.calcStats(plantao);
-    return { totalPeriodo: stats.total, mediaDia: stats.mediaDia, mediaMes: stats.mediaMes, mediaEspecialidade: {} };
-  }, [linhas]);
-
-  // Charts via controller
-  const montarChartData = (key) => {
-    const plantao = GlobalController.getPlantoes();  // Intermediário
-    if (!plantao || plantao.length === 0) return null;
-    const map = {};
-    plantao.forEach(p => {
-      const valor = key === "dia" ? sanitizeData(p.data) : normalize(p[key] || "");
-      if (!valor) return;
-      map[valor] = (map[valor] || 0) + (Number(p.quantidade) || 0);
-    });
-    return {
-      labels: Object.keys(map).map(k => (key === "dia" ? fmt(k) : k.toUpperCase())),
-      data: Object.values(map),
-    };
-  };
-
-  const chartDataPorEspecialidade = montarChartData("especialidade");
-  const chartDataPorMedico = montarChartData("medico");
-  const chartDataPorPeriodo = montarChartData("periodo");
-  const chartDataPorDia = montarChartData("dia");
-
-  // Dropdowns via controller
-  const medicosFiltrados = useMemo(() => {
-    const q = (debouncedMedico || "").toString().toLowerCase().trim();
-    const qCrm = (debouncedCrm || "").toString().toLowerCase().trim();
-    if (!opcoes.medicos || opcoes.medicos.length === 0) return [];
-    return opcoes.medicos.filter(m => {
-      const nome = (m.nome || "").toString().toLowerCase();
-      const crm = (m.crm || "").toString().toLowerCase();
-      return (!q || nome.includes(q)) && (!qCrm || crm.includes(qCrm));
-    });
-  }, [opcoes.medicos, debouncedMedico, debouncedCrm]);
-
-  const especialidadesFiltradas = useMemo(() => {
-    const q = (debouncedEspecialidade || "").toString().toLowerCase().trim();
-    if (!opcoes.especialidades || opcoes.especialidades.length === 0) return [];
-    return opcoes.especialidades.filter(e => {
-      const nome = (e.nome || "").toString().toLowerCase();
-      return !q || nome.includes(q);
-    });
-  }, [opcoes.especialidades, debouncedEspecialidade]);
-
-  // Aplicar filtros via controller
-  const aplicar = () => {
-    try {
-      setErro("");
-      const filters = {
-        medicoName: medicoQuery,
-        especialidade: especialidadeQuery,
-        crm: crmQuery,
-        date: dia,
-        time: horaQuery
-      };
-      const filtrado = GlobalController.getPlantaoRecords(filters);  // Intermediário faz cross + valida
-      if (filtrado.length === 0) {
-        setErro("Nenhum dado encontrado. Verifique médico/esp/data.");
-        mostrarMensagem("Nenhum dado pros filtros.", vozAtiva);
-      } else {
-        setLinhas(filtrado);
-        const stats = GlobalController.calcStats(filtrado);
-        mostrarMensagem(`Filtros ok: ${filtrado.length} registros, total ${stats.total}.`, vozAtiva);
-      }
-    } catch (e) {
-      console.error("Erro aplicar:", e);
-      setErro("Erro nos filtros.");
-      mostrarMensagem("Erro nos filtros.", vozAtiva);
-    }
-  };
-
-  const limpar = () => {
-    setEspecialidadeQuery(""); setMedicoQuery(""); setCrmQuery(""); setHoraQuery("");
-    setPeriodo("dia"); setDia(dayjs().format("YYYY-MM-DD")); setMes(dayjs().format("YYYY-MM")); setAno(dayjs().format("YYYY"));
-    setErro("");
-    setLinhas(linhasOriginais);
-    mostrarMensagem("Filtros limpos.", vozAtiva);
-  };
-
-  // Exportações original
-  const exportarPDF = () => {
-    if (linhas.length === 0) { mostrarMensagem("Sem dados pra PDF.", vozAtiva); return alert("Sem dados."); }
-    try {
-      const { jsPDF } = window; if (!jsPDF) { mostrarMensagem("jsPDF não.", vozAtiva); return alert("jsPDF não."); }
-      const doc = new jsPDF();
-      doc.text("Consolidado Atendimentos", 10, 10);
-      const body = linhas.map(l => [fmt(l.data), l.periodo, l.especialidade, l.medico, l.crm, l.atendimentos, l.hora || '—']);
-      if (doc.autoTable) doc.autoTable({ head: [["Data", "Período", "Esp", "Médico", "CRM", "Atend", "Hora"]], body, startY: 20 });
-      doc.save(`consolidado_${dayjs().format("YYYYMMDD")}.pdf`);
-      mostrarMensagem("PDF salvo!", vozAtiva);
-    } catch (e) { console.error(e); mostrarMensagem("Erro PDF.", vozAtiva); alert("Erro PDF."); }
-  };
-
-  const exportarExcel = () => {
-    if (linhas.length === 0) { mostrarMensagem("Sem dados pra Excel.", vozAtiva); return alert("Sem dados."); }
-    try {
-      if (!window.XLSX) { mostrarMensagem("XLSX não.", vozAtiva); return alert("XLSX não."); }
-      const ws = window.XLSX.utils.json_to_sheet(linhas.map(l => ({
-        Data: fmt(l.data), Periodo: l.periodo, Especialidade: l.especialidade,
-        Medico: l.medico, CRM: l.crm, Atendimentos: l.atendimentos, Hora: l.hora || '—'
-      })));
-      const wb = window.XLSX.utils.book_new();
-      window.XLSX.utils.book_append_sheet(wb, ws, "Consolidado");
-      window.XLSX.writeFile(wb, `consolidado_${dayjs().format("YYYYMMDD")}.xlsx`);
-      mostrarMensagem("Excel salvo!", vozAtiva);
-    } catch (e) { console.error(e); mostrarMensagem("Erro Excel.", vozAtiva); alert("Erro Excel."); }
-  };
-
-  if (loading) return <Loader />;
+// =========================================
+// 3. COMPONENTE CARD DE MÉTRICA (Auxiliar)
+// =========================================
+const MetricCard = ({ title, value, color, icon }) => {
+  const IconComponent = FaIcons[icon] || FaIcons.FaChartBar; // Fallback icon
 
   return (
-    <ErrorBoundary>
-      <div className="filtros-container">
-        <h2>Consolidação de Plantão</h2>
-        <div className="filtros-topo">
-          <input placeholder="Médico" value={medicoQuery} ref={inputRefMedico} onChange={e => setMedicoQuery(e.target.value)} />
-          <input placeholder="CRM" value={crmQuery} onChange={e => setCrmQuery(e.target.value)} />
-          <input placeholder="Especialidade" value={especialidadeQuery} onChange={e => setEspecialidadeQuery(e.target.value)} />
-          <input placeholder="Hora" value={horaQuery} onChange={e => setHoraQuery(e.target.value)} />
-          <button onClick={aplicar}>Filtrar</button>
-          <button onClick={limpar}>Limpar</button>
-          <button onClick={handleToggleVoz}>{vozAtiva ? "🔊" : "🔈"}</button>
-        </div>
-        {erro && <div className="erro">{erro}</div>}
-
-        <div className="totais">
-          <span>Total: {totais.totalPeriodo}</span>
-          <span>Média/dia: {totais.mediaDia}</span>
-          <span>Média/mês: {totais.mediaMes}</span>
-        </div>
-
-        <div className="botoes-export">
-          <button onClick={exportarPDF}>Exportar PDF</button>
-          <button onClick={exportarExcel}>Exportar Excel</button>
-        </div>
-
-        <div className="graficos">
-          {tipoGrafico === "barra" && chartDataPorEspecialidade && <GraficoBarra data={chartDataPorEspecialidade} />}
-          {tipoGrafico === "linha" && chartDataPorDia && <GraficoLinha data={chartDataPorDia} />}
-          {tipoGrafico === "pizza" && chartDataPorMedico && <GraficoPizza data={chartDataPorMedico} />}
-          {tipoGrafico === "area" && chartDataPorPeriodo && <GraficoArea data={chartDataPorPeriodo} />}
-        </div>
-
-        <div className="tabela" ref={tabelaRef}>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th><th>Período</th><th>Especialidade</th><th>Médico</th><th>CRM</th><th>Atendimentos</th><th>Hora</th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((l, idx) => (
-                <tr key={idx}>
-                  <td>{fmt(l.data)}</td>
-                  <td>{l.periodo}</td>
-                  <td>{l.especialidade}</td>
-                  <td>{l.medico}</td>
-                  <td>{l.crm}</td>
-                  <td>{l.atendimentos}</td>
-                  <td>{l.hora || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+    // Classes: .card e .metric-card do Filtros.css
+    <div className="card metric-card">
+      <div className="icon" style={{ color: color }}>
+        <IconComponent size={24} />
       </div>
-    </ErrorBoundary>
+      <div className="info">
+        <p className="title">{title}</p>
+        <span className="value">{value}</span>
+      </div>
+    </div>
+  );
+};
+
+
+// =========================================
+// 4. COMPONENTE PRINCIPAL: FILTROS
+// =========================================
+
+export default function Filtros() {
+  const [dataInicio, setDataInicio] = useState(dayjs().subtract(7, "day").format("YYYY-MM-DD"));
+  const [dataFim, setDataFim] = useState(dayjs().format("YYYY-MM-DD"));
+  const [horaDe, setHoraDe] = useState("07:00");
+  const [horaAte, setHoraAte] = useState("19:00");
+  const [medico, setMedico] = useState("");
+  const [especialidade, setEspecialidade] = useState("");
+  const [dadosFiltrados, setDadosFiltrados] = useState([]);
+  const [tabelaDetalhada, setTabelaDetalhada] = useState([]);
+  const [opcoesMedicos, setOpcoesMedicos] = useState([]);
+  const [opcoesEspecialidades, setOpcoesEspecialidades] = useState([]);
+  
+  // Estado para Mensagens Globais / Feedback (Usado em conjunto com o TTS)
+  const [mensagem, setMensagem] = useState(""); 
+
+  // Função adaptada para buscar os dados de atendimentos detalhados
+  const processarDadosParaTabela = (dadosAgrupados) => {
+      // Mapeia os dados agrupados de volta para uma lista detalhada (flat)
+      return dadosAgrupados.flatMap(g => 
+        (g.items || []).map(p => ({
+            ...p,
+            medico: g.medico, 
+            crm: p.crm || g.crm,
+            data: p.data,
+            periodo: p.periodo || (p.hora && (p.hora < '12:00' ? 'Manhã' : 'Tarde/Noite')),
+            atendimentos: p.quantidade,
+            // Correção: Use o nome da especialidade do grupo, se o item detalhado não tiver
+            especialidade: p.especialidade || g.especialidade, 
+        }))
+      );
+  }
+
+  const handleAplicarFiltros = (e) => {
+    e?.preventDefault(); 
+    
+    // Assumindo que getDadosConsolidados foi importado corretamente de dataServices.js
+    const getDados = typeof getDadosConsolidados === 'function' ? getDadosConsolidados : () => [];
+    
+    const filtros = {
+      dataInicio,
+      dataFim,
+      horaDe,
+      horaAte,
+      medico,
+      especialidade,
+    };
+    
+    const dados = getDados(filtros);
+    setDadosFiltrados(dados);
+    
+    // Gera a lista detalhada para a tabela
+    const detalhes = processarDadosParaTabela(dados);
+    setTabelaDetalhada(detalhes);
+    
+    // 📢 TTS e Mensagem Global (Corrigido)
+    const totalAtendimentos = dados.reduce((sum, d) => sum + d.atendimentos, 0);
+    const msg = `Filtros aplicados. ${totalAtendimentos} atendimentos encontrados.`;
+    setMensagem(msg);
+    falarMensagem(msg);
+    setTimeout(() => setMensagem(""), 5000); // Limpa a mensagem após 5 segundos
+  };
+
+  useEffect(() => {
+    // ⚙️ Lógica de carregamento de opções (Corrigido para usar GlobalController e especialidades.js)
+    
+    // Médicos: usa GlobalController para buscar lista de médicos do localStorage
+    const medicos = GlobalController.getMedicos(); 
+    setOpcoesMedicos(medicos.map(m => m.nome));
+
+    // Especialidades: usa lista de especialidades (API/estática ou LocalStorage se migrou)
+    // Usando a lista de especialidades estáticas ou do localStorage
+    const especialidadesBrutas = especialidadesList || LocalStorageService.getItem("especialidades") || []; 
+    setOpcoesEspecialidades(especialidadesBrutas.map(e => e.nome));
+    
+    handleAplicarFiltros();
+    
+    // Listener para atualização de dados (se houver novo cadastro, por exemplo)
+    window.addEventListener('dadosAtualizados', handleAplicarFiltros);
+    return () => window.removeEventListener('dadosAtualizados', handleAplicarFiltros);
+  }, []);
+  
+  const handleLimparFiltros = () => {
+    setDataInicio(dayjs().subtract(7, "day").format("YYYY-MM-DD"));
+    setDataFim(dayjs().format("YYYY-MM-DD"));
+    setHoraDe("07:00");
+    setHoraAte("19:00");
+    setMedico("");
+    setEspecialidade("");
+    setDadosFiltrados([]);
+    setTabelaDetalhada([]);
+    
+    const msg = "Filtros e dados limpos.";
+    setMensagem(msg);
+    falarMensagem(msg);
+    setTimeout(() => setMensagem(""), 4000);
+  };
+
+  // Funções de Relatório
+  const relatorioPDF = () => {
+    const filename = gerarPDF(tabelaDetalhada);
+    const msg = `Relatório PDF gerado: ${filename}`;
+    setMensagem(msg);
+    falarMensagem(msg);
+    setTimeout(() => setMensagem(""), 4000);
+  }
+  
+  const relatorioExcel = () => {
+    const filename = gerarExcel(tabelaDetalhada);
+    const msg = `Relatório Excel gerado: ${filename}`;
+    setMensagem(msg);
+    falarMensagem(msg);
+    setTimeout(() => setMensagem(""), 4000);
+  }
+  
+  const getCorEspecialidade = (nome) => getEspecialidadeInfo(nome)?.cor || '#999999';
+
+  // Processamento de dados para gráficos (Memoizado para performance)
+  const medicoData = useMemo(() => {
+    const labels = dadosFiltrados.map(d => d.medico);
+    const data = dadosFiltrados.map(d => d.atendimentos);
+    
+    return {
+      labels,
+      datasets: [{
+        label: 'Atendimentos',
+        data,
+        backgroundColor: dadosFiltrados.map(d => getCorEspecialidade(d.especialidade)),
+      }],
+    };
+  }, [dadosFiltrados]);
+
+  const especialidadeData = useMemo(() => {
+    const map = dadosFiltrados.reduce((acc, curr) => {
+      const esp = curr.especialidade;
+      acc[esp] = (acc[esp] || 0) + curr.atendimentos;
+      return acc;
+    }, {});
+
+    const labels = Object.keys(map);
+    const data = Object.values(map);
+    const colors = labels.map(getCorEspecialidade);
+
+    return {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: colors,
+      }],
+    };
+  }, [dadosFiltrados]);
+
+  const timelineData = useMemo(() => {
+    const map = {};
+    tabelaDetalhada.forEach(p => { 
+        const data = fmtDate(p.data, 'YYYY-MM-DD');
+        map[data] = (map[data] || 0) + (Number(p.atendimentos) || 0);
+    });
+
+    const labels = Object.keys(map).sort();
+    const data = labels.map(l => map[l]);
+    
+    // Opções para a linha (GraficoArea)
+    const corPrincipal = getCorEspecialidade(dadosFiltrados[0]?.especialidade || 'Clinica Médica');
+
+    return {
+      labels: labels.map(d => dayjs(d).format('DD/MM')),
+      datasets: [{
+        label: 'Total Diário',
+        data,
+        borderColor: corPrincipal,
+        backgroundColor: corPrincipal + '40', // Cor com transparência para a área
+        fill: true,
+      }],
+    };
+  }, [tabelaDetalhada, dadosFiltrados]);
+
+  // =========================================
+  // 5. RENDERIZAÇÃO (Com classes CSS personalizadas)
+  // =========================================
+
+  return (
+    <div className="filtros-container">
+      <h1>Relatórios e Gráficos de Plantões</h1>
+      
+      {/* Mensagem Global (TTS) - Classe .mensagem-global */}
+      {mensagem && <p className="mensagem-global">{mensagem}</p>}
+
+
+      {/* Grid de Cards de Resumo - Usa .grid-3 e .card */}
+      <div className="grid-3">
+        <MetricCard 
+            title="Total de Atendimentos" 
+            value={dadosFiltrados.reduce((sum, d) => sum + d.atendimentos, 0)} 
+            color="#1f4e78" 
+            icon="FaUserMd" 
+        />
+        <MetricCard 
+            title="Total de Médicos Únicos" 
+            value={new Set(dadosFiltrados.map(d => d.medico)).size} 
+            color="#27AE60" 
+            icon="FaUsers" 
+        />
+        <MetricCard 
+            title="Média de Atendimentos" 
+            value={(dadosFiltrados.reduce((sum, d) => sum + d.atendimentos, 0) / (new Set(tabelaDetalhada.map(d => fmtDate(d.data, 'YYYY-MM-DD'))).size || 1)).toFixed(2)} 
+            color="#F39C12" 
+            icon="FaChartLine" 
+        />
+      </div>
+
+      {/* Card de Filtros - Usa .card */}
+      <div className="card">
+        <h3>Filtros de Dados</h3>
+        <form onSubmit={handleAplicarFiltros}>
+          
+          {/* Grid de Filtros - Usa .filtros-grid e .input-group */}
+          <div className="filtros-grid">
+            
+            {/* Input Médico - Usa .input-group e <select> */}
+            <div className="input-group">
+              <label htmlFor="medico">Médico/CRM</label>
+              <select 
+                id="medico" 
+                value={medico} 
+                onChange={(e) => setMedico(e.target.value)}
+                // Aplica a classe de estilo do input/select
+                className="input-select" 
+              >
+                <option value="">Todos os Médicos</option>
+                {opcoesMedicos.map((op) => (
+                  <option key={op} value={op}>
+                    {op}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Input Especialidade - Usa .input-group e <select> */}
+            <div className="input-group">
+              <label htmlFor="especialidade">Especialidade</label>
+              <select 
+                id="especialidade" 
+                value={especialidade} 
+                onChange={(e) => setEspecialidade(e.target.value)}
+                // Aplica a classe de estilo do input/select
+                className="input-select"
+              >
+                <option value="">Todas as Especialidades</option>
+                {opcoesEspecialidades.map((op) => (
+                  <option key={op} value={op}>
+                    {op}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Input Data Início - Usa .input-group e <input> */}
+            <div className="input-group">
+              <label htmlFor="dataInicio">Data Início</label>
+              <input
+                type="date"
+                id="dataInicio"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+                // Aplica a classe de estilo do input
+                className="input-field"
+              />
+            </div>
+
+            {/* Input Data Fim - Usa .input-group e <input> */}
+            <div className="input-group">
+              <label htmlFor="dataFim">Data Fim</label>
+              <input
+                type="date"
+                id="dataFim"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+                // Aplica a classe de estilo do input
+                className="input-field"
+              />
+            </div>
+
+            {/* Input Hora De - Usa .input-group e <input> */}
+            <div className="input-group">
+              <label htmlFor="horaDe">Hora De</label>
+              <input
+                type="time"
+                id="horaDe"
+                value={horaDe}
+                onChange={(e) => setHoraDe(e.target.value)}
+                // Aplica a classe de estilo do input
+                className="input-field"
+              />
+            </div>
+            
+            {/* Input Hora Até - Usa .input-group e <input> */}
+            <div className="input-group">
+              <label htmlFor="horaAte">Hora Até</label>
+              <input
+                type="time"
+                id="horaAte"
+                value={horaAte}
+                onChange={(e) => setHoraAte(e.target.value)}
+                // Aplica a classe de estilo do input
+                className="input-field"
+              />
+            </div>
+
+          </div>
+          
+          {/* Botões de Ação - Usa .botoes-acao, .btn-primario, .btn-secundario */}
+          <div className="botoes-acao">
+            <button type="submit" className="btn-primario">
+              <FaIcons.FaFilter size={14} style={{ marginRight: '8px' }} /> Aplicar Filtros
+            </button>
+            <button type="button" className="btn-secundario" onClick={handleLimparFiltros}>
+              <FaIcons.FaEraser size={14} style={{ marginRight: '8px' }} /> Limpar Filtros
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Container de Gráficos - Usa .graficos-container */}
+      {dadosFiltrados.length > 0 && (
+        <div className="graficos-container">
+          <h2>Análise Gráfica</h2>
+          
+          {/* Grid de Gráficos - Usa .grid-graficos e .grafico-wrapper */}
+          <div className="grid-graficos">
+            
+            {/* Gráfico de Barras por Médico (Componente Externo) */}
+            <div className="grafico-wrapper">
+              <h3>Atendimentos por Médico (Total)</h3>
+              {/* Substituído <Bar> pelo componente importado */}
+              <GraficoBarra data={medicoData} /> 
+            </div>
+
+            {/* Gráfico de Pizza por Especialidade (Mantido interno, pois não havia componente Pie dedicado) */}
+            <div className="grafico-wrapper">
+              <h3>Atendimentos por Especialidade (Pizza)</h3>
+              <Pie data={especialidadeData} options={{ responsive: true, maintainAspectRatio: false }} />
+            </div>
+            
+            {/* Gráfico de Linha/Área por Data (Componente Externo) */}
+            <div className="grafico-wrapper">
+              <h3>Atendimentos por Data (Linha do Tempo)</h3>
+              {/* Substituído <Line> pelo componente GraficoArea/Linha importado */}
+              <GraficoArea data={timelineData} /> 
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Tabela de Detalhes (Relatório) - Usa .tabela-detalhes, .tabela-wrapper, .tabela-estilizada */}
+      {tabelaDetalhada.length > 0 && (
+        <div className="tabela-detalhes">
+          <h2>Relatório Detalhado</h2>
+
+          <div className="botoes-acao">
+            <button className="btn-primario" onClick={relatorioPDF}>
+              <FaIcons.FaFilePdf size={14} style={{ marginRight: '8px' }} /> Gerar PDF
+            </button>
+            <button className="btn-secundario" onClick={relatorioExcel}>
+              <FaIcons.FaFileExcel size={14} style={{ marginRight: '8px' }} /> Gerar Excel
+            </button>
+          </div>
+
+          <div className="tabela-wrapper">
+            <table className="tabela-estilizada">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Médico</th>
+                  <th>CRM</th>
+                  <th>Especialidade</th>
+                  <th>Período</th>
+                  <th>Atendimentos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tabelaDetalhada.map((p, index) => (
+                  <tr 
+                    key={index} 
+                    // Adicionando um destaque de cor na linha baseado na especialidade
+                    style={{ borderLeft: `5px solid ${getCorEspecialidade(p.especialidade)}` }} 
+                  >
+                    <td>{fmtDate(p.data)}</td>
+                    <td>{p.medico}</td>
+                    <td>{p.crm}</td>
+                    <td>{p.especialidade}</td>
+                    <td>{p.periodo}</td>
+                    {/* Usando classe se existir ou inline style para negrito */}
+                    <td className="atendimentos-value">{p.atendimentos}</td> 
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Mensagem de Sem Dados - Usa .sem-dados */}
+      {tabelaDetalhada.length === 0 && dadosFiltrados.length === 0 && (
+        <p className="sem-dados">Nenhum dado encontrado para os filtros aplicados.</p>
+      )}
+
+    </div>
   );
 }

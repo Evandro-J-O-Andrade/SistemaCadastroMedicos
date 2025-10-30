@@ -23,6 +23,7 @@
   margin-bottom: 15px;
   outline: none;
   transition: border 0.3s;
+  resize: vertical; /* Permite redimensionamento vertical */
 }
 
 .cadastro-lote-textarea:focus {
@@ -40,28 +41,71 @@
   padding: 10px 20px;
   border: none;
   border-radius: 8px;
-  background: #3b82f6;
-  color: white;
+  font-size: 16px;
   font-weight: bold;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: background-color 0.3s, transform 0.1s;
 }
 
-.cadastro-lote-btn-limpar {
-  background: #f59e0b;
+.cadastro-lote-btn {
+  background-color: #27ae60;
+  color: #fff;
 }
 
 .cadastro-lote-btn:hover {
-  background: #2563eb;
+  background-color: #219d53;
+  transform: translateY(-1px);
+}
+
+.cadastro-lote-btn-limpar {
+  background-color: #e74c3c;
+  color: #fff;
 }
 
 .cadastro-lote-btn-limpar:hover {
-  background: #b45309;
+  background-color: #c0392b;
+  transform: translateY(-1px);
 }
 
+/* Mensagens de feedback */
 .cadastro-lote-mensagem-sucesso {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #c3e6cb;
   text-align: center;
-  color: #059669;
   font-weight: bold;
-  margin-bottom: 15px;
 }
+
+.cadastro-lote-mensagem-erro { /* NOVO ESTILO PARA ERRO */
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #f5c6cb;
+  text-align: center;
+  font-weight: bold;
+}
+
+.cadastro-lote-voltar {
+    margin-top: 25px;
+    text-align: center;
+}
+
+.cadastro-lote-voltar button {
+    background-color: #3498db;
+    color: #fff;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.cadastro-lote-voltar button:hover {
+    background-color: #2980b9;
+}
+/* Estilos responsivos (mobile.css) não estão neste arquivo, mas são referenciados no JSX */
