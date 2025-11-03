@@ -96,50 +96,51 @@ export const saveMedicos = (medicosList) => { // <-- EXPORT CONSTATE saveMedicos
 // 🔹 FUNÇÕES DE DADOS CONSOLIDADOS (Filtros/Relatórios)
 // ----------------------------------------------------
 
-export const getDadosConsolidados = (filtros = {}) => {
+export async function getDadosConsolidados(filters = {}) {
+  // filters: { dataInicio, dataFim, horaDe, horaAte, medico, especialidade, crm }
   try {
-    const rawPlantaoData = storageManager.getPlantao(); // Lê o array 'plantao' da estrutura central
-
-    // 1. Normalização e Mapeamento inicial
-    let filtered = normalizarEMapearPlantaoData(rawPlantaoData);
-
-    // 2. Aplicação de filtros
-    if (filtros.medico) {
-      filtered = filtrarPorMedico(filtered, filtros.medico);
+    const res = await fetch('/backend/api/relatorio.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(filters),
+    });
+    const j = await res.json();
+    if (!res.ok || !j.success) {
+      console.error('Erro ao buscar relatorio:', j);
+      return [];
     }
-    if (filtros.especialidade) {
-      filtered = filtrarPorEspecialidade(filtered, filtros.especialidade);
-    }
-    if (filtros.dataInicio || filtros.dataFim) {
-      const inicio = parsePlantaoDate(filtros.dataInicio, filtros.horaDe || "07:00");
-      const fim = parsePlantaoDate(filtros.dataFim, filtros.horaAte || "19:00");
-      if (!inicio || !fim) {
-        console.warn("⚠️ Datas inválidas nos filtros — mantendo dados completos.");
-      } else {
-        filtered = filtrarPorDataHora(filtered, inicio, fim, filtros.horaDe || "07:00", filtros.horaAte || "19:00");
-      }
-    }
-
-    const grouped = agruparPorMedicoDiaEsp(filtered, fetchMedicos());
-
-    // Métricas diárias para resumo (útil em cards/tabelas da intranet)
-    const totalDias = new Set(grouped.map(g => g.data)).size;
-    const totalAtendimentos = grouped.reduce((sum, g) => sum + g.atendimentos, 0);
-    const mediaAtendimentos = grouped.length > 0 ? totalAtendimentos / grouped.length : 0;
-
-    return grouped.map((g) => ({
-      ...g,
-      totalOverall: filtered.reduce((sum, p) => sum + (p.quantidade || p.atendimentos || 0), 0),
-      relatorioCards: agruparRelatorioCards(
-        filtered.filter((p) => normalize(p.medico.nome) === normalize(g.medico))
-      ),
-      resumo: { totalDias, mediaAtendimentos }, 
+    // a procedure retorna rows: medico_nome, crm, especialidade_nome, data, hora, atendimentos
+    // map para estrutura esperada pelo Filtros.jsx (cada item como agrupamento)
+    return (j.data || []).map(r => ({
+      medico: r.medico_nome || '—',
+      crm: r.crm || '',
+      especialidade: r.especialidade_nome || '—',
+      data: r.data || null,
+      hora: r.hora || null,
+      atendimentos: Number(r.atendimentos) || 0,
+      // items: pode-se manter se precisar agrupamento posterior
+      items: [{ quantidade: Number(r.atendimentos) || 0, hora: r.hora, data: r.data, especialidade: r.especialidade_nome, crm: r.crm }]
     }));
-  } catch (error) {
-    console.error("❌ Erro ao gerar dados consolidados:", error);
+  } catch (e) {
+    console.error('getDadosConsolidados error', e);
     return [];
   }
-};
+}
+
+export async function insertPlantao(payload = {}) {
+  try {
+    const res = await fetch('/backend/api/plantao_insert.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const j = await res.json();
+    return j.success === true;
+  } catch (e) {
+    console.error('insertPlantao error', e);
+    return false;
+  }
+}
 
 // =========================================================
 // 🔹 DEBUG DEV

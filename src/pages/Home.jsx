@@ -8,6 +8,8 @@ import './Home.css';
 import './mobile.css';
 import LogoAlpha from '../img/Logo_Alpha.png';
 import { getEspecialidadeInfo } from '../api/especialidades.js';
+import { GlobalController, LocalStorageService } from "./GlobalController.jsx";
+import { falarMensagem } from "../utils/tts.js";
 
 /* --- util --- */
 // Normaliza strings: remove acentos / trim / lowercase
@@ -749,23 +751,107 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    const handleStorageChange = () => atualizarDados();
-    window.addEventListener('storage', handleStorageChange);
-    atualizarDados();
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  // parse JSON seguro
+  const safeParse = (v) => {
+    try { return JSON.parse(v); } catch { return v; }
+  };
 
-  const handleEntrar = () => {
-    if (!usuarioLogado) {
-      alert('Você precisa fazer login para acessar o sistema.');
+  // Retorna informação da sessão: { logged, token, user }
+  const getSessionInfo = () => {
+    try {
+      let token = null;
+      let user = null;
+
+      // 1) GlobalController
+      try {
+        if (GlobalController && typeof GlobalController.getToken === 'function') {
+          token = GlobalController.getToken() || token;
+        }
+        if (GlobalController && typeof GlobalController.getUser === 'function') {
+          user = GlobalController.getUser() || user;
+        }
+      } catch (e) {}
+
+      // 2) LocalStorageService (se existir wrapper)
+      try {
+        if (!token && LocalStorageService && typeof LocalStorageService.getItem === 'function') {
+          token = LocalStorageService.getItem('token') || LocalStorageService.getItem('auth') || token;
+        }
+        if (!user && LocalStorageService && typeof LocalStorageService.getItem === 'function') {
+          const u = LocalStorageService.getItem('usuario') || LocalStorageService.getItem('user') || null;
+          if (u) user = typeof u === 'string' ? safeParse(u) : u;
+        }
+      } catch (e) {}
+
+      // 3) fallback para localStorage/sessionStorage
+      if (!token) {
+        token = localStorage.getItem('token') || localStorage.getItem('auth') || localStorage.getItem('authToken') || null;
+      }
+      if (!user) {
+        const raw = localStorage.getItem('usuario') || localStorage.getItem('user') || sessionStorage.getItem('usuario') || sessionStorage.getItem('user') || null;
+        if (raw) user = safeParse(raw);
+      }
+
+      const logged = Boolean(token) || Boolean(user);
+      return { logged, token, user };
+    } catch (e) {
+      return { logged: false, token: null, user: null };
+    }
+  };
+
+  // Handler para botão de acesso rápido
+  const handleAcessoRapido = (navigateTo) => {
+    const sess = getSessionInfo();
+    if (!sess.logged) {
+      falarMensagem("Você precisa estar logado para acessar essa área.");
       navigate('/login');
       return;
     }
-    const tipoUsuario = localStorage.getItem('tipoUsuario');
-    if (['admin', 'suporte', 'comum'].includes(tipoUsuario)) navigate('/home');
+
+    // garante que token disponível no localStorage (para backend)
+    if (sess.token) {
+      try { localStorage.setItem('token', sess.token); } catch (e) {}
+    }
+
+    // Navega passando token e user via state (o componente destino pode ler via location.state)
+    const destino = navigateTo || '/dashboard';
+    navigate(destino, { state: { token: sess.token, user: sess.user } });
+  };
+
+  const handleEntrar = () => {
+    const sess = getSessionInfo();
+    if (!sess.logged) {
+      falarMensagem('Você precisa fazer login para acessar o sistema.');
+      navigate('/login');
+      return;
+    }
+    // determina tipo de usuário a partir do objeto user ou fallback localStorage
+    const tipoUsuario = (sess.user && (sess.user.role || sess.user.tipoUsuario || sess.user.type)) || localStorage.getItem('tipoUsuario');
+    if (['admin', 'suporte', 'comum'].includes(String(tipoUsuario))) navigate('/home');
     else navigate('/relatorios');
   };
+
+  // Atualiza estado visual de "usuarioLogado" ao montar e ao mudar storage
+  useEffect(() => {
+    const atualizarSessaoVisual = () => {
+      const sess = getSessionInfo();
+      setUsuarioLogado(sess.logged);
+    };
+    atualizarSessaoVisual();
+    const onStorage = () => {
+      atualizarSessaoVisual();
+      atualizarDados();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  // Após remoção dos duplicados, as funções válidas permanecem:
+  // - safeParse
+  // - getSessionInfo
+  // - handleAcessoRapido (que usa getSessionInfo e faz navigate com state)
+  // - handleEntrar (que usa getSessionInfo para redirecionar por role)
+  // - useEffect já configurado acima para escutar 'storage'
 
   return (
     <div className="home-container">
