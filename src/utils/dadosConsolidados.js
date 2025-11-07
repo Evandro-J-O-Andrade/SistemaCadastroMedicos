@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 /**
  * Utilitários robustos para sanitizar, normalizar e agrupar dados de plantão.
  * Objetivo: receber dados "crus" do localStorage (ou API) e devolver
- * estruturas seguras e consistentes para componentes (Filtros, Relatorios, Home).
+ * estruturas seguras e consistententes para componentes (Filtros, Relatorios, Home).
  */
 
 /** Normaliza strings: minusculas, trim, remove acentos */
@@ -28,6 +28,8 @@ export const fmtDate = (d) => {
  * Aceita:
  *  - "YYYY-MM-DD" ou "YYYY-MM-DD HH:mm"
  *  - "DD/MM/YYYY" ou "DD/MM/YYYY HH:mm"
+ *  - "DD-MM-YYYY" ou "DD-MM-YYYY HH:mm" (ADICIONADO)
+ *  - "DD.MM.YYYY" ou "DD.MM.YYYY HH:mm" (ADICIONADO)
  *  - timestamps (número)
  */
 export const parsePlantaoDate = (dataStr, horaStr = "00:00") => {
@@ -49,7 +51,7 @@ export const parsePlantaoDate = (dataStr, horaStr = "00:00") => {
 
   const trimmed = dataStr.trim();
 
-  // Formato ISO (YYYY-MM-DD or YYYY-MM-DDTHH:mm or including time)
+  // 1. Formato ISO (YYYY-MM-DD)
   if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
     // anexa hora se existir
     const maybe = horaStr && typeof horaStr === "string" ? `${trimmed} ${horaStr}` : trimmed;
@@ -57,7 +59,7 @@ export const parsePlantaoDate = (dataStr, horaStr = "00:00") => {
     return d.isValid() ? d : dayjs(trimmed);
   }
 
-  // Formato dd/mm/yyyy (com barras)
+  // 2. Formato dd/mm/yyyy (com barras)
   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed) || /^\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}$/.test(trimmed)) {
     const parts = trimmed.split(" ");
     const datePart = parts[0];
@@ -68,11 +70,32 @@ export const parsePlantaoDate = (dataStr, horaStr = "00:00") => {
     return d.isValid() ? d : null;
   }
 
+  // 3. ✅ ADICIONADO: Formato dd-mm-yyyy (com hífens)
+  if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmed) || /^\d{1,2}-\d{1,2}-\d{4}\s+\d{1,2}:\d{2}$/.test(trimmed)) {
+    const parts = trimmed.split(" ");
+    const datePart = parts[0];
+    const timePart = parts[1] || horaStr || "00:00";
+    const [dPart, mPart, yPart] = datePart.split("-");
+    const iso = `${yPart.padStart(4, "0")}-${mPart.padStart(2, "0")}-${dPart.padStart(2, "0")} ${timePart}`;
+    const d = dayjs(iso);
+    return d.isValid() ? d : null;
+  }
+
+  // 4. ✅ ADICIONADO: Formato dd.mm.yyyy (com pontos) - A MAIS PROVÁVEL CAUSA DO ERRO
+  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(trimmed) || /^\d{1,2}\.\d{1,2}\.\d{4}\s+\d{1,2}:\d{2}$/.test(trimmed)) {
+    const parts = trimmed.split(" ");
+    const datePart = parts[0];
+    const timePart = parts[1] || horaStr || "00:00";
+    const [dPart, mPart, yPart] = datePart.split(".");
+    const iso = `${yPart.padStart(4, "0")}-${mPart.padStart(2, "0")}-${dPart.padStart(2, "0")} ${timePart}`;
+    const d = dayjs(iso);
+    return d.isValid() ? d : null;
+  }
+
   // Tenta parse genérico
   const gen = dayjs(trimmed);
   return gen.isValid() ? gen : null;
 };
-
 /** Retorna data sempre no formato YYYY-MM-DD (ou "" se inválida) */
 export const sanitizeData = (d, hora = "00:00") => {
   try {
@@ -154,18 +177,19 @@ export const cleanPlantaoItem = (p, options = { logInvalid: false, idx: null }) 
       return null;
     }
 
-    // data + hora
-    const rawData = p.data ?? p.date ?? "";
-    const rawHora = p.hora ?? p.horario ?? p.time ?? "";
+    // 🏆 CORREÇÃO DE BUSCA DOS CAMPOS DE DATA E HORA
+    const rawData = p.data ?? p.date ?? p.dataPlantao ?? p.datePlantao ?? p.data_plantao ?? "";
+    const rawHora = p.hora ?? p.horario ?? p.time ?? p.horaPlantao ?? p.hora_plantao ?? "";
 
     const dataSan = sanitizeData(rawData, rawHora);
     if (!dataSan) {
-      if (options.logInvalid) console.warn("cleanPlantaoItem: data inválida", options.idx, rawData, rawHora);
+      if (options.logInvalid) console.warn("cleanPlantaoItem: data inválida/não encontrada", options.idx, rawData, rawHora);
       return null;
     }
 
     // quantidade - extrai número
-    let q = p.quantidade ?? p.qtd ?? p.quantity ?? 0;
+    // 🏆 CORREÇÃO DE BUSCA DOS CAMPOS DE QUANTIDADE (MANTIDA)
+    let q = p.quantidade ?? p.qtd ?? p.quantity ?? p.Atendimentos?? p.atendimentos?? p.qtAtendida ?? 0;
     if (typeof q === "string") {
       q = q.trim().toUpperCase().replace(/[^0-9\.\-]/g, "");
       q = q === "" ? 0 : Number(q);
@@ -338,7 +362,8 @@ export const normalizarEMapearPlantaoData = (plantaoData) => {
   return cleaned.map((p) => {
     const dataISO = sanitizeData(p.data, p.hora) || p.data;
     const periodo = computePeriodo(p.hora);
-    const quantidade = Number(p.quantidade || 0) || 0;
+    // MANTIDA a correção de busca de quantidade
+    const quantidade = Number(p.quantidade ?? p.qtd ?? p.quantity ?? p.Atendimentos?? p.atendimentos?? p.qtAtendida ?? 0) || 0;
     const medico = (p.nome || "").toUpperCase();
     const crm = p.crm ? p.crm.toUpperCase() : "";
     const especialidade = (p.especialidade || "").toUpperCase();

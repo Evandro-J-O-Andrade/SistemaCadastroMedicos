@@ -16,14 +16,37 @@ dayjs.locale("pt-br");
 export const normalizeString = (str) =>
   !str ? "" : str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-// Converte data/hora do plantão para Date
+// EM src/utlis/relatorioService.js:
+
+// Substitua a função parsePlantaoDate
 export const parsePlantaoDate = (dataStr, horaStr = "00:00") => {
   if (!dataStr) return null;
-  if (dataStr.includes("-")) return new Date(`${dataStr}T${horaStr}`);
-  const [dia, mes, ano] = dataStr.split("/");
-  return new Date(`${ano}-${mes}-${dia}T${horaStr}`);
-};
+  
+  // LÓGICA RÁPIDA E FUNCIONAL QUE FOI REPLICADA DO DADOS CONSOLIDADOS
+  const trimmed = dataStr.trim();
+  const timePart = horaStr || "00:00";
 
+  // Formato DD/MM/YYYY
+  if (trimmed.includes("/")) {
+    const [dPart, mPart, yPart] = trimmed.split("/");
+    return new Date(`${yPart}-${mPart}-${dPart}T${timePart}`);
+  }
+  
+  // Formato DD-MM-YYYY
+  if (trimmed.includes("-") && trimmed.indexOf("-") < 4) {
+    const [dPart, mPart, yPart] = trimmed.split("-");
+    return new Date(`${yPart}-${mPart}-${dPart}T${timePart}`);
+  }
+  
+  // Formato DD.MM.YYYY (A MAIS PROVÁVEL CAUSA DO SEU ERRO)
+  if (trimmed.includes(".")) {
+    const [dPart, mPart, yPart] = trimmed.split(".");
+    return new Date(`${yPart}-${mPart}-${dPart}T${timePart}`);
+  }
+  
+  // Formato ISO e Fallback
+  return new Date(`${trimmed}T${timePart}`);
+};
 // Filtra por médico e CRM
 export const filtrarPorMedico = (dados, nomeBusca, crmBusca) => {
   if (!nomeBusca && !crmBusca) return dados;

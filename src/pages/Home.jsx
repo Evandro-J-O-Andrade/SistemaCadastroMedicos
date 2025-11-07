@@ -10,6 +10,16 @@ import LogoAlpha from '../img/Logo_Alpha.png';
 import { getEspecialidadeInfo } from '../api/especialidades.js';
 import { GlobalController, LocalStorageService } from "./GlobalController.jsx";
 import { falarMensagem } from "../utils/tts.js";
+import {
+  getPlantaoFromStorage,
+  getMedicosFromStorage,
+} from "../utils/index.js";
+import {
+  agruparPorMedicoDiaEsp,
+  normalizarEMapearPlantaoData,
+  normalize as normalizarDC,
+} from "../utils/dadosConsolidados.js"; // Pra relações
+import { storageManager } from "../utils/storageManager.js"; // Pra migração unificada
 
 /* --- util --- */
 // Normaliza strings: remove acentos / trim / lowercase
@@ -52,7 +62,7 @@ function CardEspecialidades({
   const total = dados.reduce(
     (acc, item) =>
       acc +
-      (Number(item.quantidade || item.totalDiario || item.totalMensal || item.totalAno || 0) || 0),
+      (Number(item.quantidade || item.totalDiario || item.totalMensal || item.totalAno || item.atendimentos || 0) || 0),
     0
   );
 
@@ -114,40 +124,44 @@ function CardEspecialidades({
             </p>
           )}
 
-          {itensExibidos.map((item, idx) => {
-            let Icone = FaIcons.FaUserMd;
-            let cor = '#666';
+          {itensExibidos.length === 0 ? (
+            <p style={{ color: '#999', fontStyle: 'italic' }}>Nenhum dado disponível.</p>
+          ) : (
+            itensExibidos.map((item, idx) => {
+              let Icone = FaIcons.FaUserMd;
+              let cor = '#666';
 
-            if (porMedico && item.especialidade) {
-              const espInfo = getEspecialidadeInfo(item.especialidade);
-              if (espInfo) {
-                Icone = espInfo.icone || FaIcons.FaUserMd;
-                cor = espInfo.cor || '#666';
+              if (porMedico && item.especialidade) {
+                const espInfo = getEspecialidadeInfo(item.especialidade);
+                if (espInfo) {
+                  Icone = espInfo.icone || FaIcons.FaUserMd;
+                  cor = espInfo.cor || '#666';
+                }
+              } else {
+                if (item.icon) Icone = item.icon;
+                if (item.color) cor = item.color;
               }
-            } else {
-              if (item.icon) Icone = item.icon;
-              if (item.color) cor = item.color;
-            }
 
-            return (
-              <div
-                key={`${item.medico || item.especialidade}-${idx}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  margin: '8px 0',
-                  fontSize: '0.95rem',
-                  lineHeight: 1.3,
-                }}
-              >
-                <Icone size={16} style={{ color: cor, marginRight: 8 }} />
-                <span style={{ fontWeight: '600' }}>{porMedico ? item.medico : item.especialidade}</span>
-                <span style={{ marginLeft: 'auto', fontWeight: '500' }}>
-                  Qt Atendida: {porMedico ? item.quantidade : item.totalDiario || item.quantidade}
-                </span>
-              </div>
-            );
-          })}
+              return (
+                <div
+                  key={`${item.medico || item.especialidade}-${idx}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    margin: '8px 0',
+                    fontSize: '0.95rem',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  <Icone size={16} style={{ color: cor, marginRight: 8 }} />
+                  <span style={{ fontWeight: '600' }}>{porMedico ? item.medico : item.especialidade}</span>
+                  <span style={{ marginLeft: 'auto', fontWeight: '500' }}>
+                    Qt Atendida: {porMedico ? item.quantidade || item.atendimentos : item.totalDiario || item.quantidade || item.atendimentos}
+                  </span>
+                </div>
+              );
+            })
+          )}
 
           {paginado && totalPaginas > 1 && (
             <>
@@ -287,13 +301,13 @@ function CardMedias({
           {visaoAtual === 0 && (
             <div style={{ marginTop: 6, fontSize: '0.9rem', lineHeight: 1.3 }}>
               <p>
-                <strong>Média/dia:</strong> {mediaDia}
+                <strong>Média Por Dia:</strong> {mediaDia}
               </p>
               <p>
-                <strong>Média/mês:</strong> {mediaMes}
+                <strong>Média Por Mês:</strong> {mediaMes}
               </p>
               <p>
-                <strong>Total ano:</strong> {totalAno}
+                <strong>Total Por Ano:</strong> {totalAno}
               </p>
             </div>
           )}
@@ -423,22 +437,23 @@ export default function Home() {
     { id: 3, titulo: 'Suporte técnico', descricao: 'Suporte disponível de 8h às 18h.' },
   ];
 
-  const resolveMedicoFromPlantao = (plantao, medicosIndexById, medicosIndexByName) => {
+  // Função resolveMedicoFromPlantao: Agora usa GlobalController's maps (mais eficiente)
+  const resolveMedicoFromPlantao = (plantao, medicoByNome, medicoByCrm) => {
     const possibleNameFields = ['nomeMedico', 'nome', 'medicoNome', 'medico_name', 'medico'];
     for (const f of possibleNameFields) {
       const v = plantao[f];
       if (!v) continue;
-      if (typeof v === 'string' && v.trim())
-        return {
-          name: v.trim(),
-          crm: plantao.crm || '',
-          medicoObj: medicosIndexByName.get(normalizar(v)) || null,
-        };
+      if (typeof v === 'string' && v.trim()) {
+        const normalized = normalizarDC(v); // Usa normalize do dadosConsolidados
+        let found = medicoByNome.get(normalized);
+        if (!found) found = Array.from(medicoByNome.values()).find(m => normalizarDC(m.nome).includes(normalized));
+        if (found) return { name: found.nome, crm: found.crm, medicoObj: found };
+      }
       if (typeof v === 'object') {
         if (v.nome || v.name)
           return { name: String(v.nome || v.name), crm: v.crm || plantao.crm || '', medicoObj: v };
         if (v.id || v._id) {
-          const found = medicosIndexById.get(String(v.id || v._id));
+          const found = medicoByCrm.get(String(v.id || v._id));
           if (found)
             return {
               name: found.nome || found.name || 'Desconhecido',
@@ -468,7 +483,7 @@ export default function Home() {
             medicoObj: cand,
           };
         if (cand.id || cand._id) {
-          const found = medicosIndexById.get(String(cand.id || cand._id));
+          const found = medicoByCrm.get(String(cand.id || cand._id));
           if (found)
             return {
               name: found.nome || found.name || 'Desconhecido',
@@ -479,262 +494,184 @@ export default function Home() {
         continue;
       }
       const key = String(cand);
-      const byId = medicosIndexById.get(key) || medicosIndexById.get(String(Number(key))) || null;
+      const byId = medicoByCrm.get(key) || medicoByNome.get(normalizarDC(key));
       if (byId)
         return {
           name: byId.nome || byId.name || 'Desconhecido',
           crm: byId.crm || plantao.crm || '',
           medicoObj: byId,
         };
-      const byName = medicosIndexByName.get(normalizar(key));
-      if (byName)
-        return {
-          name: byName.nome || byName.name || key,
-          crm: byName.crm || plantao.crm || '',
-          medicoObj: byName,
-        };
     }
 
-    return { name: 'Medico não encontrado!', crm: plantao.crm || '', medicoObj: null };
+    return { name: 'Desconhecido', crm: plantao.crm || '', medicoObj: null };
   };
 
+  // Função principal: Agora prioriza GlobalController com relações
   const atualizarDados = () => {
+    console.log('🔄 Atualizando dados na Home...'); // Debug
     try {
-      const logado = localStorage.getItem('usuarioLogado') === 'true';
-      setUsuarioLogado(logado);
+      let plantaoData = [];
+      let medicosData = [];
 
-      const plantaoData = JSON.parse(localStorage.getItem('plantaoData') || '[]');
-      const medicosData = JSON.parse(localStorage.getItem('medicos') || '[]');
+      // 1. Migração unificada (uma vez só, se chaves antigas existirem)
+      storageManager.migrateOldData();
 
-      const medicosIndexById = new Map();
-      const medicosIndexByName = new Map();
-      (medicosData || []).forEach((m) => {
-        if (!m) return;
-        const possibleIds = [m.id, m._id, m.idMedico, m.id_medico].filter(Boolean);
-        for (const id of possibleIds) medicosIndexById.set(String(id), m);
-        const nome = m.nome || m.name || m.nomeMedico || '';
-        if (nome) medicosIndexByName.set(normalizar(nome), m);
-      });
-
-      const hoje = new Date();
-      const diaHoje = hoje.getDate();
-      const mesAtual = hoje.getMonth();
-      const anoAtual = hoje.getFullYear(); // --- Plantão hoje ---
-
-      const plantaoHojeFiltrado = (plantaoData || []).filter((p) => {
-        const d = parseData(p?.data);
-        return (
-          d && d.getFullYear() === anoAtual && d.getMonth() === mesAtual && d.getDate() === diaHoje
-        );
-      });
-      setPlantaoHojeRaw(plantaoHojeFiltrado);
-
-      const totalHoje = plantaoHojeFiltrado.reduce(
-        (acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0),
-        0
-      );
-      setAtendimentosHojeTotal(totalHoje);
-
-      const mapaMedicos = new Map();
-      for (const p of plantaoHojeFiltrado) {
-        const qtd = Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0;
-        const resolved = resolveMedicoFromPlantao(p, medicosIndexById, medicosIndexByName);
-        const nomeMed = resolved.name || 'Desconhecido';
-        const key = normalizar(nomeMed);
-        const prev = mapaMedicos.get(key) || {
-          nome: nomeMed,
-          quantidade: 0,
-          crm: resolved.crm,
-          medicoObj: resolved.medicoObj || null,
-        };
-        prev.quantidade += qtd;
-        mapaMedicos.set(key, prev);
-      } // Atualizado: Só nome do médico e quantidade
-
-      const atendHojeArr = Array.from(mapaMedicos.values()).map((m) => ({
-        medico: m.nome,
-        quantidade: m.quantidade,
-      }));
-      atendHojeArr.sort((a, b) => b.quantidade - a.quantidade);
-      setDadosAtendimentosHoje(atendHojeArr); // --- Totais diários por especialidade (com ícones) ---
-
-      const mapaDiarioEsp = new Map();
-      for (const p of plantaoHojeFiltrado) {
-        let espRaw = p?.especialidade ? String(p.especialidade) : '';
-        if (!espRaw) {
-          const resolved = resolveMedicoFromPlantao(p, medicosIndexById, medicosIndexByName);
-          espRaw =
-            resolved.medicoObj?.especialidade?.nome || resolved.medicoObj?.especialidade || '';
+      // 2. Tenta GlobalController (com chaves fixas, mas agora assumindo migração)
+      try {
+        if (GlobalController && typeof GlobalController.getPlantoes === 'function') {
+          plantaoData = GlobalController.getPlantoes() || [];
+          console.log('📊 Plantão do GlobalController:', plantaoData.length);
         }
-        if (!espRaw) espRaw = 'Desconhecida';
-
-        const norm = normalizar(espRaw);
-        const quantidade = Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0;
-
-        if (!mapaDiarioEsp.has(norm))
-          mapaDiarioEsp.set(norm, { nomeOriginal: espRaw, totalDiario: quantidade });
-        else mapaDiarioEsp.get(norm).totalDiario += quantidade;
+        if (GlobalController && typeof GlobalController.getMedicos === 'function') {
+          medicosData = GlobalController.getMedicos() || [];
+          console.log('👨‍⚕️ Médicos do GlobalController:', medicosData.length);
+        }
+      } catch (e) {
+        console.warn('GlobalController falhou:', e);
       }
 
-      const diariosEsp = [];
-      for (const [norm, { nomeOriginal, totalDiario }] of mapaDiarioEsp.entries()) {
-        if (!totalDiario) continue;
+      // 3. Fallback pros utils/index.js (se vazio)
+      if (!Array.isArray(plantaoData) || plantaoData.length === 0) {
+        plantaoData = getPlantaoFromStorage(true); // Force reload pra fresh
+        console.log('📊 Plantão do fallback index.js:', plantaoData.length);
+      }
+      if (!Array.isArray(medicosData) || medicosData.length === 0) {
+        medicosData = getMedicosFromStorage(true);
+        console.log('👨‍⚕️ Médicos do fallback index.js:', medicosData.length);
+      }
 
-        const espInfo = getEspecialidadeInfo(nomeOriginal);
-
-        diariosEsp.push({
-          especialidade:
-            espInfo && espInfo.nome ? espInfo.nome.toUpperCase() : nomeOriginal.toUpperCase(),
-          totalDiario,
-          icon: espInfo.icone || FaIcons.FaUserMd,
-          color: espInfo.cor || '#666',
+      // 4. Usa GlobalController pra Maps de relações (mesmo se dados vierem de fallback)
+      let medicoByNome = new Map();
+      let medicoByCrm = new Map();
+      try {
+        const maps = GlobalController.buildMedicoMaps();
+        medicoByNome = maps.medicoByNome;
+        medicoByCrm = maps.medicoByCrm;
+        console.log('🗺️ Maps de médicos criados:', medicoByNome.size);
+      } catch (e) {
+        console.warn('Falha nos maps, criando local:', e);
+        // Fallback: cria maps localmente
+        medicosData.forEach(m => {
+          if (m.nome) medicoByNome.set(normalizarDC(m.nome), m);
+          if (m.crm) medicoByCrm.set(String(m.crm), m);
         });
       }
 
-      diariosEsp.sort((a, b) => b.totalDiario - a.totalDiario);
-      setDadosDiariosPorEspecialidade(diariosEsp); // --- Totais do mês e cálculo de médias ---
+      // 5. Normaliza e agrupa com dadosConsolidados (relações aqui!)
+      const plantaoNormalizado = normalizarEMapearPlantaoData(plantaoData);
+      console.log('🔄 Plantão normalizado:', plantaoNormalizado.length);
+      const agrupado = agruparPorMedicoDiaEsp(plantaoNormalizado, medicosData); // Joins automáticos!
+      console.log('📈 Agrupado por médico/dia/esp:', agrupado.length);
 
-      const plantaoMes = (plantaoData || []).filter((p) => {
-        const d = parseData(p?.data);
-        return d && d.getFullYear() === anoAtual && d.getMonth() === mesAtual;
+      // 6. Calcula totais/médias do agrupado (ex: hoje, mês, ano)
+      const hoje = new Date();
+      const anoAtual = hoje.getFullYear();
+      const mesAtual = hoje.getMonth();
+      const diasMes = new Date(anoAtual, mesAtual + 1, 0).getDate();
+
+      // Hoje: filtra agrupado por data
+      const plantaoHoje = agrupado.filter(p => {
+        const d = parseData(p.data);
+        return d && d.toDateString() === hoje.toDateString();
       });
-      const diasMes = new Date(anoAtual, mesAtual + 1, 0).getDate() || 1;
-      const totalMesCalc = plantaoMes.reduce(
-        (acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0),
-        0
-      );
-      const mediaDiaCalc = Math.round(totalMesCalc / diasMes);
-      setTotalMes(totalMesCalc);
-      setMediaDia(mediaDiaCalc);
+      console.log('📅 Plantão hoje:', plantaoHoje.length);
+      const atendHojeArr = plantaoHoje.map(p => ({
+        medico: p.medico,
+        quantidade: p.atendimentos || p.quantidade,
+        especialidade: p.especialidade,
+      })).sort((a, b) => (b.quantidade || 0) - (a.quantidade || 0));
+      setDadosAtendimentosHoje(atendHojeArr);
+      setAtendimentosHojeTotal(plantaoHoje.reduce((acc, p) => acc + (p.atendimentos || p.quantidade || 0), 0));
 
-      const plantaoAno = (plantaoData || []).filter((p) => {
-        const d = parseData(p?.data);
+      // Mês/Ano: usa agrupado pronto
+      const plantaoMes = agrupado.filter(p => {
+        const d = parseData(p.data);
+        return d && d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+      });
+      const totalMesCalc = plantaoMes.reduce((acc, p) => acc + (p.atendimentos || p.quantidade || 0), 0);
+      setTotalMes(totalMesCalc);
+      setMediaDia(Math.round(totalMesCalc / diasMes));
+
+      const plantaoAno = agrupado.filter(p => {
+        const d = parseData(p.data);
         return d && d.getFullYear() === anoAtual;
       });
-      const totalAnoCalc = plantaoAno.reduce(
-        (acc, p) => acc + (Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0),
-        0
-      );
-      const mediaMesCalc = Math.round(totalAnoCalc / 12);
+      const totalAnoCalc = plantaoAno.reduce((acc, p) => acc + (p.atendimentos || p.quantidade || 0), 0);
       setTotalAno(totalAnoCalc);
-      setMediaMes(mediaMesCalc);
+      setMediaMes(Math.round(totalAnoCalc / 12));
 
-      setMedicosCadastrados((medicosData || []).length || 0);
-
-      const espUnicasMedicos = [
-        ...new Set(
-          (medicosData || [])
-            .map((m) => normalizar(m?.especialidade?.nome || m?.especialidade || ''))
-            .filter(Boolean)
-        ),
-      ];
-      setEspecialidadesCount(espUnicasMedicos.length); // --- Médias por especialidade ---
-
-      const mapaMes = new Map();
-      const mapaAno = new Map();
-
-      for (const p of plantaoMes) {
-        let espRaw = p?.especialidade ? String(p.especialidade) : '';
-        if (!espRaw) {
-          const resolved = resolveMedicoFromPlantao(p, medicosIndexById, medicosIndexByName);
-          espRaw =
-            resolved.medicoObj?.especialidade?.nome || resolved.medicoObj?.especialidade || '';
+      // Por Especialidade (usa getEspecialidadeInfo)
+      const mapaDiarioEsp = new Map();
+      plantaoHoje.forEach(p => {
+        const esp = p.especialidade || 'Desconhecida';
+        const qtd = p.atendimentos || p.quantidade || 0;
+        const norm = normalizarDC(esp);
+        if (!mapaDiarioEsp.has(norm)) {
+          mapaDiarioEsp.set(norm, { nome: esp, totalDiario: 0 });
         }
-        if (!espRaw) espRaw = 'Desconhecida';
-
-        const norm = normalizar(espRaw);
-        const quantidade = Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0;
-
-        if (!mapaMes.has(norm)) mapaMes.set(norm, { nomeOriginal: espRaw, total: quantidade });
-        else mapaMes.get(norm).total += quantidade;
-      }
-
-      for (const p of plantaoAno) {
-        let espRaw = p?.especialidade ? String(p.especialidade) : '';
-        if (!espRaw) {
-          const resolved = resolveMedicoFromPlantao(p, medicosIndexById, medicosIndexByName);
-          espRaw =
-            resolved.medicoObj?.especialidade?.nome || resolved.medicoObj?.especialidade || '';
-        }
-        if (!espRaw) espRaw = 'Desconhecida';
-
-        const norm = normalizar(espRaw);
-        const quantidade = Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0;
-
-        if (!mapaAno.has(norm)) mapaAno.set(norm, quantidade);
-        else mapaAno.set(norm, mapaAno.get(norm) + quantidade);
-      }
-
-      const mediasEsp = [];
-      for (const [norm, { nomeOriginal, total }] of mapaMes.entries()) {
-        if (!total) continue;
-
-        const totalMensal = total;
-        const mediaDiaria = Math.round(totalMensal / diasMes);
-        const totalAnoEspecialidade = mapaAno.get(norm) || 0;
-        const mediaMes = Math.round(totalAnoEspecialidade / 12);
-
-        const espInfo = getEspecialidadeInfo(nomeOriginal);
-
-        mediasEsp.push({
-          especialidade:
-            espInfo && espInfo.nome ? espInfo.nome.toUpperCase() : nomeOriginal.toUpperCase(),
-          mediaDiaria,
-          mediaMes,
+        mapaDiarioEsp.get(norm).totalDiario += qtd;
+      });
+      const diariosEsp = Array.from(mapaDiarioEsp.values()).map(item => {
+        const espInfo = getEspecialidadeInfo(item.nome);
+        return {
+          especialidade: item.nome,
+          totalDiario: item.totalDiario,
           icon: espInfo.icone || FaIcons.FaUserMd,
           color: espInfo.cor || '#666',
-        });
-      }
+        };
+      }).sort((a, b) => b.totalDiario - a.totalDiario);
+      setDadosDiariosPorEspecialidade(diariosEsp);
+      console.log('🏥 Diários por esp:', diariosEsp);
 
-      mediasEsp.sort((a, b) => (b.mediaDiaria || 0) - (a.mediaDiaria || 0));
-      setMediaPorEspecialidade(mediasEsp); // --- Médias por médico (novo) ---
+      // Médicos e Especialidades count
+      setMedicosCadastrados(medicosData.length || 0);
+      const espUnicasMedicos = [...new Set(medicosData.map(m => normalizarDC(m?.especialidade?.nome || m?.especialidade || '')))].filter(Boolean);
+      setEspecialidadesCount(espUnicasMedicos.length);
 
-      const mapaMesMedicos = new Map();
-      const mapaAnoMedicos = new Map();
-
-      for (const p of plantaoMes) {
-        const resolved = resolveMedicoFromPlantao(p, medicosIndexById, medicosIndexByName);
-        const nomeMed = resolved.name || 'Desconhecido';
-        const normMed = normalizar(nomeMed);
-        const quantidade = Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0;
-
-        if (!mapaMesMedicos.has(normMed))
-          mapaMesMedicos.set(normMed, { nomeOriginal: nomeMed, total: quantidade });
-        else mapaMesMedicos.get(normMed).total += quantidade;
-      }
-
-      for (const p of plantaoAno) {
-        const resolved = resolveMedicoFromPlantao(p, medicosIndexById, medicosIndexByName);
-        const nomeMed = resolved.name || 'Desconhecido';
-        const normMed = normalizar(nomeMed);
-        const quantidade = Number(p.quantidade || p.qtd || p.atendimentos || 0) || 0;
-
-        if (!mapaAnoMedicos.has(normMed)) mapaAnoMedicos.set(normMed, quantidade);
-        else mapaAnoMedicos.set(normMed, mapaAnoMedicos.get(normMed) + quantidade);
-      }
-
-      const mediasMedicos = [];
-      for (const [norm, { nomeOriginal, total }] of mapaMesMedicos.entries()) {
-        if (!total) continue;
-
-        const totalMensal = total;
-        const mediaDiaria = Math.round(totalMensal / diasMes);
-        const totalAnoMedico = mapaAnoMedicos.get(norm) || 0;
-        const mediaMes = Math.round(totalAnoMedico / 12);
-
-        mediasMedicos.push({
-          medico: nomeOriginal,
+      // Médias por Esp/Médico (do agrupado)
+      const mapaMesEsp = new Map();
+      plantaoMes.forEach(p => {
+        const esp = p.especialidade || 'Desconhecida';
+        const norm = normalizarDC(esp);
+        const qtd = p.atendimentos || p.quantidade || 0;
+        if (!mapaMesEsp.has(norm)) mapaMesEsp.set(norm, { nome: esp, total: 0 });
+        mapaMesEsp.get(norm).total += qtd;
+      });
+      const mediasEsp = Array.from(mapaMesEsp.values()).map(item => {
+        const mediaDiaria = Math.round(item.total / diasMes);
+        const espInfo = getEspecialidadeInfo(item.nome);
+        return {
+          especialidade: item.nome,
           mediaDiaria,
-          mediaMes,
-        });
-      }
+          mediaMes: 0, // Placeholder, calcular se necessário
+          icon: espInfo.icone || FaIcons.FaUserMd,
+          color: espInfo.cor || '#666',
+        };
+      }).sort((a, b) => b.mediaDiaria - a.mediaDiaria);
+      setMediaPorEspecialidade(mediasEsp);
 
-      mediasMedicos.sort((a, b) => (b.mediaDiaria || 0) - (a.mediaDiaria || 0));
-      setMediasPorMedicos(mediasMedicos);
+      // Médias por Médico similar
+      const mapaMesMed = new Map();
+      plantaoMes.forEach(p => {
+        const med = p.medico || 'Desconhecido';
+        const norm = normalizarDC(med);
+        const qtd = p.atendimentos || p.quantidade || 0;
+        if (!mapaMesMed.has(norm)) mapaMesMed.set(norm, { nome: med, total: 0 });
+        mapaMesMed.get(norm).total += qtd;
+      });
+      const mediasMed = Array.from(mapaMesMed.values()).map(item => ({
+        medico: item.nome,
+        mediaDiaria: Math.round(item.total / diasMes),
+        mediaMes: 0,
+      })).sort((a, b) => b.mediaDiaria - a.mediaDiaria);
+      setMediasPorMedicos(mediasMed);
 
       setTotalMediaEspecialidades(mediasEsp.reduce((acc, i) => acc + (i.mediaDiaria || 0), 0));
+      setPlantaoHojeRaw(plantaoHoje); // Pra debug se precisar
+      console.log('✅ Dados atualizados na Home!');
     } catch (err) {
-      console.error('Erro em atualizarDados Home:', err);
+      console.error('Erro em atualizarDados:', err);
+      // Reseta states
       setPlantaoHojeRaw([]);
       setDadosAtendimentosHoje([]);
       setAtendimentosHojeTotal(0);
@@ -846,12 +783,19 @@ export default function Home() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // Após remoção dos duplicados, as funções válidas permanecem:
-  // - safeParse
-  // - getSessionInfo
-  // - handleAcessoRapido (que usa getSessionInfo e faz navigate com state)
-  // - handleEntrar (que usa getSessionInfo para redirecionar por role)
-  // - useEffect já configurado acima para escutar 'storage'
+  // Carrega dados iniciais ao montar o componente
+  useEffect(() => {
+    storageManager.migrateOldData(); // Uma vez só
+    atualizarDados();
+    // Escuta eventos de atualização de dados (se aplicável)
+    const handleDadosAtualizados = () => atualizarDados();
+    window.addEventListener('dadosAtualizados', handleDadosAtualizados);
+    window.addEventListener('storage', handleDadosAtualizados); // Pra sync multi-tab
+    return () => {
+      window.removeEventListener('dadosAtualizados', handleDadosAtualizados);
+      window.removeEventListener('storage', handleDadosAtualizados);
+    };
+  }, []);
 
   return (
     <div className="home-container">
