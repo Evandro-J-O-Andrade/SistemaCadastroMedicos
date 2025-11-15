@@ -1,199 +1,181 @@
-// /backend_node/db/init.js - Versão Otimizada N:N e Segura
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import bcrypt from 'bcrypt'; // 🚨 NOVO: Importa bcrypt para hashear a senha
+import sqlite3 from "sqlite3";
+import { open } from "sqlite";
+import path from "path";
+import fs from "fs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const DB_FILE = path.join(process.cwd(), process.env.DB_PATH || "./db/database.db");
+const DB_DIR = path.dirname(DB_FILE);
+if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
-const dbPath = path.resolve(__dirname, 'database.db');
-const SALT_ROUNDS = 10; // 🛡️ Constante para segurança do hash
+async function init() {
+  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
 
-async function initDB() {
-    const db = await open({
-        filename: dbPath,
-        driver: sqlite3.Database
-    });
+  await db.exec(`
+PRAGMA foreign_keys = ON;
 
-    console.log('🔹 Iniciando criação do banco de dados...');
+-- usuarios
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  email TEXT,
+  senha TEXT NOT NULL,
+  tipo TEXT CHECK(tipo IN ('admin','suporte','usuario')) DEFAULT 'usuario',
+  primeiro_login INTEGER DEFAULT 1,
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em DATETIME
+);
 
-    await db.exec(`PRAGMA foreign_keys = ON;`);
+-- especialidades
+CREATE TABLE IF NOT EXISTS especialidades (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT UNIQUE NOT NULL,
+  descricao TEXT,
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em DATETIME
+);
 
-    // =========================
-    // TABELAS
-    // =========================
+-- medicos
+CREATE TABLE IF NOT EXISTS medicos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  crm TEXT UNIQUE NOT NULL,
+  observacoes TEXT,
+  ativo INTEGER DEFAULT 1,
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em DATETIME
+);
 
-    // 1. USUARIOS (ajustado: campo "tipo" em vez de "cargo")
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            email TEXT UNIQUE,
-            senha TEXT NOT NULL,
-            tipo TEXT DEFAULT 'Atendente',
-            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-            atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    `);
+-- relacionamento N:N medico <-> especialidade
+CREATE TABLE IF NOT EXISTS medico_especialidade (
+  medico_id INTEGER NOT NULL,
+  especialidade_id INTEGER NOT NULL,
+  is_primaria INTEGER DEFAULT 0,
+  PRIMARY KEY (medico_id, especialidade_id),
+  FOREIGN KEY (medico_id) REFERENCES medicos(id) ON DELETE CASCADE,
+  FOREIGN KEY (especialidade_id) REFERENCES especialidades(id) ON DELETE CASCADE
+);
 
-    // 2. ESPECIALIDADES
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS especialidades (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL UNIQUE,
-            descricao TEXT,
-            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    `);
+-- plantoes
+CREATE TABLE IF NOT EXISTS plantoes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  medico_id INTEGER NOT NULL,
+  data DATE NOT NULL,
+  hora_inicio TIME NOT NULL,
+  hora_fim TIME NOT NULL DEFAULT '23:59',
+  status TEXT DEFAULT 'Agendado',
+  observacoes TEXT,
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em DATETIME,
+  criado_por INTEGER,
+  FOREIGN KEY (medico_id) REFERENCES medicos(id) ON DELETE RESTRICT,
+  FOREIGN KEY (criado_por) REFERENCES usuarios(id) ON DELETE SET NULL
+);
 
-    // 3. MÉDICOS
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS medicos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            crm TEXT NOT NULL UNIQUE,
-            ativo INTEGER DEFAULT 1,
-            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    `);
+-- log de ações de plantões
+CREATE TABLE IF NOT EXISTS log_plantoes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  plantao_id INTEGER,
+  acao TEXT,
+  usuario_id INTEGER,
+  data_hora DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-    // 4. LIGAÇÃO N:N
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS medico_especialidade (
-            medico_id INTEGER NOT NULL,
-            especialidade_id INTEGER NOT NULL,
-            is_primaria INTEGER DEFAULT 0,
-            PRIMARY KEY (medico_id, especialidade_id),
-            FOREIGN KEY (medico_id) REFERENCES medicos(id) ON DELETE CASCADE,
-            FOREIGN KEY (especialidade_id) REFERENCES especialidades(id) ON DELETE CASCADE
-        );
-    `);
+-- auditoria de requisições
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  rota TEXT,
+  metodo TEXT,
+  usuario TEXT,
+  ip TEXT,
+  payload TEXT,
+  resultado TEXT,
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-    // 5. PLANTÕES
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS plantoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            medico_id INTEGER NOT NULL,
-            data DATE NOT NULL,
-            hora_inicio TIME NOT NULL,
-            hora_fim TIME NOT NULL,
-            observacoes TEXT,
-            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (medico_id) REFERENCES medicos(id) ON DELETE CASCADE
-        );
-    `);
+-- atendimentos (nova tabela)
+CREATE TABLE IF NOT EXISTS atendimentos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  plantao_id INTEGER NOT NULL,
+  paciente_nome TEXT NOT NULL,
+  procedimento TEXT,
+  hora TEXT NOT NULL,
+  obs TEXT,
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (plantao_id) REFERENCES plantoes(id) ON DELETE CASCADE
+);
 
-    // 6. HISTÓRICO DE AÇÕES
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS historico_acoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER,
-            acao TEXT,
-            tabela TEXT,
-            registro_id INTEGER,
-            data_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-        );
-    `);
+-- indices
+CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);
+CREATE INDEX IF NOT EXISTS idx_medicos_crm ON medicos(crm);
+CREATE INDEX IF NOT EXISTS idx_plantoes_data_medico ON plantoes(data, medico_id);
+CREATE INDEX IF NOT EXISTS idx_atend_plantao ON atendimentos(plantao_id);
 
-    // =========================
-    // VIEWS E TRIGGERS
-    // =========================
-    await db.exec(`
-        CREATE VIEW IF NOT EXISTS vw_relatorio_plantao AS
-        SELECT 
-            p.id AS id_plantao,
-            m.nome AS medico,
-            m.crm AS crm,
-            e.nome AS especialidade_primaria, 
-            p.data,
-            p.hora_inicio,
-            p.hora_fim,
-            p.observacoes
-        FROM plantoes p
-        JOIN medicos m ON p.medico_id = m.id
-        LEFT JOIN medico_especialidade me ON me.medico_id = m.id AND me.is_primaria = 1
-        LEFT JOIN especialidades e ON me.especialidade_id = e.id;
-    `);
+-- view relatorio plantoes
+CREATE VIEW IF NOT EXISTS view_relatorio_plantoes AS
+SELECT
+  p.id,
+  p.medico_id,
+  m.nome AS medico,
+  m.crm,
+  GROUP_CONCAT(e.nome, ', ') AS especialidades,
+  p.data,
+  p.hora_inicio,
+  p.hora_fim,
+  p.status,
+  p.criado_em
+FROM plantoes p
+INNER JOIN medicos m ON m.id = p.medico_id
+LEFT JOIN medico_especialidade me ON m.id = me.medico_id
+LEFT JOIN especialidades e ON me.especialidade_id = e.id
+GROUP BY p.id;
 
-    await db.exec(`
-        CREATE TRIGGER IF NOT EXISTS trg_medico_insert
-        AFTER INSERT ON medicos
-        BEGIN
-            INSERT INTO historico_acoes (usuario_id, acao, tabela, registro_id)
-            VALUES (NULL, 'INSERÇÃO', 'medicos', NEW.id);
-        END;
-    `);
+-- view resumo diario
+CREATE VIEW IF NOT EXISTS view_resumo_diario AS
+SELECT
+  p.data,
+  m.nome AS medico,
+  GROUP_CONCAT(e.nome, ', ') AS especialidades,
+  COUNT(p.id) AS total_plantoes
+FROM plantoes p
+INNER JOIN medicos m ON p.medico_id = m.id
+LEFT JOIN medico_especialidade me ON m.id = me.medico_id
+LEFT JOIN especialidades e ON me.especialidade_id = e.id
+GROUP BY p.data, m.id;
 
-    await db.exec(`
-        CREATE TRIGGER IF NOT EXISTS trg_plantao_insert
-        AFTER INSERT ON plantoes
-        BEGIN
-            INSERT INTO historico_acoes (usuario_id, acao, tabela, registro_id)
-            VALUES (NULL, 'INSERÇÃO', 'plantoes', NEW.id);
-        END;
-    `);
+-- view de atendimentos (relatorio)
+CREATE VIEW IF NOT EXISTS vw_relatorio_atendimentos AS
+SELECT a.id, a.paciente_nome, a.procedimento, a.hora, a.obs,
+       p.id AS plantao_id, p.data AS plantao_data, p.hora_inicio, p.hora_fim,
+       m.id AS medico_id, m.nome AS medico, m.crm,
+       GROUP_CONCAT(e.nome, ', ') AS especialidades
+FROM atendimentos a
+JOIN plantoes p ON p.id = a.plantao_id
+JOIN medicos m ON m.id = p.medico_id
+LEFT JOIN medico_especialidade me ON m.id = me.medico_id
+LEFT JOIN especialidades e ON me.especialidade_id = e.id
+GROUP BY a.id;
 
-    // =========================
-    // ÍNDICES
-    // =========================
-    await db.exec(`CREATE INDEX IF NOT EXISTS idx_plantao_data ON plantoes(data);`);
-    await db.exec(`CREATE INDEX IF NOT EXISTS idx_historico_data ON historico_acoes(data_hora);`);
-    await db.exec(`CREATE INDEX IF NOT EXISTS idx_me_medico_id ON medico_especialidade(medico_id);`);
-    await db.exec(`CREATE INDEX IF NOT EXISTS idx_me_especialidade_id ON medico_especialidade(especialidade_id);`);
+-- triggers para log de plantoes
+CREATE TRIGGER IF NOT EXISTS trg_plantao_insert
+AFTER INSERT ON plantoes
+BEGIN
+  INSERT INTO log_plantoes (plantao_id, acao, usuario_id) VALUES (NEW.id, 'INSERIDO', NEW.criado_por);
+END;
 
-    // =========================
-    // DADOS INICIAIS
-    // =========================
+CREATE TRIGGER IF NOT EXISTS trg_plantao_update
+AFTER UPDATE ON plantoes
+BEGIN
+  INSERT INTO log_plantoes (plantao_id, acao, usuario_id) VALUES (NEW.id, 'ATUALIZADO', NEW.criado_por);
+END;
 
-    // 1. 🛡️ Admin com senha hasheada
-    const adminPassword = '12345';
-    const adminSenhaHashed = await bcrypt.hash(adminPassword, SALT_ROUNDS);
-
-    await db.exec(`
-        INSERT OR IGNORE INTO usuarios (id, nome, email, senha, tipo) 
-        VALUES (1, 'Administrador', 'admin@sistema.com', '${adminSenhaHashed}', 'admin');
-    `);
-
-    // 2. ESPECIALIDADES
-    await db.exec(`
-        INSERT OR IGNORE INTO especialidades (id, nome, descricao) VALUES
-        (1, 'Cardiologia', 'Doenças do coração'),
-        (2, 'Pediatria', 'Cuidado infantil'),
-        (3, 'Ortopedia', 'Sistema músculo-esquelético'),
-        (4, 'Clínica Geral', 'Atendimento primário');
-    `);
-
-    // 3. MÉDICOS
-    await db.exec(`
-        INSERT OR IGNORE INTO medicos (id, nome, crm) VALUES
-        (1, 'Dr. João Silva', 'CRM1234'),
-        (2, 'Dra. Maria Souza', 'CRM5678'),
-        (3, 'Dr. Carlos Lima', 'CRM9012');
-    `);
-
-    // 4. LIGAÇÃO MÉDICO/ESPECIALIDADE
-    await db.exec(`
-        INSERT OR IGNORE INTO medico_especialidade (medico_id, especialidade_id, is_primaria) VALUES
-        (1, 1, 1), 
-        (1, 4, 0), 
-        (2, 2, 1), 
-        (3, 3, 1), 
-        (3, 4, 0); 
-    `);
-
-    // 5. PLANTÕES
-    await db.exec(`
-        INSERT OR IGNORE INTO plantoes (id, medico_id, data, hora_inicio, hora_fim, observacoes) VALUES
-        (1, 1, '2025-11-09', '08:00', '14:00', 'Plantão diurno'),
-        (2, 2, '2025-11-09', '14:00', '20:00', 'Plantão pediátrico'),
-        (3, 3, '2025-11-10', '08:00', '14:00', 'Ortopedia geral');
-    `);
-
-    console.log('✅ Banco de dados criado e populado com sucesso (Modelo N:N Ativado e SEGURO)!');
-    await db.close();
+CREATE TRIGGER IF NOT EXISTS trg_plantao_delete
+AFTER DELETE ON plantoes
+BEGIN
+  INSERT INTO log_plantoes (plantao_id, acao, usuario_id) VALUES (OLD.id, 'DELETADO', 1);
+END;
+`);
+  console.log("✅ DB inicializado em", DB_FILE);
+  await db.close();
 }
 
-initDB();
+init().catch((e) => console.error("Erro init DB:", e));

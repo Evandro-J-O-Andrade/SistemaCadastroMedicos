@@ -1,54 +1,64 @@
-// db/seed.js (Corrigido e compatível com seu init.js)
-import db from "./database.js";
+import { open } from "sqlite";
+import sqlite3 from "sqlite3";
 import bcrypt from "bcrypt";
 
-const SALT_ROUNDS = 10;
-const SENHA_ADMIN = "admin123";
+const DB_FILE = process.env.DB_PATH || "./db/database.db";
 
-async function seedDatabase() {
-  console.log("🌱 Iniciando população inicial do banco de dados...");
+async function seed() {
+  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
+  const SALT = 12;
 
-  try {
-    const senhaHash = await bcrypt.hash(SENHA_ADMIN, SALT_ROUNDS);
+  // admin
+  const adminPass = await bcrypt.hash("admin123", SALT);
+  await db.run("INSERT OR IGNORE INTO usuarios (username, email, senha, tipo, criado_em) VALUES (?, ?, ?, ?, datetime('now'))", [
+    "admin",
+    "admin@alpha.com",
+    adminPass,
+    "admin",
+  ]);
 
-    // 1️⃣ Inserir Usuário Administrador
-    // Seu banco usa colunas: nome, email, senha, cargo
-    await db.run(
-      `
-      INSERT OR IGNORE INTO usuarios (nome, email, senha, cargo)
-      VALUES (?, ?, ?, ?)
-      `,
-      ["Administrador", "admin@med.com", senhaHash, "admin"]
-    );
-    console.log("✅ Usuário 'Administrador' criado (se já não existia).");
+  // especialidades
+  const especialidades = [
+    { nome: "Cardiologia", descricao: "Doenças do coração" },
+    { nome: "Clínica Geral", descricao: "Atendimento primário" },
+    { nome: "Pediatria", descricao: "Saúde infantil" },
+    { nome: "Ortopedia", descricao: "Sistema músculo-esquelético" }
+  ];
 
-    // 2️⃣ Inserir Especialidades (se não existirem)
-    const especialidades = [
-      "Clínica Médica",
-      "Pediatria",
-      "Cirurgia Geral",
-      "Ortopedia",
-      "Cardiologia",
-      "Ginecologia",
-      "Dermatologia",
-      "Neurologia",
-    ];
-
-    for (const nome of especialidades) {
-      await db.run(
-        `
-        INSERT OR IGNORE INTO especialidades (nome, descricao)
-        VALUES (?, ?)
-        `,
-        [nome, `${nome} - especialidade médica`]
-      );
+  const ids = {};
+  for (const e of especialidades) {
+    const r = await db.run("INSERT OR IGNORE INTO especialidades (nome, descricao, criado_em) VALUES (?, ?, datetime('now'))", [e.nome, e.descricao]);
+    let id = r.lastID;
+    if (!id) {
+      const ex = await db.get("SELECT id FROM especialidades WHERE nome = ?", [e.nome]);
+      id = ex.id;
     }
-    console.log("✅ Especialidades básicas inseridas.");
-
-    console.log("🌱 População de dados (seed) concluída com sucesso!");
-  } catch (err) {
-    console.error("❌ ERRO durante o Seed do banco de dados:", err);
+    ids[e.nome] = id;
   }
+
+  // medicos
+  const medicos = [
+    { nome: "Dr. Ana C.", crm: "CRM1000", prim: "Cardiologia", secs: ["Clínica Geral"] },
+    { nome: "Dr. Beto S.", crm: "CRM2000", prim: "Pediatria", secs: [] },
+    { nome: "Dr. Carlos D.", crm: "CRM3000", prim: "Clínica Geral", secs: ["Ortopedia"] }
+  ];
+
+  for (const m of medicos) {
+    const r = await db.run("INSERT OR IGNORE INTO medicos (nome, crm, observacoes, criado_em) VALUES (?, ?, ?, datetime('now'))", [m.nome, m.crm, "seed"]);
+    let medId = r.lastID;
+    if (!medId) {
+      const ex = await db.get("SELECT id FROM medicos WHERE crm = ?", [m.crm]);
+      medId = ex.id;
+    }
+    await db.run("DELETE FROM medico_especialidade WHERE medico_id = ?", [medId]);
+    await db.run("INSERT OR IGNORE INTO medico_especialidade (medico_id, especialidade_id, is_primaria) VALUES (?, ?, 1)", [medId, ids[m.prim]]);
+    for (const s of m.secs) {
+      await db.run("INSERT OR IGNORE INTO medico_especialidade (medico_id, especialidade_id, is_primaria) VALUES (?, ?, 0)", [medId, ids[s]]);
+    }
+  }
+
+  console.log("✅ Seed finalizado");
+  await db.close();
 }
 
-seedDatabase();
+seed().catch((e) => console.error("Erro seed:", e));

@@ -1,117 +1,84 @@
-// --- routes/auth.js ---
 import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import db from "../db/database.js";
+import { open } from "sqlite";
+import sqlite3 from "sqlite3";
 import dotenv from "dotenv";
+import { sendRecoveryToAdmin } from "../utils/emailService.js";
 
 dotenv.config();
 const router = express.Router();
+const JWT_SECRET = process.env.JWT_SECRET || "troque_essa_chave";
+const EXPIRES_IN = process.env.JWT_EXPIRES_IN || "8h";
+const DB_FILE = process.env.DB_PATH || "./db/database.db";
 
-// 🔑 Chave secreta do JWT (usa variável .env)
-const JWT_SECRET = process.env.JWT_SECRET || "chave-super-secreta";
-
-// ⏰ Tempo de expiração padrão (8h)
-const EXPIRES_IN = process.env.JWT_EXPIRES || "8h";
-
-/* ================================================
-   🔐 FUNÇÃO AUXILIAR — Gerar Token JWT
-================================================ */
 function gerarToken(usuario) {
-  const payload = {
-    id: usuario.id,
-    nome: usuario.nome,   // CORRIGIDO: usa 'nome' do DB
-    perfil: usuario.tipo  // CORRIGIDO: usa 'tipo' do DB
-  };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: EXPIRES_IN });
+  return jwt.sign({ id: usuario.id, username: usuario.username, tipo: usuario.tipo }, JWT_SECRET, { expiresIn: EXPIRES_IN });
 }
 
-/* ================================================
-🚪 LOGIN — /auth/login
-================================================ */
-router.post("/login", (req, res) => {
-  const { nome: login_identifier, senha } = req.body;
-
-  if (!login_identifier || !senha) {
-    return res.status(400).json({ erro: "Login (Nome) e senha são obrigatórios" });
+router.post("/login", async (req, res) => {
+  const { username, senha } = req.body;
+  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
+  try {
+    const user = await db.get("SELECT * FROM usuarios WHERE username = ?", [username.toLowerCase()]);
+    if (!user) return res.status(400).json({ error: "Usuário não encontrado" });
+    const match = await bcrypt.compare(senha, user.senha);
+    if (!match) return res.status(400).json({ error: "Senha incorreta" });
+    const token = gerarToken(user);
+    await db.run("UPDATE usuarios SET primeiro_login = 0, atualizado_em = datetime('now') WHERE id = ?", [user.id]);
+    res.json({ user: { id: user.id, username: user.username, tipo: user.tipo }, token });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erro no login" });
+  } finally {
+    db.close();
   }
-
-  db.get("SELECT * FROM usuarios WHERE nome = ?", [login_identifier], async (err, usuario) => {
-    if (err) {
-      console.error("❌ Erro no banco:", err);
-      return res.status(500).json({ erro: "Erro interno ao buscar usuário" });
-    }
-
-    if (!usuario) {
-      return res.status(404).json({ erro: "Usuário não encontrado" });
-    }
-
-    const senhaCorreta = await bcrypt.compare(senha, usuario.senha);
-    if (!senhaCorreta) {
-      return res.status(401).json({ erro: "Senha incorreta" });
-    }
-
-    const token = gerarToken(usuario);
-    res.json({
-      msg: "Login realizado com sucesso!",
-      token,
-      usuario: {
-        id: usuario.id,
-        nome: usuario.nome,
-        perfil: usuario.tipo
-      }
-    });
-  });
 });
 
-/* ================================================
-   🧱 MIDDLEWARE — Verifica Token JWT
-================================================ */
-export function autenticarToken(req, res, next) {
+router.get("/check", (req, res) => {
   const header = req.headers["authorization"];
   const token = header && header.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({ erro: "Token não fornecido" });
-  }
-
+  if (!token) return res.status(401).json({ erro: "Token não fornecido" });
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ erro: "Token inválido ou expirado" });
-    }
-    req.user = user;
-    next();
-  });
-}
-
-/* ================================================
-   🔒 MIDDLEWARE — Permissões por perfil
-================================================ */
-export function autorizarPerfis(...perfisPermitidos) {
-  return (req, res, next) => {
-    if (!req.user) return res.status(401).json({ erro: "Não autenticado" });
-    if (!perfisPermitidos.includes(req.user.perfil)) {
-      return res.status(403).json({ erro: "Acesso negado para seu perfil" });
-    }
-    next();
-  };
-}
-
-/* ================================================
-   ✅ TESTE RÁPIDO — /auth/check
-================================================ */
-router.get("/check", autenticarToken, (req, res) => {
-  res.json({
-    msg: "Token válido",
-    usuario: req.user
+    if (err) return res.status(403).json({ erro: "Token inválido" });
+    res.json({ ok: true, usuario: user });
   });
 });
 
-/* ================================================
-   🚪 LOGOUT — apenas simbólico (frontend apaga token)
-================================================ */
-router.post("/logout", (req, res) => {
-  res.json({ msg: "Logout realizado. Remova o token do armazenamento local." });
+// recuperar senha (gera token e envia pro admin)
+router.post("/recuperar-senha", async (req, res) => {
+  const { username } = req.body;
+  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
+  try {
+    const user = await db.get("SELECT id FROM usuarios WHERE username = ?", [username.toLowerCase()]);
+    if (!user) return res.status(404).json({ error: "Username não encontrado" });
+    const token = jwt.sign({ id: user.id, action: "recover" }, JWT_SECRET, { expiresIn: "1h" });
+    await sendRecoveryToAdmin(username, token);
+    res.json({ msg: "Pedido enviado ao admin" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erro na recuperação" });
+  } finally {
+    db.close();
+  }
+});
+
+// reset senha (admin usa token)
+router.post("/reset-senha/:token", async (req, res) => {
+  const { senha } = req.body;
+  const { token } = req.params;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.action !== "recover") return res.status(400).json({ error: "Token inválido" });
+    const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
+    const hash = await bcrypt.hash(senha, 12);
+    await db.run("UPDATE usuarios SET senha = ?, atualizado_em = datetime('now') WHERE id = ?", [hash, decoded.id]);
+    await db.close();
+    res.json({ msg: "Senha resetada" });
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ error: "Token inválido ou expirado" });
+  }
 });
 
 export default router;

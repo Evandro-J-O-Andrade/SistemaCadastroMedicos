@@ -1,141 +1,74 @@
-// 📁 routes/usuarios.js
 import express from "express";
 import { open } from "sqlite";
 import sqlite3 from "sqlite3";
 import bcrypt from "bcrypt";
-import { autenticarToken, autorizarPerfis } from "../routes/auth.js";
+import dotenv from "dotenv";
+import { autenticarToken, autorizarPerfis } from "../middleware/auth.js";
+import { schemas, validate } from "../middleware/validation.js";
 
+dotenv.config();
 const router = express.Router();
+const DB_FILE = process.env.DB_PATH || "./db/database.db";
 const SALT_ROUNDS = 10;
 
-// ==================================================
-// 🔌 Conexão com o banco de dados SQLite
-// ==================================================
-async function getDb() {
-  return open({ filename: "./database.db", driver: sqlite3.Database });
-}
-
-// ==================================================
-// 👥 GET - Listar todos os usuários (admin/suporte)
-// ==================================================
 router.get("/", autenticarToken, autorizarPerfis("admin", "suporte"), async (req, res) => {
+  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
   try {
-    const db = await getDb();
-    const users = await db.all(`
-      SELECT id, nome, email, tipo, criado_em, atualizado_em
-      FROM usuarios
-      ORDER BY criado_em DESC
-    `);
-    res.status(200).json(users);
-  } catch (err) {
-    console.error("❌ Erro ao listar usuários:", err.message);
+    const users = await db.all("SELECT id, username, email, tipo, criado_em, atualizado_em FROM usuarios ORDER BY criado_em DESC");
+    res.json(users);
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ error: "Erro ao listar usuários" });
-  }
+  } finally { db.close(); }
 });
 
-// ==================================================
-// ➕ POST - Criar novo usuário (apenas admin)
-// ==================================================
-router.post("/", autenticarToken, autorizarPerfis("admin"), async (req, res) => {
+router.post("/", autenticarToken, autorizarPerfis("admin"), validate(schemas.usuario), async (req, res) => {
+  const { username, email, senha, tipo } = req.body;
+  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
   try {
-    const { nome, email, senha, tipo } = req.body;
-
-    if (!nome || !email || !senha || !tipo) {
-      return res.status(400).json({ error: "Campos obrigatórios faltando" });
-    }
-
-    const db = await getDb();
-
-    // Verifica duplicidade de e-mail
-    const existente = await db.get("SELECT id FROM usuarios WHERE email = ?", [email]);
-    if (existente) {
-      return res.status(409).json({ error: "E-mail já cadastrado" });
-    }
-
-    // 🔒 Hash da senha
-    const senhaHashed = await bcrypt.hash(senha, SALT_ROUNDS);
-
-    await db.run(
-      `
-      INSERT INTO usuarios (nome, email, senha, tipo, criado_em)
-      VALUES (?, ?, ?, ?, datetime('now'))
-      `,
-      [nome, email, senhaHashed, tipo]
-    );
-
-    res.status(201).json({ msg: "Usuário criado com sucesso" });
-  } catch (err) {
-    console.error("❌ Erro ao criar usuário:", err.message);
+    const exist = await db.get("SELECT id FROM usuarios WHERE username = ?", [username.toLowerCase()]);
+    if (exist) return res.status(409).json({ error: "Username já cadastrado" });
+    const hash = await bcrypt.hash(senha, SALT_ROUNDS);
+    await db.run("INSERT INTO usuarios (username, email, senha, tipo, criado_em) VALUES (?, ?, ?, ?, datetime('now'))", [username.toLowerCase(), email || null, hash, tipo]);
+    res.status(201).json({ msg: "Usuário criado" });
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ error: "Erro ao criar usuário" });
-  }
+  } finally { db.close(); }
 });
 
-// ==================================================
-// ✏️ PUT - Atualizar usuário (apenas admin)
-// ==================================================
 router.put("/:id", autenticarToken, autorizarPerfis("admin"), async (req, res) => {
+  const { id } = req.params;
+  const { tipo, senha, email } = req.body;
+  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
   try {
-    const { id } = req.params;
-    const { nome, email, tipo, senha } = req.body;
-
-    if (!id) return res.status(400).json({ error: "ID não informado" });
-
-    const db = await getDb();
-
-    const existente = await db.get("SELECT id FROM usuarios WHERE id = ?", [id]);
-    if (!existente) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
-    }
-
-    const campos = [];
-    const valores = [];
-
-    if (nome) { campos.push("nome = ?"); valores.push(nome); }
-    if (email) { campos.push("email = ?"); valores.push(email); }
+    const campos = []; const valores = [];
     if (tipo) { campos.push("tipo = ?"); valores.push(tipo); }
-
-    if (senha) {
-      const novaSenhaHashed = await bcrypt.hash(senha, SALT_ROUNDS);
-      campos.push("senha = ?");
-      valores.push(novaSenhaHashed);
-    }
-
-    if (campos.length === 0) {
-      return res.status(400).json({ error: "Nenhum campo informado para atualização" });
-    }
-
-    campos.push("atualizado_em = datetime('now')");
-    valores.push(id);
-
+    if (email !== undefined) { campos.push("email = ?"); valores.push(email || null); }
+    if (senha) { const hash = await bcrypt.hash(senha, SALT_ROUNDS); campos.push("senha = ?"); valores.push(hash); }
+    if (campos.length === 0) return res.status(400).json({ error: "Nenhum campo para atualizar" });
+    campos.push("atualizado_em = datetime('now')"); valores.push(id);
     const sql = `UPDATE usuarios SET ${campos.join(", ")} WHERE id = ?`;
-    await db.run(sql, valores);
-
-    res.status(200).json({ msg: "Usuário atualizado com sucesso" });
-  } catch (err) {
-    console.error("❌ Erro ao atualizar usuário:", err.message);
+    const result = await db.run(sql, valores);
+    if (result.changes === 0) return res.status(404).json({ error: "Usuário não encontrado" });
+    res.json({ msg: "Atualizado" });
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ error: "Erro ao atualizar usuário" });
-  }
+  } finally { db.close(); }
 });
 
-// ==================================================
-// ❌ DELETE - Excluir usuário (apenas admin)
-// ==================================================
 router.delete("/:id", autenticarToken, autorizarPerfis("admin"), async (req, res) => {
+  const { id } = req.params;
+  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
   try {
-    const { id } = req.params;
-    const db = await getDb();
-
-    const existente = await db.get("SELECT id FROM usuarios WHERE id = ?", [id]);
-    if (!existente) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
-    }
-
-    await db.run("DELETE FROM usuarios WHERE id = ?", [id]);
-    res.status(200).json({ msg: "Usuário excluído com sucesso" });
-  } catch (err) {
-    console.error("❌ Erro ao excluir usuário:", err.message);
-    res.status(500).json({ error: "Erro ao excluir usuário" });
-  }
+    const result = await db.run("DELETE FROM usuarios WHERE id = ?", [id]);
+    if (result.changes === 0) return res.status(404).json({ error: "Usuário não encontrado" });
+    res.json({ msg: "Excluído" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erro ao excluir" });
+  } finally { db.close(); }
 });
 
 export default router;
