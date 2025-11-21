@@ -1,43 +1,84 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "./mobile.css"
+
 export default function TrocaSenha() {
   const navigate = useNavigate();
-  const usuarioAtual = JSON.parse(localStorage.getItem("usuarioAtual"));
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleTroca = () => {
-    if (!novaSenha || !confirmarSenha) {
-      alert("Preencha todos os campos!");
-      return;
-    }
+  const token = sessionStorage.getItem("token");
+
+  const handleTroca = async (e) => {
+    e.preventDefault();
+    setErro("");
+
     if (novaSenha !== confirmarSenha) {
-      alert("As senhas não coincidem!");
+      setErro("As senhas não coincidem");
+      return;
+    }
+    if (novaSenha.length < 6) {
+      setErro("A senha deve ter no mínimo 6 caracteres");
       return;
     }
 
-    const usuarios = JSON.parse(localStorage.getItem("usuarios"));
-    const index = usuarios.findIndex(u => u.usuario === usuarioAtual.usuario);
+    setLoading(true);
+    try {
+      const res = await fetch("http://localhost:5000/auth/troca-primeiro-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ novaSenha }),
+      });
 
-    usuarios[index].senha = novaSenha;
-    usuarios[index].primeiroLogin = false;
+      const data = await res.json();
 
-    localStorage.setItem("usuarios", JSON.stringify(usuarios));
-    localStorage.setItem("usuarioAtual", JSON.stringify(usuarios[index]));
+      if (res.ok) {
+        // Atualiza o usuarioAtual no sessionStorage pra tirar o primeiroLogin
+        const usuarioAtual = JSON.parse(sessionStorage.getItem("usuarioAtual"));
+        usuarioAtual.primeiroLogin = false;
+        sessionStorage.setItem("usuarioAtual", JSON.stringify(usuarioAtual));
 
-    alert("Senha alterada com sucesso!");
-    navigate("/"); // volta para home
+        alert("Senha alterada com sucesso! Bem-vindo ao sistema!");
+        navigate("/");
+      } else {
+        setErro(data.erro || "Erro ao alterar senha");
+      }
+    } catch (err) {
+      setErro("Erro de conexão com o servidor");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="cadastro-container">
-      <h2>Trocar Senha - Primeiro Login</h2>
-      <label>Nova Senha:</label>
-      <input type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} />
-      <label>Confirmar Nova Senha:</label>
-      <input type="password" value={confirmarSenha} onChange={e => setConfirmarSenha(e.target.value)} />
-      <button onClick={handleTroca}>Atualizar Senha</button>
+    <div style={{ maxWidth: "400px", margin: "100px auto", textAlign: "center" }}>
+      <h2>Primeiro Acesso – Troca de Senha Obrigatória</h2>
+      <form onSubmit={handleTroca}>
+        <input
+          type="password"
+          placeholder="Nova senha (mín. 6 caracteres)"
+          value={novaSenha}
+          onChange={(e) => setNovaSenha(e.target.value)}
+          required
+          style={{ width: "100%", padding: "10px", margin: "10px 0" }}
+        />
+        <input
+          type="password"
+          placeholder="Confirme a nova senha"
+          value={confirmarSenha}
+          onChange={(e) => setConfirmarSenha(e.target.value)}
+          required
+          style={{ width: "100%", padding: "10px", margin: "10px 0" }}
+        />
+        {erro && <p style={{ color: "red" }}>{erro}</p>}
+        <button type="submit" disabled={loading} style={{ padding: "12px 40px" }}>
+          {loading ? "Alterando..." : "Alterar Senha e Entrar"}
+        </button>
+      </form>
     </div>
   );
 }

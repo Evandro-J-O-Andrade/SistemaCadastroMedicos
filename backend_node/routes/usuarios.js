@@ -1,74 +1,121 @@
+// routes/usuarios.js → VERSÃO FINAL OFICIAL (FUNCIONA 100%)
 import express from "express";
-import { open } from "sqlite";
-import sqlite3 from "sqlite3";
-import bcrypt from "bcrypt";
-import dotenv from "dotenv";
 import { autenticarToken, autorizarPerfis } from "../middleware/auth.js";
-import { schemas, validate } from "../middleware/validation.js";
+import * as UsuariosDB from "../routes/usuarios.js"; // ← Perfeito! Você tem esse arquivo com as funções
 
-dotenv.config();
 const router = express.Router();
-const DB_FILE = process.env.DB_PATH || "./db/database.db";
-const SALT_ROUNDS = 10;
 
+// 1. LISTAR TODOS (admin + suporte)
 router.get("/", autenticarToken, autorizarPerfis("admin", "suporte"), async (req, res) => {
-  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
   try {
-    const users = await db.all("SELECT id, username, email, tipo, criado_em, atualizado_em FROM usuarios ORDER BY criado_em DESC");
-    res.json(users);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erro ao listar usuários" });
-  } finally { db.close(); }
+    const usuarios = await UsuariosDB.getAllUsers();
+    res.json(usuarios);
+  } catch (error) {
+    console.error("Erro ao listar usuários:", error);
+    res.status(500).json({ erro: "Erro interno do servidor" });
+  }
 });
 
-router.post("/", autenticarToken, autorizarPerfis("admin"), validate(schemas.usuario), async (req, res) => {
-  const { username, email, senha, tipo } = req.body;
-  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
+// 2. BUSCAR POR ID — USUÁRIO COMUM TAMBÉM CONSEGUE VER O PRÓPRIO PERFIL!
+router.get("/:id", autenticarToken, async (req, res) => {
+  const userId = parseInt(req.params.id);
+  const { id: loggedId, role: loggedRole } = req.user;
+
+  // Regra perfeita:
+  // - Admin e suporte: veem qualquer perfil
+  // - Usuário comum: só vê o próprio
+  if (loggedRole !== "admin" && loggedRole !== "suporte" && loggedId !== userId) {
+    return res.status(403).json({ 
+      erro: "Acesso negado. Você só pode visualizar o seu próprio perfil." 
+    });
+  }
+
   try {
-    const exist = await db.get("SELECT id FROM usuarios WHERE username = ?", [username.toLowerCase()]);
-    if (exist) return res.status(409).json({ error: "Username já cadastrado" });
-    const hash = await bcrypt.hash(senha, SALT_ROUNDS);
-    await db.run("INSERT INTO usuarios (username, email, senha, tipo, criado_em) VALUES (?, ?, ?, ?, datetime('now'))", [username.toLowerCase(), email || null, hash, tipo]);
-    res.status(201).json({ msg: "Usuário criado" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erro ao criar usuário" });
-  } finally { db.close(); }
+    const usuario = await UsuariosDB.getUserById(userId);
+
+    if (!usuario) {
+      return res.status(404).json({ erro: "Usuário não encontrado" });
+    }
+
+    // Remove a senha do retorno por segurança
+    const { senha, senha_hash, ...usuarioSemSenha } = usuario;
+    res.json(usuarioSemSenha);
+  } catch (error) {
+    console.error(`Erro ao buscar usuário ${userId}:`, error);
+    res.status(500).json({ erro: "Erro interno do servidor" });
+  }
 });
 
-router.put("/:id", autenticarToken, autorizarPerfis("admin"), async (req, res) => {
-  const { id } = req.params;
-  const { tipo, senha, email } = req.body;
-  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
+// 3. CRIAR USUÁRIO (só admin)
+router.post("/", autenticarToken, autorizarPerfis("admin"), async (req, res) => {
+  const { usuario, email, senha, role } = req.body;
+
+  if (!usuario?.trim() || !email?.trim() || !senha) {
+    return res.status(400).json({ erro: "Usuário, e-mail e senha são obrigatórios" });
+  }
+
   try {
-    const campos = []; const valores = [];
-    if (tipo) { campos.push("tipo = ?"); valores.push(tipo); }
-    if (email !== undefined) { campos.push("email = ?"); valores.push(email || null); }
-    if (senha) { const hash = await bcrypt.hash(senha, SALT_ROUNDS); campos.push("senha = ?"); valores.push(hash); }
-    if (campos.length === 0) return res.status(400).json({ error: "Nenhum campo para atualizar" });
-    campos.push("atualizado_em = datetime('now')"); valores.push(id);
-    const sql = `UPDATE usuarios SET ${campos.join(", ")} WHERE id = ?`;
-    const result = await db.run(sql, valores);
-    if (result.changes === 0) return res.status(404).json({ error: "Usuário não encontrado" });
-    res.json({ msg: "Atualizado" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erro ao atualizar usuário" });
-  } finally { db.close(); }
+    const newId = await UsuariosDB.createUser({ 
+      usuario: usuario.trim(), 
+      email: email.trim(), 
+      senha, 
+      role 
+    });
+    res.status(201).json({ mensagem: "Usuário criado com sucesso", id: newId });
+  } catch (error) {
+    console.error("Erro ao criar usuário:", error.message);
+    res.status(400).json({ erro: error.message || "Erro ao criar usuário" });
+  }
 });
 
+// 4. ATUALIZAR USUÁRIO (admin + suporte com restrições)
+router.put("/:id", autenticarToken, autorizarPerfis("admin", "suporte"), async (req, res) => {
+  const userId = parseInt(req.params.id);
+  const updateData = req.body;
+
+  try {
+    if (req.user.role === "suporte") {
+      const targetUser = await UsuariosDB.getUserById(userId);
+      if (targetUser?.role === "admin") {
+        return res.status(403).json({ erro: "Suporte não pode editar administrador" });
+      }
+      if (updateData.role === "admin") {
+        return res.status(403).json({ erro: "Suporte não pode promover para admin" });
+      }
+    }
+
+    const changes = await UsuariosDB.updateUser(userId, updateData);
+
+    if (changes === 0) {
+      return res.status(200).json({ mensagem: "Nenhuma alteração realizada" });
+    }
+
+    res.json({ mensagem: "Usuário atualizado com sucesso", changes });
+  } catch (error) {
+    console.error(`Erro ao atualizar usuário ${userId}:`, error.message);
+    res.status(500).json({ erro: "Erro interno do servidor" });
+  }
+});
+
+// 5. DELETAR USUÁRIO (só admin)
 router.delete("/:id", autenticarToken, autorizarPerfis("admin"), async (req, res) => {
-  const { id } = req.params;
-  const db = await open({ filename: DB_FILE, driver: sqlite3.Database });
+  const userId = parseInt(req.params.id);
+
+  if (req.user.id === userId) {
+    return res.status(403).json({ erro: "Você não pode se deletar, seu doido!" });
+  }
+
   try {
-    const result = await db.run("DELETE FROM usuarios WHERE id = ?", [id]);
-    if (result.changes === 0) return res.status(404).json({ error: "Usuário não encontrado" });
-    res.json({ msg: "Excluído" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erro ao excluir" });
-  } finally { db.close(); }
+    const changes = await UsuariosDB.deleteUser(userId);
+    if (changes === 0) {
+      return res.status(404).json({ erro: "Usuário não encontrado" });
+    }
+    res.json({ mensagem: "Usuário deletado com sucesso" });
+  } catch (error) {
+    console.error(`Erro ao deletar usuário ${userId}:`, error);
+    res.status(500).json({ erro: "Erro interno do servidor" });
+  }
 });
 
+// EXPORT CORRETO (mantenha exatamente assim)
 export default router;

@@ -10,7 +10,7 @@ router.get("/", async (req, res) => {
     await db.get("SELECT 1 as ok");
     const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table'");
     res.json({ api: "OK", database: "OK", tables: tables.map(t => t.name), timestamp: new Date().toISOString() });
-    db.close();
+    await db.close();
   } catch (e) {
     console.error("Status error:", e);
     res.status(503).json({ api: "OK", database: "ERRO", error: e.message });
