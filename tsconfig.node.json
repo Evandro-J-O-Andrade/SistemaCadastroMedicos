@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "composite": true,
+    "isolatedModules": true,
+    "strict": true
+  },
+  "include": ["vite.config.js"]
+}
