@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck, Sun, Moon } from 'lucide-react';
+import logoNewWave from '../img/logonewwave.png';
+import logoDark from '../img/loginalphadark.png';
+import logoLight from '../img/loginalphalight.png';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../core/theme/ThemeProvider';
 
@@ -37,13 +40,21 @@ export default function TrocaSenha() {
   };
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-gray-100 px-4 py-10 text-gray-900 dark:bg-slate-950 dark:text-slate-100">
-      <section className="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+    <main className="flex min-h-dvh flex-col bg-gray-100 text-gray-900 dark:bg-slate-950 dark:text-slate-100">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <aside className="relative hidden overflow-hidden lg:flex lg:w-3/5">
+          <img src={theme === 'dark' ? logoDark : logoLight} alt="Gestão Médica Alpha" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          <div className="relative mt-auto p-10 text-white"><p className="text-2xl font-bold">Gestão Médica Alpha</p><p className="mt-1 text-sm text-slate-200">Segurança e governança para sua gestão médica</p></div>
+        </aside>
+        <div className="flex flex-1 items-center justify-center px-4 py-8 lg:w-2/5 lg:bg-gray-50 lg:px-8 dark:lg:bg-slate-900">
+      <section className="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
         <header className="border-b border-gray-200 bg-gray-50 px-6 py-5 dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2"><ShieldCheck size={21} className="text-blue-600 dark:text-blue-400" /><span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-300">Primeiro acesso · Etapa 1 de 3</span></div>
-            <button type="button" onClick={toggleTheme} aria-label="Alternar tema" className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs dark:border-slate-600">{theme === 'dark' ? 'Claro' : 'Escuro'}</button>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><ShieldCheck size={19} className="text-blue-600 dark:text-blue-400" /><span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-300">Primeiro acesso · Etapa 1 de 3</span></div>
+            <button type="button" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'} className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-200 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
           </div>
+          <div className="my-5 flex justify-center rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-slate-600 dark:bg-white"><img src={logoNewWave} alt="New Wave Sistemas Digital" className="h-12 max-w-full object-contain" /></div>
           <h1 className="mt-4 text-xl font-bold">Crie sua senha definitiva</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Bem-vindo, {user?.nome || 'usuário'}. Para proteger seu acesso, altere a senha temporária antes de continuar.</p>
         </header>
@@ -67,6 +78,9 @@ export default function TrocaSenha() {
           <button type="button" onClick={() => { void signOut(); }} className="block w-full text-center text-sm text-gray-500 underline dark:text-slate-400">Sair desta conta</button>
         </form>
       </section>
+        </div>
+      </div>
+      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 bg-white px-5 py-3 text-xs text-gray-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400"><span>Gestão Médica Alpha © {new Date().getFullYear()}</span><span>Tecnologia por New Wave Sistemas Digital</span></footer>
     </main>
   );
 }
