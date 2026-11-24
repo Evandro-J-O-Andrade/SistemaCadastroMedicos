@@ -33,9 +33,11 @@ function App() {
   const appRoutes = (
     <Routes>
       <Route path="/welcome" element={<Welcome />} />
-      <Route path="/dashboard/admin-master" element={<DashboardAdminMaster />} />
+      <Route element={<ProtectedRoute requireOnboardingComplete={true} allowedOnboardingPaths={ONBOARDING_PATHS} allowedRoles={['root', 'admin']} />}>
+        <Route path="/dashboard/admin-master" element={<DashboardAdminMaster />} />
         <Route path="/admin/tenants" element={<GestaoTenants />} />
         <Route path="/admin/documentos-legais" element={<GestaoDocumentosLegais />} />
+      </Route>
       <Route element={<ProtectedRoute requireOnboardingComplete={true} allowedOnboardingPaths={ONBOARDING_PATHS} />}>
         <Route path="/" element={<Home />} />
         <Route path="/relatorios" element={<Relatorios />} />

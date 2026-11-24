@@ -1,7 +1,7 @@
 // scripts/bootstrap-root.ts
 // Bootstrap do primeiro ROOT via Supabase Admin API
-// Executar: npx ts-node scripts/bootstrap-root.ts
-// Requer: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ROOT_EMAIL, ROOT_TEMP_PASSWORD, ROOT_NOME
+// Executar: npx tsx scripts/bootstrap-root.ts
+// Requer: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ROOT_TEMP_PASSWORD (env vars)
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -25,17 +25,24 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+async function findUserByEmail(email: string): Promise<{ id: string } | null> {
+  let page = 1;
+  const perPage = 1000;
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const found = data?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+    if (found) return { id: found.id };
+    if (!data?.users || data.users.length < perPage) break;
+    page++;
+  }
+  return null;
+}
+
 async function bootstrap() {
   console.log('Checking if auth user already exists...');
 
-  // Check if user exists
-  const { data: existingUsers, error: listErr } = await admin.auth.admin.listUsers();
-  if (listErr) {
-    console.error('Failed to list users:', listErr.message);
-    process.exit(1);
-  }
-
-  const existing = existingUsers?.users?.find((u) => u.email?.toLowerCase() === ROOT_EMAIL.toLowerCase());
+  const existing = await findUserByEmail(ROOT_EMAIL);
 
   let authUserId: string;
 
@@ -59,7 +66,6 @@ async function bootstrap() {
     console.log('Auth user created successfully.');
   }
 
-  // Invoke fn_provision_verified_initial_root
   console.log('Provisioning ROOT via RPC...');
   const { data: result, error: rpcErr } = await admin.rpc('fn_provision_verified_initial_root', {
     p_auth_user_id: authUserId,
@@ -73,7 +79,7 @@ async function bootstrap() {
   }
 
   console.log('Provisioning result:', JSON.stringify(result));
-  console.log('Bootstrap complete. ROOT provisioned for:', ROOT_EMAIL);
+  console.log('Bootstrap complete.');
   console.log('Auth user ID:', authUserId);
 }
 
@@ -81,4 +87,3 @@ bootstrap().catch((err) => {
   console.error('Bootstrap failed:', err);
   process.exit(1);
 });
-EOF
