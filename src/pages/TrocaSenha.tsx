@@ -2,8 +2,6 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck, Sun, Moon } from 'lucide-react';
 import logoNewWave from '../img/logonewwave.png';
-import logoDark from '../img/loginalphadark.png';
-import logoLight from '../img/loginalphalight.png';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../core/theme/ThemeProvider';
 
@@ -90,66 +88,135 @@ export default function TrocaSenha() {
   };
 
   return (
-    <main className="flex min-h-dvh flex-col bg-gray-100 text-gray-900 dark:bg-slate-950 dark:text-slate-100">
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <aside className="relative hidden overflow-hidden lg:flex lg:w-3/5">
-          <img src={theme === 'dark' ? logoDark : logoLight} alt="Gestão Médica Alpha" className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-          <div className="relative mt-auto p-10 text-white"><p className="text-2xl font-bold">Gestão Médica Alpha</p><p className="mt-1 text-sm text-slate-200">Segurança e governança para sua gestão médica</p></div>
-        </aside>
-        <div className="flex flex-1 items-center justify-center px-4 py-8 lg:w-2/5 lg:bg-gray-50 lg:px-8 dark:lg:bg-slate-900">
-      <section className="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
-        <header className="border-b border-gray-200 bg-gray-50 px-6 py-5 dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2"><ShieldCheck size={19} className="text-blue-600 dark:text-blue-400" /><span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-300">Primeiro acesso · Etapa 1 de 3</span></div>
-            <button type="button" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'} className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-200 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
-          </div>
-          <div className="my-5 flex justify-center rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-slate-600 dark:bg-white"><img src={logoNewWave} alt="New Wave Sistemas Digital" className="h-12 max-w-full object-contain" /></div>
-          <h1 className="mt-4 text-xl font-bold">Crie sua senha definitiva</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Bem-vindo, {user?.nome || 'usuário'}. Para proteger seu acesso, altere a senha temporária antes de continuar.</p>
-        </header>
-        <form onSubmit={submit} className="space-y-5 px-6 py-6">
-          <div>
-            <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium">Nova senha</label>
-            <div className="relative">
-              <KeyRound aria-hidden="true" className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
-              <input id="new-password" autoComplete="new-password" type={visible ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} minLength={12} required className="h-11 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-12 text-gray-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
-              <button type="button" onClick={() => setVisible(x => !x)} aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'} className="absolute right-3 top-3 text-gray-500 dark:text-slate-400">{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button>
-            </div>
-            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">Mínimo de 12 caracteres. Use uma senha exclusiva.</p>
-          </div>
-          <div>
-            <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium">Confirmar nova senha</label>
-            <input id="confirm-password" autoComplete="new-password" type={visible ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)} minLength={12} required className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-gray-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
-          </div>
-          {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{error}</p>}
-          {message && <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-slate-800 dark:text-blue-200">{message}</p>}
-          {recoveryMode ? (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 dark:text-slate-300">Se você já alterou sua senha antes da instalação do mecanismo de confirmação, informe sua senha atual para verificar o acesso.</p>
-              <div>
-                <label htmlFor="verify-password" className="mb-1.5 block text-sm font-medium">Senha atual</label>
-                <div className="relative">
-                  <KeyRound aria-hidden="true" className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
-                  <input id="verify-password" type={visible ? 'text' : 'password'} value={verifyPassword} onChange={e => setVerifyPassword(e.target.value)} className="h-11 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-12 text-gray-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
-                  <button type="button" onClick={() => setVisible(x => !x)} aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'} className="absolute right-3 top-3 text-gray-500 dark:text-slate-400">{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button>
-                </div>
-              </div>
-              <button type="button" onClick={handleRecovery} disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-amber-600 font-semibold text-white hover:bg-amber-700 disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Verificando...' : 'Verificar senha atual'}</button>
-              <button type="button" onClick={() => setRecoveryMode(false)} className="block w-full text-center text-sm text-gray-500 underline dark:text-slate-400">Voltar para alteração de senha</button>
-            </div>
-          ) : (
-            <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Atualizando senha...' : 'Atualizar senha'}</button>
-          )}
-          <button type="button" onClick={() => { void signOut(); }} className="block w-full text-center text-sm text-gray-500 underline dark:text-slate-400">Sair desta conta</button>
-          {!recoveryMode && (
-            <button type="button" onClick={() => setRecoveryMode(true)} className="block w-full text-center text-xs text-gray-400 underline dark:text-slate-500">Já alterei minha senha anteriormente</button>
-          )}
-        </form>
-      </section>
-        </div>
+    <main className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-slate-50 text-slate-900 dark:bg-[#080f1e] dark:text-slate-100">
+      {/* Página de primeiro acesso independente do layout e hero de LoginEnterprise. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute -left-32 top-10 h-80 w-80 rounded-full bg-blue-300/25 blur-3xl dark:bg-blue-600/10" />
+        <div className="absolute -right-24 bottom-16 h-96 w-96 rounded-full bg-cyan-300/20 blur-3xl dark:bg-cyan-500/10" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(59,130,246,0.09),transparent_48%)]" />
       </div>
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 bg-white px-5 py-3 text-xs text-gray-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400"><span>Gestão Médica Alpha © {new Date().getFullYear()}</span><span>Tecnologia por New Wave Sistemas Digital</span></footer>
+
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8" >
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-500/20">
+            <ShieldCheck aria-hidden="true" size={23} />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold tracking-tight">Gestão Médica Alpha</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Ambiente institucional · Primeiro acesso</p>
+          </div>
+        </div>
+        <button type="button" onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
+          title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+          {theme === 'dark' ? <Sun aria-hidden="true" size={19} /> : <Moon aria-hidden="true" size={19} />}
+        </button>
+      </header>
+
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-6 px-5 pb-12 pt-4 sm:px-8">
+        <div className="max-w-xl text-center">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:border-blue-900/80 dark:bg-blue-950/40 dark:text-blue-300">
+            <KeyRound aria-hidden="true" size={14} /> Configuração de acesso seguro
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Proteja seu acesso à plataforma</h1>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-600 dark:text-slate-400">
+            {user?.nome ? `Olá, ${user.nome}. ` : ''}Esta etapa é exclusiva do primeiro acesso.
+            Defina sua senha pessoal para continuar com os termos institucionais e as boas-vindas.
+          </p>
+        </div>
+
+        <section aria-label="Alteração de senha do primeiro acesso"
+          className="w-full max-w-[460px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20">
+          <div className="border-b border-slate-100 px-6 py-6 text-center dark:border-slate-800 sm:px-8">
+            <div className="mx-auto mb-4 flex h-16 max-w-[220px] items-center justify-center rounded-xl bg-white px-4">
+              <img src={logoNewWave} alt="New Wave Sistemas Digital" className="max-h-12 max-w-full object-contain" />
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400">Etapa 1 de 3</p>
+            <h2 className="mt-2 text-xl font-bold">{recoveryMode ? 'Verificação de acesso' : 'Crie sua senha definitiva'}</h2>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              {recoveryMode ? 'Confirme sua senha atual para solicitar a verificação do primeiro acesso.' : 'Use uma senha exclusiva com pelo menos 12 caracteres.'}
+            </p>
+          </div>
+
+          <form onSubmit={submit} className="space-y-4 px-6 py-6 sm:px-8">
+            {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
+            {message && <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">{message}</p>}
+
+            {recoveryMode ? (
+              <>
+                <div>
+                  <label htmlFor="verify-password" className="mb-1.5 block text-sm font-medium">Senha atual</label>
+                  <div className="relative">
+                    <KeyRound aria-hidden="true" size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input id="verify-password" type={visible ? 'text' : 'password'} autoComplete="current-password" value={verifyPassword}
+                      onChange={e => setVerifyPassword(e.target.value)}
+                      className="h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-11 text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                    <button type="button" onClick={() => setVisible(x => !x)} aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-300">
+                      {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+                <button type="button" onClick={handleRecovery} disabled={busy}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60">
+                  {busy && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
+                  {busy ? 'Verificando...' : 'Verificar senha atual'}
+                </button>
+                <button type="button" onClick={() => { setRecoveryMode(false); setError(''); setMessage(''); }}
+                  className="block w-full text-center text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
+                  Voltar para alteração de senha
+                </button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium">Nova senha</label>
+                  <div className="relative">
+                    <KeyRound aria-hidden="true" size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input id="new-password" autoComplete="new-password" type={visible ? 'text' : 'password'}
+                      value={password} onChange={e => setPassword(e.target.value)} minLength={12} required
+                      className="h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-11 text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                    <button type="button" onClick={() => setVisible(x => !x)} aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-300">
+                      {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium">Confirmar nova senha</label>
+                  <input id="confirm-password" autoComplete="new-password" type={visible ? 'text' : 'password'}
+                    value={confirm} onChange={e => setConfirm(e.target.value)} minLength={12} required
+                    className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <button type="submit" disabled={busy}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60">
+                  {busy && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
+                  {busy ? 'Atualizando senha...' : 'Confirmar nova senha'}
+                </button>
+                <button type="button" onClick={() => { setRecoveryMode(true); setError(''); setMessage(''); }}
+                  className="block w-full text-center text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
+                  Já alterei minha senha anteriormente
+                </button>
+              </>
+            )}
+          </form>
+          <div className="border-t border-slate-100 px-6 py-3 text-center dark:border-slate-800">
+            <button type="button" onClick={() => { void signOut(); }}
+              className="text-xs text-slate-500 hover:text-slate-800 hover:underline dark:text-slate-400 dark:hover:text-white">
+              Sair desta conta
+            </button>
+          </div>
+        </section>
+        <p className="flex items-center gap-2 text-center text-xs text-slate-500 dark:text-slate-400">
+          <ShieldCheck aria-hidden="true" size={16} /> Acesso protegido · Etapas obrigatórias de segurança
+        </p>
+      </div>
+
+      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 px-5 py-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400 sm:px-8">
+        <span>© {new Date().getFullYear()} Gestão Médica Alpha Enterprise</span>
+        <span>Tecnologia por New Wave Sistemas Digital</span>
+      </footer>
     </main>
   );
 }
