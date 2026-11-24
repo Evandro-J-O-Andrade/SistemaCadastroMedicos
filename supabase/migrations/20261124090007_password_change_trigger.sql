@@ -115,6 +115,7 @@ AS $$
 DECLARE
   v_caller_person_id UUID;
   v_is_admin BOOLEAN := false;
+  v_target_person_id UUID;
 BEGIN
   -- Verify caller is authenticated
   IF auth.uid() IS NULL THEN
@@ -130,16 +131,38 @@ BEGIN
     RAISE EXCEPTION 'No identity link for caller';
   END IF;
 
-  -- Check admin/root role
-  SELECT EXISTS (
-    SELECT 1 FROM user_roles ur
-    JOIN roles r ON r.id = ur.role_id
-    WHERE ur.person_id = v_caller_person_id
-      AND r.nome IN ('root', 'admin')
+  -- Resolve target. A reset never acts on an unlinked or unknown identity.
+  SELECT ail.person_id INTO v_target_person_id
+  FROM public.auth_identity_links AS ail
+  WHERE ail.auth_user_id = p_auth_user_id;
+
+  IF v_target_person_id IS NULL THEN
+    RAISE EXCEPTION 'Target identity not linked';
+  END IF;
+
+  -- ROOT is global. Tenant administrators can reset only members of their
+  -- own tenant; unit-scoped assignments are not tenant-wide authority.
+  SELECT (
+    public.fn_is_root(v_caller_person_id)
+    OR EXISTS (
+      SELECT 1
+      FROM public.role_assignments AS caller_ra
+      JOIN public.roles AS caller_role ON caller_role.id = caller_ra.role_id
+      JOIN public.role_assignments AS target_ra
+        ON target_ra.tenant_id = caller_ra.tenant_id
+       AND target_ra.person_id = v_target_person_id
+       AND target_ra.ativo IS TRUE
+      WHERE caller_ra.person_id = v_caller_person_id
+        AND caller_ra.ativo IS TRUE
+        AND caller_ra.tenant_id IS NOT NULL
+        AND caller_ra.unit_id IS NULL
+        AND caller_role.nome = 'admin'
+        AND caller_role.ativo IS TRUE
+    )
   ) INTO v_is_admin;
 
   IF NOT v_is_admin THEN
-    RAISE EXCEPTION 'Insufficient permissions: admin or root required';
+    RAISE EXCEPTION 'Insufficient permissions for target';
   END IF;
 
   -- Clean up expired pending resets for target
@@ -164,7 +187,8 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION fn_initiate_admin_password_reset(UUID) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.fn_initiate_admin_password_reset(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.fn_initiate_admin_password_reset(UUID) TO authenticated;
 
 -- Cleanup function for abandoned pending resets
 CREATE OR REPLACE FUNCTION fn_cleanup_expired_password_resets()
@@ -181,3 +205,8 @@ BEGIN
   RETURN v_count;
 END;
 $$;
+-- This privileged maintenance function is not an authenticated-user API.
+REVOKE EXECUTE ON FUNCTION public.fn_cleanup_expired_password_resets() FROM PUBLIC, anon, authenticated;
+
+-- Pending reset markers are managed by privileged server code only.
+REVOKE ALL ON TABLE public.pending_password_resets FROM PUBLIC, anon, authenticated;
