@@ -48,4 +48,3 @@ export default function Welcome(): React.ReactElement {
     </div>
   );
 }
-EOF
