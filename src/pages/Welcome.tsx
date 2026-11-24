@@ -1,13 +1,23 @@
 // src/pages/Welcome.tsx
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRight, Building2, Shield, Users } from 'lucide-react';
+import { resolveRoutes } from '../core/dispatcher/DispatcherMaster';
 
 export default function Welcome(): React.ReactElement {
   const navigate = useNavigate();
   const { user } = useAuth();
   const fullName = user?.nome || user?.email || 'Usuário';
+
+  const ctx = {
+    isRootGlobal: user?.isRootGlobal ?? false,
+    roles: user?.roles ?? [],
+    permissions: user?.permissions ?? [],
+    tenantId: user?.tenantId ?? null,
+    unitId: user?.unitId ?? null,
+  };
+  const routes = resolveRoutes(ctx);
+  const firstAvailable = routes.find(r => r.disponivel)?.path || '/';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-8">
@@ -38,7 +48,7 @@ export default function Welcome(): React.ReactElement {
         </div>
 
         <button
-          onClick={() => navigate('/dashboard/admin-master')}
+          onClick={() => navigate(firstAvailable)}
           className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
         >
           Acessar Dashboard
