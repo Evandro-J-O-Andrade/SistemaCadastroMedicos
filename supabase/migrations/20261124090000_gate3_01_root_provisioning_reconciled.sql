@@ -31,6 +31,9 @@ DECLARE
   v_existe_root BOOLEAN;
   v_email_final TEXT;
 BEGIN
+  -- Advisory lock para serializar provisionamento concorrente
+  PERFORM pg_advisory_xact_lock(987654321);
+
   -- Exigir contexto de serviço confiável (service_role)
   v_role := COALESCE(
     auth.role(),
@@ -66,7 +69,24 @@ BEGIN
       USING ERRCODE = '28000';
   END IF;
 
-  -- Verificar se já existe person vinculada a este auth_user
+  -- Verificar e-mail real: não permitir e-mail arbitrário diferente do Auth verificado
+  IF p_email IS NOT NULL AND btrim(p_email) <> '' AND lower(btrim(p_email)) <> lower(v_auth_user.email) THEN
+    RAISE EXCEPTION 'email_mismatch: provided email does not match verified auth email'
+      USING ERRCODE = '28000';
+  END IF;
+
+  -- Exclusividade do primeiro ROOT global: bloquear segundo ROOT para pessoa diferente
+  IF EXISTS (
+    SELECT 1 FROM role_assignments ra
+    JOIN roles r ON r.id = ra.role_id
+    WHERE r.nome = 'root' AND ra.ativo = true AND ra.tenant_id IS NULL
+      AND ra.person_id NOT IN (
+        SELECT ail.person_id FROM auth_identity_links ail WHERE ail.auth_user_id = p_auth_user_id
+      )
+  ) THEN
+    RAISE EXCEPTION 'root_already_exists: a global ROOT already exists for a different person'
+      USING ERRCODE = '23505';
+  END IF;
   SELECT EXISTS (
     SELECT 1 FROM auth_identity_links WHERE auth_user_id = p_auth_user_id
   ) INTO v_existe_link;

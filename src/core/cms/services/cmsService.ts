@@ -80,18 +80,13 @@ export const cmsService = {
   },
 
   async publishVersion(versionId: string): Promise<void> {
-    // Archive current published
-    const { data: current } = await supabase.from('ui_page_versions').select('id, page_id').eq('status', 'published').single();
-    if (current) {
-      await supabase.from('ui_page_versions').update({ status: 'archived' }).eq('id', current.id);
-    }
-    // Publish new
-    const { error } = await supabase.from('ui_page_versions').update({ status: 'published', published_at: new Date().toISOString() }).eq('id', versionId);
+    const { error } = await supabase.rpc('fn_publish_page_version', { p_version_id: versionId });
     if (error) throw error;
   },
 
   async rollbackVersion(versionId: string): Promise<void> {
-    await supabase.from('ui_page_versions').update({ status: 'archived' }).eq('id', versionId);
+    const { error } = await supabase.rpc('fn_rollback_page_version', { p_version_id: versionId });
+    if (error) throw error;
   },
 
   async listBlocks(versionId: string): Promise<CmsPageBlock[]> {

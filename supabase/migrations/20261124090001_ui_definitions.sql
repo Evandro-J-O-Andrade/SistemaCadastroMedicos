@@ -183,5 +183,3 @@ ALTER TABLE ui_form_fields ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ui_filter_definitions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ui_tenant_overrides ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ui_unit_overrides ENABLE ROW LEVEL SECURITY;
-MIGEOF
-echo "UI definitions migration created"
