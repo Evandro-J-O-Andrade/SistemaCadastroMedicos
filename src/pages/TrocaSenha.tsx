@@ -27,18 +27,40 @@ export default function TrocaSenha() {
     if (password !== confirm) return setError('As senhas informadas não coincidem.');
     setBusy(true);
     try {
-      await updatePassword(password);
-      // Confirm via Edge Function (server-side service_role)
+      // Step 1: Start a secure attempt
       const { data: session } = await (await import('../lib/supabase')).supabase.auth.getSession();
       const token = session?.session?.access_token;
-      if (token) {
-        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-password-change`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error || 'Confirmação falhou');
+      if (!token) throw new Error('Sessão inválida');
+
+      const startRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-password-change`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'start' }),
+      });
+      const startJson = await startRes.json();
+      if (!startRes.ok || !startJson.token) throw new Error(startJson.error || 'Falha ao iniciar tentativa');
+
+      const attemptToken = startJson.token;
+
+      // Step 2: Change password via Supabase Auth
+      await updatePassword(password);
+
+      // Step 3: Re-fetch session (new token after password change)
+      const { data: newSession } = await (await import('../lib/supabase')).supabase.auth.getSession();
+      const newToken = newSession?.session?.access_token;
+      if (!newToken) throw new Error('Sessão perdida após alteração');
+
+      // Step 4: Confirm with backend
+      const confirmRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-password-change`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${newToken}` },
+        body: JSON.stringify({ action: 'confirm', token: attemptToken }),
+      });
+      const confirmJson = await confirmRes.json();
+      if (!confirmRes.ok || !confirmJson.success) {
+        throw new Error(confirmJson.error || 'Confirmação falhou');
       }
+
       setPassword('');
       setConfirm('');
       await refresh();
