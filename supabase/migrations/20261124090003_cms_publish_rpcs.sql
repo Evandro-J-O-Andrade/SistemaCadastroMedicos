@@ -19,7 +19,6 @@ DECLARE
   v_page RECORD;
   v_has_perm BOOLEAN := false;
 BEGIN
-  PERFORM set_config('app.cms_rpc_context', 'true', true);
 
   -- Resolve person from auth.uid()
   SELECT ail.person_id INTO v_person_id
@@ -82,7 +81,6 @@ DECLARE
   v_page_id UUID;
   v_person_id UUID;
 BEGIN
-  PERFORM set_config('app.cms_rpc_context', 'true', true);
 
   -- Resolve person
   SELECT ail.person_id INTO v_person_id
@@ -247,17 +245,14 @@ CREATE TRIGGER trg_prevent_published_block_change
   FOR EACH ROW
   EXECUTE FUNCTION fn_prevent_published_block_change();
 
--- Prevent direct status changes on published versions (only via RPC)
+-- Prevent direct status changes on published versions (all direct changes blocked)
 CREATE OR REPLACE FUNCTION fn_prevent_direct_version_status_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  IF OLD.status = 'published' AND NEW.status IS DISTINCT FROM OLD.status THEN
-    -- Allow only if called from within a trusted RPC (session flag set)
-    IF COALESCE(current_setting('app.cms_rpc_context', true), '') <> 'true' THEN
-      RAISE EXCEPTION 'direct_status_change_forbidden: use RPC to change published version status' USING ERRCODE = '42501';
-    END IF;
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+    RAISE EXCEPTION 'direct_status_change_forbidden: use RPC to change version status' USING ERRCODE = '42501';
   END IF;
   RETURN NEW;
 END;
