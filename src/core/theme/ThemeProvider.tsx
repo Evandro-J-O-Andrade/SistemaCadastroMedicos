@@ -43,4 +43,3 @@ export function ThemeProvider({ children }: { children: React.ReactNode }): Reac
     </ThemeContext.Provider>
   );
 }
-EOF
