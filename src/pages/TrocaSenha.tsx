@@ -27,44 +27,31 @@ export default function TrocaSenha() {
     if (password !== confirm) return setError('As senhas informadas não coincidem.');
     setBusy(true);
     try {
-      // Step 1: Start a secure attempt
-      const { data: session } = await (await import('../lib/supabase')).supabase.auth.getSession();
-      const token = session?.session?.access_token;
-      if (!token) throw new Error('Sessão inválida');
-
-      const startRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-password-change`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: 'start' }),
-      });
-      const startJson = await startRes.json();
-      if (!startRes.ok || !startJson.token) throw new Error(startJson.error || 'Falha ao iniciar tentativa');
-
-      const attemptToken = startJson.token;
-
-      // Step 2: Change password via Supabase Auth
       await updatePassword(password);
-
-      // Step 3: Re-fetch session (new token after password change)
-      const { data: newSession } = await (await import('../lib/supabase')).supabase.auth.getSession();
-      const newToken = newSession?.session?.access_token;
-      if (!newToken) throw new Error('Sessão perdida após alteração');
-
-      // Step 4: Confirm with backend
-      const confirmRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-password-change`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${newToken}` },
-        body: JSON.stringify({ action: 'confirm', token: attemptToken }),
-      });
-      const confirmJson = await confirmRes.json();
-      if (!confirmRes.ok || !confirmJson.success) {
-        throw new Error(confirmJson.error || 'Confirmação falhou');
-      }
-
       setPassword('');
       setConfirm('');
-      await refresh();
-      setMessage('Senha atualizada e confirmada. Redirecionando para os documentos legais...');
+
+      // Wait for trigger to update onboarding (poll with backoff)
+      let attempts = 0;
+      const maxAttempts = 10;
+      while (attempts < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 500));
+        await refresh();
+        // Re-check onboarding status
+        const { data: session } = await (await import('../lib/supabase')).supabase.auth.getSession();
+        const uid = session?.session?.user?.id;
+        if (uid) {
+          const { data: onb } = await (await import('../lib/supabase')).supabase
+            .from('user_onboarding')
+            .select('must_change_password')
+            .eq('person_id', (await (await import('../lib/supabase')).supabase.from('auth_identity_links').select('person_id').eq('auth_user_id', uid).single()).data?.person_id)
+            .single();
+          if (onb && !onb.must_change_password) break;
+        }
+        attempts++;
+      }
+
+      setMessage('Senha atualizada. Redirecionando para os documentos legais...');
       setTimeout(() => navigate('/onboarding/legal'), 1500);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível atualizar a senha.');

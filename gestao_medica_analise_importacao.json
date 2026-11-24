@@ -1,0 +1,285 @@
+{
+  "abas": [
+    "JANEIRO",
+    "FEVEREIRO",
+    "MARÇO",
+    "ABRIL",
+    "MAIO",
+    "JUNHO",
+    "JULHO",
+    "AGOSTO",
+    "SETEMBRO",
+    "OUTUBRO",
+    "NOVEMBRO",
+    "DEZEMBRO",
+    "Janeiro 2025",
+    "fev 2025",
+    "Março 2025",
+    "Maio 2025",
+    "Junho 2025",
+    "Julho 2025",
+    "Agosto 2025",
+    "Setembro 2025",
+    "Outubro 2025",
+    "Novembro 2025",
+    "Dezembro 2025",
+    "Março 2026",
+    "ABRIL 2026",
+    "Maio de 2026",
+    "JUNHO 2026",
+    "JULHO 2026",
+    "Agosto 2026",
+    "Setembro 2026",
+    "OUTUBRO 2026",
+    "NOVEMBRO 2026",
+    "AUX",
+    "Janeiro de 2026",
+    "Fevereiro de 2026",
+    "Abril 2025"
+  ],
+  "medicos_aux_linhas": 345,
+  "medicos_aux_unicos_normalizados": 334,
+  "medicos_producao_unicos_normalizados": 227,
+  "producoes_registradas": 14555,
+  "quantidade_total_registrada": 805153,
+  "producoes_por_ano": {
+    "2024": 5151,
+    "2025": 5185,
+    "2026": 4219
+  },
+  "status_extracao": {
+    "non_numeric_quantity": 272,
+    "missing_quantity": 330,
+    "unidentified": 1437
+  },
+  "setores": {
+    "Clinico": 140,
+    "Emergencia/Repouso": 35,
+    "Pediatria": 70,
+    "Visita": 35,
+    "CINDERELA (13h -19h)": 23
+  },
+  "abas_resumo": [
+    [
+      "JANEIRO",
+      421,
+      "2024-01-01",
+      "2024-01-31"
+    ],
+    [
+      "FEVEREIRO",
+      397,
+      "2024-02-01",
+      "2024-02-29"
+    ],
+    [
+      "MARÇO",
+      417,
+      "2024-03-01",
+      "2024-03-31"
+    ],
+    [
+      "ABRIL",
+      376,
+      "2024-04-01",
+      "2024-04-30"
+    ],
+    [
+      "MAIO",
+      432,
+      "2024-05-01",
+      "2024-05-31"
+    ],
+    [
+      "JUNHO",
+      448,
+      "2024-06-01",
+      "2024-06-30"
+    ],
+    [
+      "JULHO",
+      452,
+      "2024-07-01",
+      "2024-07-31"
+    ],
+    [
+      "AGOSTO",
+      460,
+      "2024-08-01",
+      "2024-08-31"
+    ],
+    [
+      "SETEMBRO",
+      440,
+      "2024-09-01",
+      "2024-09-30"
+    ],
+    [
+      "OUTUBRO",
+      456,
+      "2024-10-01",
+      "2024-10-31"
+    ],
+    [
+      "NOVEMBRO",
+      412,
+      "2024-11-01",
+      "2024-11-30"
+    ],
+    [
+      "DEZEMBRO",
+      440,
+      "2024-12-01",
+      "2024-12-31"
+    ],
+    [
+      "Janeiro 2025",
+      453,
+      "2025-01-01",
+      "2025-01-31"
+    ],
+    [
+      "fev 2025",
+      405,
+      "2025-02-01",
+      "2025-02-28"
+    ],
+    [
+      "Março 2025",
+      436,
+      "2025-03-01",
+      "2025-03-31"
+    ],
+    [
+      "Maio 2025",
+      441,
+      "2025-05-01",
+      "2025-05-31"
+    ],
+    [
+      "Junho 2025",
+      412,
+      "2025-06-01",
+      "2025-06-30"
+    ],
+    [
+      "Julho 2025",
+      435,
+      "2025-07-01",
+      "2025-07-31"
+    ],
+    [
+      "Agosto 2025",
+      441,
+      "2025-08-01",
+      "2025-08-31"
+    ],
+    [
+      "Setembro 2025",
+      439,
+      "2025-09-01",
+      "2025-09-30"
+    ],
+    [
+      "Outubro 2025",
+      439,
+      "2025-10-01",
+      "2025-10-31"
+    ],
+    [
+      "Novembro 2025",
+      434,
+      "2025-11-01",
+      "2025-11-30"
+    ],
+    [
+      "Dezembro 2025",
+      416,
+      "2025-12-01",
+      "2025-12-30"
+    ],
+    [
+      "Março 2026",
+      405,
+      "2026-03-02",
+      "2026-03-31"
+    ],
+    [
+      "ABRIL 2026",
+      409,
+      "2026-04-01",
+      "2026-04-30"
+    ],
+    [
+      "Maio de 2026",
+      334,
+      "2026-05-01",
+      "2026-05-30"
+    ],
+    [
+      "JUNHO 2026",
+      376,
+      "2026-06-01",
+      "2026-06-30"
+    ],
+    [
+      "JULHO 2026",
+      359,
+      "2026-07-01",
+      "2026-07-30"
+    ],
+    [
+      "Agosto 2026",
+      416,
+      "2026-08-01",
+      "2026-08-31"
+    ],
+    [
+      "Setembro 2026",
+      419,
+      "2026-09-01",
+      "2026-09-30"
+    ],
+    [
+      "OUTUBRO 2026",
+      393,
+      "2026-10-01",
+      "2026-10-30"
+    ],
+    [
+      "NOVEMBRO 2026",
+      297,
+      "2026-11-01",
+      "2026-11-30"
+    ],
+    [
+      "Janeiro de 2026",
+      435,
+      "2026-01-01",
+      "2026-01-31"
+    ],
+    [
+      "Fevereiro de 2026",
+      376,
+      "2026-02-01",
+      "2026-03-01"
+    ],
+    [
+      "Abril 2025",
+      434,
+      "2025-04-01",
+      "2025-04-30"
+    ]
+  ],
+  "notas": [
+    "Dados preparados para staging, não importados em produção",
+    "CBO/CRM/SIGTAP e unidade não inferidos da planilha",
+    "Datas e quantidades devem ser validadas antes de consolidar produção",
+    "Erros de nomes/aliases e placeholders N/A devem ser resolvidos antes de vincular produção a médicos"
+  ],
+  "revisao_registros": {
+    "candidato_importacao_conciliacao_CRM": 14146,
+    "placeholder_sem_medico": 221,
+    "verificar_identidade_ausente_aux": 188
+  }
+}

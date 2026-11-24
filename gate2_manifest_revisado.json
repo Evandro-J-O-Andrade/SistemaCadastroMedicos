@@ -1,0 +1,37 @@
+[
+  {
+    "arquivo": "20261118070000_gate2_01_security_hardening.sql",
+    "sha256": "FC8F22B9F858F4EA43E26EEB5C6C5D48BED2DB0D7C92B2501AC14CC122726170",
+    "caminho": "supabase/migrations/20261118070000_gate2_01_security_hardening.sql"
+  },
+  {
+    "arquivo": "20261118070001_gate2_02_onboarding_legal.sql",
+    "sha256": "912B980803711B93B24880FE9B49BE9E4E4E8158E0E4B0093A18345C5AFDECDB",
+    "caminho": "supabase/migrations/20261118070001_gate2_02_onboarding_legal.sql"
+  },
+  {
+    "arquivo": "20261118070002_gate2_03_auth_bootstrap.sql",
+    "sha256": "FB2C732929868FD5A9A5537C09BA5EBC98B6E67EED367A5963F13F80DD954F25",
+    "caminho": "supabase/migrations/20261118070002_gate2_03_auth_bootstrap.sql"
+  },
+  {
+    "arquivo": "20261118070003_gate2_04_rls_stateless_root.sql",
+    "sha256": "5BA6B98080F99302FE4EE30522FC367A40C57D31567C87B3363F5BC7B346BF38",
+    "caminho": "supabase/migrations/20261118070003_gate2_04_rls_stateless_root.sql"
+  },
+  {
+    "arquivo": "20261118070004_gate2_05_grants_and_coherence.sql",
+    "sha256": "4C4DA803F35C72EC02516A3B9B5B80DF4B9555AE5EBDD8516238B6D3F90B0413",
+    "caminho": "supabase/migrations/20261118070004_gate2_05_grants_and_coherence.sql"
+  },
+  {
+    "arquivo": "20261118070005_gate2_06_rls_comembership.sql",
+    "sha256": "F85532EF00B2E6718BD139715C4711CE8A61D77EF9F3381EE3993017E80DF86B",
+    "caminho": "supabase/migrations/20261118070005_gate2_06_rls_comembership.sql"
+  },
+  {
+    "arquivo": "20261118070006_gate2_07_people_rls_and_registration.sql",
+    "sha256": "9E2F464F2D821445C2D268DC5C1C4CF02EE7EFCD8ABED857ED27AB9A6C579B88",
+    "caminho": "supabase/migrations/20261118070006_gate2_07_people_rls_and_registration.sql"
+  }
+]
