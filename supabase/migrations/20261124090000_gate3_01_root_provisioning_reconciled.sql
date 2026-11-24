@@ -14,8 +14,8 @@ DROP FUNCTION IF EXISTS fn_provision_verified_initial_root(UUID, TEXT, TEXT, TEX
 -- ============================================
 CREATE OR REPLACE FUNCTION fn_provision_verified_initial_root(
   p_auth_user_id UUID,
-  p_nome TEXT,
-  p_email TEXT DEFAULT NULL
+  p_expected_email TEXT,
+  p_nome TEXT
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -70,7 +70,7 @@ BEGIN
   END IF;
 
   -- Verificar e-mail real: não permitir e-mail arbitrário diferente do Auth verificado
-  IF p_email IS NOT NULL AND btrim(p_email) <> '' AND lower(btrim(p_email)) <> lower(v_auth_user.email) THEN
+  IF p_expected_email IS NOT NULL AND btrim(p_expected_email) <> '' AND lower(btrim(p_expected_email)) <> lower(v_auth_user.email) THEN
     RAISE EXCEPTION 'email_mismatch: provided email does not match verified auth email'
       USING ERRCODE = '28000';
   END IF;
@@ -116,7 +116,7 @@ BEGIN
       );
     END IF;
   ELSE
-    v_email_final := COALESCE(NULLIF(btrim(COALESCE(p_email, '')), ''), v_auth_user.email);
+    v_email_final := COALESCE(NULLIF(btrim(COALESCE(p_expected_email, '')), ''), v_auth_user.email);
 
     INSERT INTO people (nome, email, ativo)
     VALUES (btrim(p_nome), v_email_final, true)
@@ -174,4 +174,4 @@ REVOKE EXECUTE ON FUNCTION fn_provision_verified_initial_root(UUID, TEXT, TEXT) 
 GRANT EXECUTE ON FUNCTION fn_provision_verified_initial_root(UUID, TEXT, TEXT) TO service_role;
 
 COMMENT ON FUNCTION fn_provision_verified_initial_root(UUID, TEXT, TEXT) IS
-  'Provisiona o primeiro ROOT global de maneira transacional. Exige identidade Auth verificada e contexto service_role. Signature reconciliada com remoto (3 params). Gate 3.1.';
+  'Provisiona o primeiro ROOT global de maneira transacional. Exige identidade Auth verificada e contexto service_role. Signature: (auth_user_id, expected_email, nome). Gate 3.1.';

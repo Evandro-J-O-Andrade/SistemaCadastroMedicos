@@ -138,9 +138,9 @@ BEGIN
   WHERE id = p_version_id;
 
   -- Audit
-  INSERT INTO audit_events (acao, entidade, entidade_id, resultado, detalhes)
-  VALUES ('cms_publish', 'ui_page_versions', p_version_id, 'sucesso',
-    jsonb_build_object('page_id', v_page_id, 'published_by', v_person_id));
+  INSERT INTO audit_events (pessoa_id, auth_user_id, recurso, acao, entidade, entidade_id, dados_novos, resultado)
+  VALUES (v_person_id, auth.uid(), 'cms', 'publish', 'ui_page_versions', p_version_id,
+    jsonb_build_object('page_id', v_page_id), 'sucesso');
 
   RETURN jsonb_build_object('status', 'published', 'version_id', p_version_id, 'page_id', v_page_id);
 END;
@@ -188,32 +188,73 @@ BEGIN
   SET status = 'archived'
   WHERE id = p_version_id;
 
-  INSERT INTO audit_events (acao, entidade, entidade_id, resultado, detalhes)
-  VALUES ('cms_rollback', 'ui_page_versions', p_version_id, 'sucesso',
-    jsonb_build_object('page_id', v_version.page_id, 'rolled_back_by', v_person_id));
+  INSERT INTO audit_events (pessoa_id, auth_user_id, recurso, acao, entidade, entidade_id, dados_novos, resultado)
+  VALUES (v_person_id, auth.uid(), 'cms', 'rollback', 'ui_page_versions', p_version_id,
+    jsonb_build_object('page_id', v_version.page_id), 'sucesso');
 
   RETURN jsonb_build_object('status', 'rolled_back', 'version_id', p_version_id, 'page_id', v_version.page_id);
 END;
 $$;
 
--- Prevent updates to published versions via trigger
+-- Prevent modifications to blocks of published versions
+CREATE OR REPLACE FUNCTION fn_prevent_published_block_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_version_status TEXT;
+  v_version_id UUID;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    v_version_id := OLD.page_version_id;
+  ELSE
+    v_version_id := NEW.page_version_id;
+  END IF;
+
+  SELECT status INTO v_version_status
+  FROM ui_page_versions
+  WHERE id = v_version_id;
+
+  IF v_version_status = 'published' THEN
+    RAISE EXCEPTION 'published_version_immutable: cannot modify blocks of a published version' USING ERRCODE = 'P0001';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prevent_published_block_change ON ui_page_blocks;
+CREATE TRIGGER trg_prevent_published_block_change
+  BEFORE INSERT OR UPDATE OR DELETE ON ui_page_blocks
+  FOR EACH ROW
+  EXECUTE FUNCTION fn_prevent_published_block_change();
+
+-- Prevent direct metadata changes to published versions
 CREATE OR REPLACE FUNCTION fn_prevent_published_version_edit()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  IF OLD.status = 'published' AND NEW.status = 'published' THEN
-    -- Allow only status change to archived (rollback handled by RPC)
-    IF NEW.config IS DISTINCT FROM OLD.config OR NEW.layout_id IS DISTINCT FROM OLD.layout_id THEN
-      RAISE EXCEPTION 'published_version_immutable: cannot edit a published version' USING ERRCODE = 'P0001';
+  IF OLD.status = 'published' THEN
+    -- Allow only status transition to archived (via rollback RPC)
+    IF NEW.status NOT IN ('published', 'archived') THEN
+      RAISE EXCEPTION 'published_version_immutable: invalid status transition' USING ERRCODE = 'P0001';
+    END IF;
+    -- Block metadata changes
+    IF NEW.layout_id IS DISTINCT FROM OLD.layout_id THEN
+      RAISE EXCEPTION 'published_version_immutable: cannot change layout of published version' USING ERRCODE = 'P0001';
     END IF;
   END IF;
   RETURN NEW;
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_prevent_published_version_edit ON ui_page_versions;
 CREATE TRIGGER trg_prevent_published_version_edit
-  BEFORE UPDATE ON ui_page_blocks
+  BEFORE UPDATE ON ui_page_versions
   FOR EACH ROW
   EXECUTE FUNCTION fn_prevent_published_version_edit();
 
