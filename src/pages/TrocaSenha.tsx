@@ -15,36 +15,7 @@ export default function TrocaSenha() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [recoveryMode, setRecoveryMode] = useState(false);
-  const [verifyPassword, setVerifyPassword] = useState('');
 
-  const handleRecovery = async () => {
-    if (busy) return;
-    setError('');
-    setMessage('');
-    setBusy(true);
-    try {
-      const { data: session } = await (await import('../lib/supabase')).supabase.auth.getSession();
-      const token = session?.session?.access_token;
-      if (!token) throw new Error('Sessão inválida');
-
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-password-change`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({}),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || 'Verificação falhou');
-
-      await refresh();
-      setMessage('Senha confirmada. Prosseguindo para os documentos legais...');
-      setTimeout(() => navigate('/onboarding/legal'), 1500);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Não foi possível verificar a senha.');
-    } finally {
-      setBusy(false);
-    }
-  };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (busy) return;
@@ -131,63 +102,40 @@ export default function TrocaSenha() {
               <img src={logoNewWave} alt="New Wave Sistemas Digital" className="max-h-12 max-w-full object-contain" />
             </div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400">Etapa 1 de 3</p>
-            <h2 className="mt-2 text-xl font-bold">{recoveryMode ? 'Verificação de acesso' : 'Crie sua senha definitiva'}</h2>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              {recoveryMode ? 'Confirme sua alteração de senha para solicitar a verificação do primeiro acesso.' : 'Use uma senha exclusiva com pelo menos 12 caracteres.'}
+            <h2 className="mt-2 text-xl font-bold">Crie sua senha definitiva</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Use uma senha exclusiva com pelo menos 12 caracteres.
             </p>
           </div>
 
           <form onSubmit={submit} className="space-y-4 px-6 py-6 sm:px-8">
-            {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
-            {message && <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">{message}</p>}
+          {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
+          {message && <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">{message}</p>}
 
-            {recoveryMode ? (
-              <>
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  Se você já alterou sua senha antes da instalação do mecanismo de confirmação, clique abaixo para confirmar a alteração vinculada à sua identidade ROOT.
-                </p>
-                <button type="button" onClick={handleRecovery} disabled={busy}
-                  className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-amber-600 font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-60">
-                  {busy && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
-                  {busy ? 'Confirmando...' : 'Confirmar alteração de senha'}
-                </button>
-                <button type="button" onClick={() => { setRecoveryMode(false); setError(''); setMessage(''); }}
-                  className="block w-full text-center text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
-                  Voltar para alteração de senha
-                </button>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium">Nova senha</label>
-                  <div className="relative">
-                    <KeyRound aria-hidden="true" size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input id="new-password" autoComplete="new-password" type={visible ? 'text' : 'password'}
-                      value={password} onChange={e => setPassword(e.target.value)} minLength={12} required
-                      className="h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-11 text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
-                    <button type="button" onClick={() => setVisible(x => !x)} aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-300">
-                      {visible ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium">Confirmar nova senha</label>
-                  <input id="confirm-password" autoComplete="new-password" type={visible ? 'text' : 'password'}
-                    value={confirm} onChange={e => setConfirm(e.target.value)} minLength={12} required
-                    className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
-                </div>
-                <button type="submit" disabled={busy}
-                  className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60">
-                  {busy && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
-                  {busy ? 'Atualizando senha...' : 'Confirmar nova senha'}
-                </button>
-                <button type="button" onClick={() => { setRecoveryMode(true); setError(''); setMessage(''); }}
-                  className="block w-full text-center text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
-                  Já alterei minha senha anteriormente
-                </button>
-              </>
-            )}
+          <div>
+            <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium">Nova senha</label>
+            <div className="relative">
+              <KeyRound aria-hidden="true" size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input id="new-password" autoComplete="new-password" type={visible ? 'text' : 'password'}
+                value={password} onChange={e => setPassword(e.target.value)} minLength={12} required
+                className="h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-11 text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <button type="button" onClick={() => setVisible(x => !x)} aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-300">
+                {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium">Confirmar nova senha</label>
+            <input id="confirm-password" autoComplete="new-password" type={visible ? 'text' : 'password'}
+              value={confirm} onChange={e => setConfirm(e.target.value)} minLength={12} required
+              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+          </div>
+          <button type="submit" disabled={busy}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60">
+            {busy && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
+            {busy ? 'Atualizando senha...' : 'Confirmar nova senha'}
+          </button>
           </form>
           <div className="border-t border-slate-100 px-6 py-3 text-center dark:border-slate-800">
             <button type="button" onClick={() => { void signOut(); }}
