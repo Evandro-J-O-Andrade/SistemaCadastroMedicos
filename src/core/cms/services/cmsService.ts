@@ -67,8 +67,12 @@ export const cmsService = {
     if (error) throw error;
   },
 
-  async createVersion(version: Omit<CmsPageVersion, 'id'>): Promise<CmsPageVersion> {
-    const { data, error } = await supabase.from('ui_page_versions').insert(version).select().single();
+  async createVersion(version: { page_id: string; versao: string; layout_id?: string | null }): Promise<CmsPageVersion> {
+    const { data, error } = await supabase.from('ui_page_versions').insert({
+      page_id: version.page_id,
+      versao: version.versao,
+      layout_id: version.layout_id || null,
+    }).select().single();
     if (error) throw error;
     return data;
   },
