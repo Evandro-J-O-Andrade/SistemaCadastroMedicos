@@ -43,12 +43,21 @@ export default function LegalOnboarding() {
     if (!allAccepted || busy) return;
     setBusy(true); setError('');
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const uid = session?.session?.user?.id;
-      if (!uid) throw new Error('Sessão inválida');
-      const rows = docs.map(d => ({ user_id: uid, document_id: d.id, versao: d.versao }));
-      const { error } = await supabase.from('legal_acceptances').upsert(rows, { onConflict: 'user_id,document_id' });
-      if (error) throw error;
+      for (const doc of docs) {
+        const { error: acceptError } = await supabase.rpc('fn_accept_legal_document', {
+          p_document_id: doc.id,
+          p_evidencia: { origin: 'legal_onboarding', version: doc.versao, explicitly_accepted: true },
+          p_user_agent: navigator.userAgent,
+        });
+        if (acceptError) throw acceptError;
+      }
+      const { data: bootstrap, error: statusError } = await supabase.rpc('fn_auth_bootstrap_v2');
+      if (statusError) throw statusError;
+      if (!bootstrap || typeof bootstrap !== 'object' ||
+          (bootstrap as { terms_pending?: boolean }).terms_pending !== false ||
+          (bootstrap as { responsibility_pending?: boolean }).responsibility_pending !== false) {
+        throw new Error('Os aceites foram registrados, mas ainda há documentos obrigatórios pendentes. Atualize a página para conferir.');
+      }
       await refresh();
       navigate('/welcome', { replace: true });
     } catch (cause) {
