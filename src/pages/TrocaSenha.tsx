@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../core/theme/ThemeProvider';
 
 export default function TrocaSenha() {
+  const navigate = useNavigate();
   const { updatePassword, refresh, user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [password, setPassword] = useState('');
@@ -23,12 +25,22 @@ export default function TrocaSenha() {
     setBusy(true);
     try {
       await updatePassword(password);
+      // Confirm via Edge Function (server-side service_role)
+      const { data: session } = await (await import('../lib/supabase')).supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (token) {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-password-change`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Confirmação falhou');
+      }
       setPassword('');
       setConfirm('');
       await refresh();
-      // A confirmação de must_change_password é exclusiva do backend confiável.
-      // Não redirecionar ao dashboard e não encerrar a sessão arbitrariamente.
-      setMessage('Senha atualizada no Supabase Auth. Aguardando confirmação segura do primeiro acesso para avançar aos documentos legais.');
+      setMessage('Senha atualizada e confirmada. Redirecionando para os documentos legais...');
+      setTimeout(() => navigate('/onboarding/legal'), 1500);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível atualizar a senha.');
     } finally {
