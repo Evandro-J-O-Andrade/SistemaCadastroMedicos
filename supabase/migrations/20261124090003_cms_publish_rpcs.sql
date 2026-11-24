@@ -245,25 +245,56 @@ CREATE TRIGGER trg_prevent_published_block_change
   FOR EACH ROW
   EXECUTE FUNCTION fn_prevent_published_block_change();
 
--- Prevent direct status changes on published versions (all direct changes blocked)
-CREATE OR REPLACE FUNCTION fn_prevent_direct_version_status_change()
+-- Remove blanket status-change trigger (replaced by column-level privileges)
+DROP TRIGGER IF EXISTS trg_prevent_direct_version_status_change ON ui_page_versions;
+DROP FUNCTION IF EXISTS fn_prevent_direct_version_status_change();
+
+-- Imutability: prevent content changes to published version metadata
+CREATE OR REPLACE FUNCTION fn_prevent_published_version_metadata_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  IF OLD.status IS DISTINCT FROM NEW.status THEN
-    RAISE EXCEPTION 'direct_status_change_forbidden: use RPC to change version status' USING ERRCODE = '42501';
+  IF OLD.status = 'published' THEN
+    -- Block changes to protected metadata fields
+    IF NEW.page_id IS DISTINCT FROM OLD.page_id THEN
+      RAISE EXCEPTION 'published_version_immutable: cannot change page_id' USING ERRCODE = 'P0001';
+    END IF;
+    IF NEW.layout_id IS DISTINCT FROM OLD.layout_id THEN
+      RAISE EXCEPTION 'published_version_immutable: cannot change layout_id' USING ERRCODE = 'P0001';
+    END IF;
+    IF NEW.versao IS DISTINCT FROM OLD.versao THEN
+      RAISE EXCEPTION 'published_version_immutable: cannot change versao' USING ERRCODE = 'P0001';
+    END IF;
   END IF;
   RETURN NEW;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_prevent_direct_version_status_change ON ui_page_versions;
-CREATE TRIGGER trg_prevent_direct_version_status_change
+DROP TRIGGER IF EXISTS trg_prevent_published_version_metadata ON ui_page_versions;
+CREATE TRIGGER trg_prevent_published_version_metadata
   BEFORE UPDATE ON ui_page_versions
   FOR EACH ROW
-  WHEN (OLD.status = 'published')
-  EXECUTE FUNCTION fn_prevent_direct_version_status_change();
+  EXECUTE FUNCTION fn_prevent_published_version_metadata_change();
+
+-- Prevent deletion of published versions (protect history)
+CREATE OR REPLACE FUNCTION fn_prevent_published_version_delete()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF OLD.status = 'published' THEN
+    RAISE EXCEPTION 'published_version_protected: cannot delete published version' USING ERRCODE = 'P0001';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prevent_published_version_delete ON ui_page_versions;
+CREATE TRIGGER trg_prevent_published_version_delete
+  BEFORE DELETE ON ui_page_versions
+  FOR EACH ROW
+  EXECUTE FUNCTION fn_prevent_published_version_delete();
 
 REVOKE EXECUTE ON FUNCTION fn_publish_page_version(UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION fn_rollback_page_version(UUID) FROM PUBLIC;

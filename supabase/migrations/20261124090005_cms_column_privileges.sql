@@ -1,26 +1,23 @@
 -- 20261124090005_cms_column_privileges.sql
--- Revogar privilégios diretos de alteração da coluna status para authenticated/anon
+-- Revogar privilégios diretos de alteração de status para authenticated/anon
 -- Transições de status ocorrem exclusivamente via RPCs SECURITY DEFINER
 
--- Revogar UPDATE na coluna status para authenticated e anon
-REVOKE UPDATE (status) ON ui_page_versions FROM authenticated;
-REVOKE UPDATE (status) ON ui_page_versions FROM anon;
-
--- Revogar UPDATE em todas as colunas para anon (defesa em profundidade)
+-- Revogar UPDATE de tabela inteira para authenticated e anon
+REVOKE UPDATE ON ui_page_versions FROM authenticated;
 REVOKE UPDATE ON ui_page_versions FROM anon;
 REVOKE INSERT ON ui_page_versions FROM anon;
 REVOKE DELETE ON ui_page_versions FROM anon;
 
--- Revogar DELETE de versões publicadas (proteção adicional via trigger já existente)
--- Garantir que apenas RPCs SECURITY DEFINER possam alterar status
+-- Conceder UPDATE apenas em colunas de rascunho (não status) para authenticated
+GRANT UPDATE (layout_id) ON ui_page_versions TO authenticated;
+-- status, page_id, versao são gerenciados apenas por RPCs
 
--- Revogar EXECUTE de helper interno para não-superusers
+-- Revogar EXECUTE de helper interno para não-autorizados
 REVOKE EXECUTE ON FUNCTION _cms_check_permission(UUID, TEXT[]) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION _cms_check_permission(UUID, TEXT[]) FROM anon;
 GRANT EXECUTE ON FUNCTION _cms_check_permission(UUID, TEXT[]) TO authenticated, service_role;
 
--- Garantir que RPCs são SECURITY DEFINER (owner = postgres, bypassa RLS mas triggers aplicam)
--- As RPCs já são SECURITY DEFINER; confirmar owner
+-- Garantir que RPCs são SECURITY DEFINER (owner = postgres)
 ALTER FUNCTION fn_publish_page_version(UUID) OWNER TO postgres;
 ALTER FUNCTION fn_rollback_page_version(UUID) OWNER TO postgres;
 ALTER FUNCTION _cms_check_permission(UUID, TEXT[]) OWNER TO postgres;
