@@ -1,7 +1,7 @@
 // src/App.tsx
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './auth/context/AuthContextProvider';
-import AppShell from './components/layout/AppShell';
+import { EnterpriseShell } from './core/shell/EnterpriseShell';
 import Welcome from './pages/Welcome';
 import DashboardAdminMaster from './pages/DashboardAdminMaster';
 import GestaoTenants from './pages/GestaoTenants';
@@ -77,9 +77,9 @@ function App() {
 
       {/* Rotas autenticadas - dentro do AppShell */}
       {authenticated && (
-        <AppShell>
+        <EnterpriseShell>
           {appRoutes}
-        </AppShell>
+        </EnterpriseShell>
       )}
     </>
   );

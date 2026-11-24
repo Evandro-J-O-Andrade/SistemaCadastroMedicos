@@ -1,57 +1,94 @@
-// EnterpriseShell — container principal da aplicação
-// Renderiza header, sidebar, footer, breadcrumbs e área de conteúdo.
-// Cada célula é montada dentro do shell via CellRegistry + DispatcherMaster.
-
-import React, { createContext, useContext, useState, useCallback } from 'react';
-
-interface ShellContextValue {
-  sidebarCollapsed: boolean;
-  toggleSidebar: (collapsed?: boolean) => void;
-  currentCellId: string | null;
-  setCurrentCellId: (id: string | null) => void;
-}
-
-const ShellContext = createContext<ShellContextValue | null>(null);
-
-export function useShell(): ShellContextValue {
-  const ctx = useContext(ShellContext);
-  if (!ctx) throw new Error('useShell must be used within EnterpriseShell');
-  return ctx;
-}
+// src/core/shell/EnterpriseShell.tsx
+import React, { useState, useCallback } from 'react';
+import { useTheme } from '../theme/ThemeProvider';
+import { Sun, Moon, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface EnterpriseShellProps {
   children: React.ReactNode;
+  sidebarContent?: React.ReactNode;
+  headerTitle?: string;
 }
 
-export function EnterpriseShell({ children }: EnterpriseShellProps): React.ReactElement {
+export function EnterpriseShell({ children, sidebarContent, headerTitle }: EnterpriseShellProps): React.ReactElement {
+  const { theme, toggleTheme } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [currentCellId, setCurrentCellId] = useState<string | null>(null);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-  const toggleSidebar = useCallback((collapsed?: boolean) => {
-    setSidebarCollapsed((prev) => (collapsed !== undefined ? collapsed : !prev));
-  }, []);
+  const toggleSidebar = useCallback(() => setSidebarCollapsed((p) => !p), []);
 
   return (
-    <ShellContext.Provider value={{ sidebarCollapsed, toggleSidebar, currentCellId, setCurrentCellId }}>
-      <div className="enterprise-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <header className="enterprise-shell__header" style={{ height: 64, borderBottom: '1px solid #e5e7eb' }}>
-          {/* HeaderEnterprise montado aqui */}
-        </header>
-        <div className="enterprise-shell__body" style={{ display: 'flex', flex: 1 }}>
-          <aside
-            className="enterprise-shell__sidebar"
-            style={{ width: sidebarCollapsed ? 64 : 240, borderRight: '1px solid #e5e7eb', transition: 'width 0.2s' }}
+    <div className="h-dvh flex flex-col overflow-hidden bg-gray-50 dark:bg-slate-950">
+      {/* Header */}
+      <header className="h-14 flex-shrink-0 flex items-center justify-between px-4 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-30">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setMobileDrawerOpen(true)}
+            className="lg:hidden p-2 rounded-lg text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800"
+            aria-label="Abrir menu"
           >
-            {/* SidebarEnterprise montado aqui */}
-          </aside>
-          <main className="enterprise-shell__content" style={{ flex: 1, padding: 24 }}>
-            {children}
-          </main>
+            <Menu className="w-5 h-5" />
+          </button>
+          <button
+            onClick={toggleSidebar}
+            className="hidden lg:flex p-2 rounded-lg text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800"
+            aria-label="Alternar sidebar"
+          >
+            {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+          <span className="font-semibold text-gray-900 dark:text-white text-sm">{headerTitle || 'Gestão Médica Alpha'}</span>
         </div>
-        <footer className="enterprise-shell__footer" style={{ height: 48, borderTop: '1px solid #e5e7eb' }}>
-          {/* FooterEnterprise montado aqui */}
-        </footer>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+            aria-label="Alternar tema"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Body */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        {/* Sidebar desktop */}
+        <aside
+          className={`hidden lg:flex flex-col border-r border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all duration-200 ${
+            sidebarCollapsed ? 'w-[72px]' : 'w-[250px]'
+          }`}
+        >
+          <div className="flex-1 overflow-y-auto p-3">
+            {sidebarContent}
+          </div>
+        </aside>
+
+        {/* Mobile drawer */}
+        {mobileDrawerOpen && (
+          <div className="lg:hidden fixed inset-0 z-40">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setMobileDrawerOpen(false)} />
+            <aside className="absolute left-0 top-0 bottom-0 w-[280px] bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 overflow-y-auto z-50">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-800">
+                <span className="font-semibold text-gray-900 dark:text-white text-sm">Menu</span>
+                <button onClick={() => setMobileDrawerOpen(false)} className="p-1 rounded text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-3">{sidebarContent}</div>
+            </aside>
+          </div>
+        )}
+
+        {/* Main content */}
+        <main className="flex-1 min-w-0 overflow-y-auto bg-gray-50 dark:bg-slate-950">
+          <div className="p-4 md:p-6">{children}</div>
+        </main>
       </div>
-    </ShellContext.Provider>
+
+      {/* Footer */}
+      <footer className="h-10 flex-shrink-0 flex items-center justify-between px-4 border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs text-gray-500 dark:text-slate-500">
+        <span>Gestão Médica Alpha © {new Date().getFullYear()}</span>
+        <span>Tecnologia por New Wave Sistemas Digital</span>
+      </footer>
+    </div>
   );
 }
+EOF
