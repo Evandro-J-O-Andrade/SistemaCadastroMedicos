@@ -7,7 +7,7 @@ import DashboardAdminMaster from './pages/DashboardAdminMaster';
 import GestaoTenants from './pages/GestaoTenants';
 import GestaoDocumentosLegais from './pages/GestaoDocumentosLegais';
 import Login from './pages/LoginEnterprise';
-import TrocaSenha from './pages/TrocaSenha';
+import TrocaSenha from './pages/TrocaSenha.tsx';
 import Home from './pages/Home';
 import Medicos from './pages/Medicos';
 import Plantao from './pages/Plantao';
