@@ -1,12 +1,11 @@
 // src/App.tsx
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
-import Header from './components/Header';
-import Sidebar from './components/Sidebar';
-import Footer from './components/Footer';
-import ProtectedRoute from './components/ProtectedRoute';
-
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './auth/context/AuthContextProvider';
+import AppShell from './components/layout/AppShell';
+import Welcome from './pages/Welcome';
+import DashboardAdminMaster from './pages/DashboardAdminMaster';
 import Login from './pages/Login';
+import TrocaSenha from './pages/TrocaSenha';
 import Home from './pages/Home';
 import Medicos from './pages/Medicos';
 import Plantao from './pages/Plantao';
@@ -14,70 +13,69 @@ import Relatorios from './pages/Relatorios';
 import Filtros from './pages/Filtros';
 import CadastroEmLote from './pages/CadastroEmLote';
 import CadastroUsuarios from './pages/CadastroUsuarios';
-import TrocaSenha from './pages/TrocaSenha';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
-import './App.css';
-import './pages/mobile.css';
+const ONBOARDING_PATHS = ['/troca-senha', '/welcome'];
 
 function App() {
-  const navigate = useNavigate();
+  const { authenticated } = useAuth();
 
-  const [usuarioLogado, setUsuarioLogado] = useState(false);
-  const [usuarioAtual, setUsuarioAtual] = useState<any>(null);
+  const publicRoutes = (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/troca-senha" element={<TrocaSenha />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
 
-  useEffect(() => {
-    // Com Supabase Auth, a sessão é gerenciada pelo useAuth hook.
-    // Este estado é mantido para compatibilidade com o Header/Sidebar existentes.
-  }, []);
-
-  const handleLogoff = () => {
-    setUsuarioLogado(false);
-    setUsuarioAtual(null);
-    navigate('/login');
-  };
+  const appRoutes = (
+    <Routes>
+      <Route path="/welcome" element={<Welcome />} />
+      <Route path="/dashboard/admin-master" element={<DashboardAdminMaster />} />
+      <Route element={<ProtectedRoute requireOnboardingComplete={true} allowedOnboardingPaths={ONBOARDING_PATHS} />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/relatorios" element={<Relatorios />} />
+        <Route path="/filtros" element={<Filtros />} />
+      </Route>
+      <Route
+        element={
+          <ProtectedRoute
+            requireOnboardingComplete={true}
+            allowedOnboardingPaths={ONBOARDING_PATHS}
+            allowedRoles={['admin', 'suporte']}
+          />
+        }
+      >
+        <Route path="/medicos" element={<Medicos />} />
+        <Route path="/plantao" element={<Plantao />} />
+        <Route path="/cadastro-lote" element={<CadastroEmLote />} />
+      </Route>
+      <Route
+        element={
+          <ProtectedRoute
+            requireOnboardingComplete={true}
+            allowedOnboardingPaths={ONBOARDING_PATHS}
+            allowedRoles={['admin']}
+          />
+        }
+      >
+        <Route path="/cadastro-usuarios" element={<CadastroUsuarios />} />
+      </Route>
+    </Routes>
+  );
 
   return (
-    <div className="app">
-      <Header usuarioAtual={usuarioAtual} handleLogoff={handleLogoff} />
+    <>
+      {/* Rotas públicas - sem AppShell */}
+      {!authenticated && publicRoutes}
 
-      <div className="main-layout">
-        {usuarioLogado && <Sidebar usuarioAtual={usuarioAtual} />}
-
-        <main>
-          <Routes>
-            {/* Página pública */}
-            <Route path="/login" element={<Login setUsuarioLogado={setUsuarioLogado} setUsuarioAtual={setUsuarioAtual} />} />
-
-            {/* Troca de senha (primeiro login) */}
-            <Route path="/troca-senha" element={<TrocaSenha />} />
-
-            {/* Rotas protegidas (qualquer usuário autenticado) */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<Home />} />
-              <Route path="/relatorios" element={<Relatorios />} />
-              <Route path="/filtros" element={<Filtros />} />
-            </Route>
-
-            {/* Só admin e suporte */}
-            <Route element={<ProtectedRoute allowedRoles={['admin', 'suporte']} />}>
-              <Route path="/medicos" element={<Medicos />} />
-              <Route path="/plantao" element={<Plantao />} />
-              <Route path="/cadastro-lote" element={<CadastroEmLote />} />
-            </Route>
-
-            {/* Apenas admin */}
-            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-              <Route path="/cadastro-usuarios" element={<CadastroUsuarios />} />
-            </Route>
-
-            {/* 404 */}
-            <Route path="*" element={<div style={{ padding: '50px', textAlign: 'center' }}><h2>Página não encontrada</h2></div>} />
-          </Routes>
-        </main>
-      </div>
-
-      <Footer />
-    </div>
+      {/* Rotas autenticadas - dentro do AppShell */}
+      {authenticated && (
+        <AppShell>
+          {appRoutes}
+        </AppShell>
+      )}
+    </>
   );
 }
 

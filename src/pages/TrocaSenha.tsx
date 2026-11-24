@@ -1,20 +1,19 @@
 // src/pages/TrocaSenha.tsx
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabase';
 import './mobile.css';
 import './Login.css';
 
 export default function TrocaSenha() {
   const [senhaInput, setSenhaInput] = useState('');
   const [confSenhaInput, setConfSenhaInput] = useState('');
-  [senhaInput];
-  [confSenhaInput];
   const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { signIn } = useAuth();
+  const { updatePassword, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleTrocarSenha = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,15 +33,11 @@ export default function TrocaSenha() {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: senhaInput,
-      });
-      if (error) throw error;
-
+      await updatePassword(senhaInput);
       setSucesso(true);
       setTimeout(() => {
-        // Após trocar a senha, fazer login automaticamente
-        signIn('', senhaInput);
+        signOut();
+        navigate('/login');
       }, 1500);
     } catch (err: any) {
       setErro(err.message || 'Erro ao trocar senha');
@@ -82,7 +77,7 @@ export default function TrocaSenha() {
           </button>
 
           {erro && <p className="login-erro">{erro}</p>}
-          {sucesso && <p className="login-erro" style={{ color: '#27ae60' }}>Senha atualizada com sucesso!</p>}
+          {sucesso && <p className="login-erro" style={{ color: '#27ae60' }}>Senha atualizada com sucesso! Redirecionando...</p>}
         </form>
       </div>
     </div>

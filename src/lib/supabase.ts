@@ -25,12 +25,4 @@ export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   },
 });
 
-// Helper para definir o tenant_id no contexto da requisição (via JWT claims)
-// Isso deve ser chamado após o login, passando o tenant_id do usuário
-export function setTenantContext(tenantId: string | null) {
-  if (tenantId) {
-    supabase.rpc('set_config', { setting_name: 'request.jwt.claims', setting_value: JSON.stringify({ tenant_id: tenantId }), is_local: true }).catch(() => {});
-  }
-}
-
 export default supabase;

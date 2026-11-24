@@ -3,50 +3,78 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 interface ProtectedRouteProps {
-  allowedRoles?: string[]; // papéis permitidos (ex: ['admin', 'suporte'])
-  requireTenant?: boolean; // se exige tenant ativo
+  allowedRoles?: string[];
+  requireTenant?: boolean;
+  requiredPermission?: { recurso: string; acao: string };
+  requireOnboardingComplete?: boolean;
+  allowedOnboardingPaths?: string[];
 }
 
-export function ProtectedRoute({ allowedRoles = [], requireTenant = false }: ProtectedRouteProps) {
-  const { user, authenticated, loading } = useAuth();
+export function ProtectedRoute({
+  allowedRoles = [],
+  requireTenant = false,
+  requiredPermission,
+  requireOnboardingComplete = false,
+  allowedOnboardingPaths = ['/troca-senha', '/welcome'],
+}: ProtectedRouteProps) {
+  const { user, authenticated, loading, error } = useAuth();
   const location = useLocation();
 
-  // Ainda carregando auth
-  if (loading) {
-    return null; // ou um skeleton/loader
-  }
+  if (loading) return null;
 
-  // Não autenticado → login
   if (!authenticated || !user) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // Primeiro login → troca de senha (exceto admin master/root)
-  if (user.primeiro_login && user.role !== 'root' && location.pathname !== '/troca-senha') {
-    return <Navigate to="/troca-senha" replace />;
+  if (error && !user) {
+    return <Navigate to="/login" replace state={{ from: location, error: error.code }} />;
   }
 
-  // Requer tenant ativo
+  const onboardingPending =
+    user.must_change_password ||
+    user.terms_pending ||
+    user.responsibility_pending ||
+    user.welcome_pending;
+
+  const isOnboardingPath = allowedOnboardingPaths.includes(location.pathname);
+
+  if (requireOnboardingComplete && onboardingPending && !isOnboardingPath) {
+    const destination = user.must_change_password ? '/troca-senha' : '/welcome';
+    return <Navigate to={destination} replace state={{ from: location }} />;
+  }
+
   if (requireTenant && !user.tenant_id) {
     return <Navigate to="/admin/tenants" replace />;
   }
 
-  // Sem restrição de role → qualquer autenticado entra
-  if (allowedRoles.length === 0) {
+  if (allowedRoles.length === 0 && !requiredPermission) {
     return <Outlet />;
   }
 
-  // Admin/root entra em tudo
-  if (user.role === 'root' || user.role === 'admin') {
+  const roles = user.roles;
+  if (roles.includes('root')) {
     return <Outlet />;
   }
 
-  // Verificar role permitida
-  const temPermissao = allowedRoles.some(
-    (r) => r.toLowerCase().trim() === user.role?.toLowerCase().trim()
-  );
+  if (allowedRoles.length > 0) {
+    const temRole = allowedRoles.some((r) => roles.includes(r));
+    if (!temRole) {
+      return <Navigate to="/" replace />;
+    }
+  }
 
-  return temPermissao ? <Outlet /> : <Navigate to="/" replace />;
+  if (requiredPermission) {
+    const token = `${requiredPermission.recurso}.${requiredPermission.acao}`;
+    const temPermissao =
+      user.permissions.includes(token) ||
+      user.permissions.includes(`${requiredPermission.recurso}.*`) ||
+      user.permissions.includes('*.*');
+    if (!temPermissao) {
+      return <Navigate to="/" replace />;
+    }
+  }
+
+  return <Outlet />;
 }
 
 export default ProtectedRoute;

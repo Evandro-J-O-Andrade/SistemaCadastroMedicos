@@ -478,17 +478,6 @@ export default function Plantao() {
 
         if (error) throw error;
 
-        // Registrar evento de auditoria
-        await supabase.from('audit_events').insert({
-          tenant_id: '', // preenchido pelo RLS
-          person_id: user!.id,
-          evento: 'producao.criada',
-          entidade: 'production_entries',
-          entidade_id: data.id,
-          dados_novos: { medico: medicoInput, quantidade: Number(quantidade), especialidade, data: dataAtendimento },
-          criado_em: new Date().toISOString(),
-        });
-
         setMensagemGlobal('Plantão salvo com sucesso!');
       }
 
@@ -535,16 +524,6 @@ export default function Plantao() {
     try {
       setLoading(true);
       await supabase.from('production_entries').delete().eq('id', plantaoParaExcluir);
-
-      await supabase.from('audit_events').insert({
-        tenant_id: '',
-        person_id: user!.id,
-        evento: 'producao.excluida',
-        entidade: 'production_entries',
-        entidade_id: plantaoParaExcluir,
-        dados_novos: { excluido_em: new Date().toISOString() },
-        criado_em: new Date().toISOString(),
-      });
 
       setMensagemGlobal('Lançamento excluído com sucesso!');
       setTipoMensagem('sucesso');

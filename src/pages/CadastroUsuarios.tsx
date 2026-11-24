@@ -59,11 +59,12 @@ export default function CadastroUsuarios() {
 
     try {
       if (editId) {
-        // Atualizar usuário existente
-        await supabase
-          .from('people')
-          .update({ nome: usuarioInput, email: emailInput })
-          .eq('id', editId);
+        // Atualizar usuário existente via RPC segura
+        await supabase.rpc('fn_atualizar_pessoa', {
+          p_person_id: editId,
+          p_nome: usuarioInput,
+          p_email: emailInput
+        });
         setMensagem('Usuário atualizado com sucesso!');
       } else {
         // Criar novo usuário via Supabase Auth
@@ -93,8 +94,8 @@ export default function CadastroUsuarios() {
   const excluirUsuario = async (id: string) => {
     if (window.confirm('Deseja realmente excluir este usuário?')) {
       try {
-        await supabase.from('role_assignments').update({ ativo: false }).eq('person_id', id);
-        setMensagem('Usuário excluído com sucesso!');
+        await supabase.rpc('fn_desativar_usuario', { p_person_id: id });
+        setMensagem('Usuário desativado com sucesso!');
         await carregarUsuarios();
       } catch (err: any) {
         setMensagem('Erro ao excluir usuário: ' + err.message);

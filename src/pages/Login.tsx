@@ -1,17 +1,13 @@
 // src/pages/Login.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LogoAlpha from '../img/Logo_Alpha.png';
 import { useAuth } from '../hooks/useAuth';
+import { AUTH_ERRORS } from '../lib/authConfig';
 import './mobile.css';
 import './Login.css';
 
-interface LoginProps {
-  setUsuarioLogado: (v: boolean) => void;
-  setUsuarioAtual: (u: any | null) => void;
-}
-
-export default function Login({ setUsuarioLogado, setUsuarioAtual }: LoginProps) {
+export default function Login() {
   const [usuarioInput, setUsuarioInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
   const [erro, setErro] = useState('');
@@ -20,20 +16,44 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }: LoginProps)
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signIn, error } = useAuth();
+
+  // Propaga erros globais de auth (ex: sessão expirada) para o erro do formulário
+  useEffect(() => {
+    if (error && !erro) {
+      setErro(error.message);
+    }
+  }, [error, erro]);
+
+  const clearErro = () => setErro('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErro('');
+    clearErro();
     setLoading(true);
 
     try {
       await signIn(usuarioInput.trim(), senhaInput);
-      // useAuth já define o usuário. Aqui apenas redirecionamos.
       navigate('/');
-      setUsuarioLogado(true);
-    } catch (err: any) {
-      setErro(err.message || 'Falha na conexão com o servidor');
+    } catch (err: unknown) {
+      const mapped =
+        err && typeof err === 'object' && 'code' in err && 'message' in err
+          ? (err as { code: string; message: string })
+          : { code: AUTH_ERRORS.SERVICE_ERROR, message: String(err ?? 'Erro desconhecido') };
+
+      if (mapped.code === AUTH_ERRORS.EMAIL_NOT_CONFIRMED) {
+        setErro('E-mail não confirmado. Verifique sua caixa de entrada.');
+      } else if (mapped.code === AUTH_ERRORS.IDENTITY_NOT_LINKED) {
+        setErro('Sua conta não está vinculada a uma pessoa cadastrada. Procure o administrador.');
+      } else if (mapped.code === AUTH_ERRORS.PESSOA_INATIVA) {
+        setErro('Sua pessoa está desativada. Procure o administrador.');
+      } else if (mapped.code === AUTH_ERRORS.NO_ACTIVE_ROLE) {
+        setErro('Você não possui papel/permissão ativo no sistema.');
+      } else if (mapped.code === AUTH_ERRORS.INVALID_CREDENTIALS) {
+        setErro('E-mail ou senha inválidos, ou conta não disponível.');
+      } else {
+        setErro(mapped.message || 'Não foi possível autenticar. Verifique suas credenciais e o status da conta.');
+      }
     } finally {
       setLoading(false);
     }
@@ -41,7 +61,7 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }: LoginProps)
 
   const handleRecuperarSenha = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErro('');
+    clearErro();
     setLoading(true);
     alert('Funcionalidade em desenvolvimento :)');
     setLoading(false);
@@ -63,7 +83,7 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }: LoginProps)
               type="text"
               placeholder="Usuário / E-mail"
               value={usuarioInput}
-              onChange={(e) => setUsuarioInput(e.target.value)}
+              onChange={(e) => { setUsuarioInput(e.target.value); clearErro(); }}
               className={`login-input ${erro ? 'input-erro' : ''}`}
               required
               autoFocus
@@ -73,7 +93,7 @@ export default function Login({ setUsuarioLogado, setUsuarioAtual }: LoginProps)
               type="password"
               placeholder="Senha"
               value={senhaInput}
-              onChange={(e) => setSenhaInput(e.target.value)}
+              onChange={(e) => { setSenhaInput(e.target.value); clearErro(); }}
               className={`login-input ${erro ? 'input-erro' : ''}`}
               required
             />

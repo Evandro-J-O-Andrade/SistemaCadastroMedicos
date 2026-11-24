@@ -1,56 +1,56 @@
 import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
-import { FaHome, FaUserMd, FaCalendarAlt, FaChartBar, FaFilter, FaUserPlus } from 'react-icons/fa';
+import { NavLink, useLocation } from "react-router-dom";
+import { FaHome, FaUserMd, FaCalendarAlt, FaChartBar, FaFilter, FaUserPlus, FaShieldAlt, FaUsers } from 'react-icons/fa';
 
-// ✅ Importação das imagens diretamente do React
 import AdminImg from "../img/admin.jpg";
 import SuporteImg from "../img/suporte.png";
 import UsuarioImg from "../img/usuario.png";
+import { useAuth } from "../hooks/useAuth";
 
-function Sidebar({ usuarioAtual }) {
+function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const location = useLocation();
+  const { user, authenticated, loading } = useAuth();
 
-  if (!usuarioAtual) return null;
+  if (loading || !authenticated || !user) return null;
 
-  // Função para retornar a imagem padrão de acordo com o role
+  const roles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+  const isAdminOrRoot = roles.includes('admin') || roles.includes('root');
+  const isSuporte = roles.includes('suporte');
+
   const getUserImage = (role) => {
     switch (role) {
-      case "admin":
-        return AdminImg;
-      case "suporte":
-        return SuporteImg;
-      default:
-        return UsuarioImg;
+      case "admin": return AdminImg;
+      case "suporte": return SuporteImg;
+      default: return UsuarioImg;
     }
   };
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      {/* Título da sidebar (clicável para colapsar) */}
       <h3 className="sidebar-title" onClick={() => setCollapsed(!collapsed)}>
         Menu
       </h3>
 
-      {/* Menu de navegação */}
       <nav className="menu-nav">
         <ul>
           <li>
-            <NavLink to="/">
+            <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setCollapsed(false)}>
               <FaHome className="menu-icon" />
               <span className="menu-text">Home</span>
             </NavLink>
           </li>
 
-          {["admin", "suporte"].includes(usuarioAtual.role) && (
+          {(isAdminOrRoot || isSuporte) && (
             <>
               <li>
-                <NavLink to="/medicos">
+                <NavLink to="/medicos" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setCollapsed(false)}>
                   <FaUserMd className="menu-icon" />
                   <span className="menu-text">Médicos</span>
                 </NavLink>
               </li>
               <li>
-                <NavLink to="/plantao">
+                <NavLink to="/plantao" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setCollapsed(false)}>
                   <FaCalendarAlt className="menu-icon" />
                   <span className="menu-text">Plantão</span>
                 </NavLink>
@@ -59,44 +59,60 @@ function Sidebar({ usuarioAtual }) {
           )}
 
           <li>
-            <NavLink to="/relatorios">
+            <NavLink to="/relatorios" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setCollapsed(false)}>
               <FaChartBar className="menu-icon" />
               <span className="menu-text">Relatórios</span>
             </NavLink>
           </li>
 
           <li>
-            <NavLink to="/filtros">
+            <NavLink to="/filtros" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setCollapsed(false)}>
               <FaFilter className="menu-icon" />
               <span className="menu-text">Filtros</span>
             </NavLink>
           </li>
 
-          {usuarioAtual.role === "admin" && (
+          {isAdminOrRoot && (
             <li>
-              <NavLink to="/cadastro-usuarios">
+              <NavLink to="/cadastro-usuarios" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setCollapsed(false)}>
                 <FaUserPlus className="menu-icon" />
                 <span className="menu-text">Cadastro de Usuários</span>
+              </NavLink>
+            </li>
+          )}
+
+          {roles.includes('root') && (
+            <li>
+              <NavLink to="/admin/tenants" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setCollapsed(false)}>
+                <FaShieldAlt className="menu-icon" />
+                <span className="menu-text">Tenants</span>
+              </NavLink>
+            </li>
+          )}
+
+          {roles.includes('root') && (
+            <li>
+              <NavLink to="/admin/auditoria" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setCollapsed(false)}>
+                <FaUsers className="menu-icon" />
+                <span className="menu-text">Auditoria</span>
               </NavLink>
             </li>
           )}
         </ul>
       </nav>
 
-      {/* Perfil do usuário sempre no final */}
       <div className="user-profile">
         <img
-          src={usuarioAtual.foto || getUserImage(usuarioAtual.role)}
+          src={user.foto || getUserImage(roles[0] || '')}
           alt="Foto do usuário"
           className="user-photo"
         />
         <div className="user-info">
-          <span className="user-name">{usuarioAtual.nome || 'Usuário'}</span>
-          {usuarioAtual.role && <span className="user-role">{usuarioAtual.role}</span>}
+          <span className="user-name">{user.nome || 'Usuário'}</span>
+          {roles.length > 0 && <span className="user-role">{roles.join(', ')}</span>}
         </div>
       </div>
 
-      {/* Botão de colapsar/expandir a sidebar */}
       <button className="toggle-btn" onClick={() => setCollapsed(!collapsed)}>
         {collapsed ? '→' : '←'}
       </button>
