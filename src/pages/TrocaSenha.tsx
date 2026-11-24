@@ -31,28 +31,26 @@ export default function TrocaSenha() {
       setPassword('');
       setConfirm('');
 
-      // Wait for trigger to update onboarding (poll with backoff)
-      let attempts = 0;
-      const maxAttempts = 10;
-      while (attempts < maxAttempts) {
-        await new Promise((r) => setTimeout(r, 500));
-        await refresh();
-        // Re-check onboarding status
-        const { data: session } = await (await import('../lib/supabase')).supabase.auth.getSession();
-        const uid = session?.session?.user?.id;
-        if (uid) {
-          const { data: onb } = await (await import('../lib/supabase')).supabase
-            .from('user_onboarding')
-            .select('must_change_password')
-            .eq('person_id', (await (await import('../lib/supabase')).supabase.from('auth_identity_links').select('person_id').eq('auth_user_id', uid).single()).data?.person_id)
-            .single();
-          if (onb && !onb.must_change_password) break;
+      // The authoritative status comes from the authenticated bootstrap RPC,
+      // not direct reads of identity links or onboarding tables.
+      const { supabase } = await import('../lib/supabase');
+      let confirmed = false;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const { data, error: statusError } = await supabase.rpc('fn_auth_bootstrap_v2');
+        if (!statusError && data && typeof data === 'object' &&
+            (data as { must_change_password?: boolean }).must_change_password === false) {
+          confirmed = true;
+          break;
         }
-        attempts++;
+        if (attempt < 7) await new Promise((resolve) => setTimeout(resolve, 500));
       }
-
-      setMessage('Senha atualizada. Redirecionando para os documentos legais...');
-      setTimeout(() => navigate('/onboarding/legal'), 1500);
+      if (!confirmed) {
+        setMessage('Senha atualizada no Supabase Auth, mas a confirmação do primeiro acesso ainda está pendente no servidor. Não altere a senha novamente; solicite a verificação do administrador.');
+        return;
+      }
+      await refresh();
+      setMessage('Senha confirmada. Prosseguindo para os documentos legais...');
+      navigate('/onboarding/legal', { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível atualizar a senha.');
     } finally {
