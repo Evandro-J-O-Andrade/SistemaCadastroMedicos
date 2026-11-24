@@ -1,0 +1,339 @@
+-- 20261118070000_gate2_01_security_hardening.sql
+-- Gate 2.1 (local): correções incrementais de segurança sobre o CORE Gate 1.
+-- NÃO modifica histórico publicado (20261116080000-006). NÃO executar em remoto sem autorização.
+
+-- ============================================
+-- 1. Auditoria: impedir falsificação de autoria/resultado
+-- ============================================
+
+-- Função de trigger: SECURITY DEFINER para inserir auditoria sem depender de policy permissiva.
+-- Deriva identidade de auth.uid() e claims de sessão; não aceita dados forjados do cliente.
+CREATE OR REPLACE FUNCTION trg_audit_event()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_acao TEXT;
+  v_auth_user_id UUID;
+  v_pessoa_id UUID;
+  v_tenant_id UUID;
+  v_unit_id UUID;
+  v_resultado TEXT := 'sucesso';
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    v_acao := 'create';
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_acao := 'update';
+  ELSIF TG_OP = 'DELETE' THEN
+    v_acao := 'delete';
+  ELSE
+    v_acao := lower(TG_OP);
+  END IF;
+
+  -- Identidade derivada do JWT/ambiente autenticado (não do payload do cliente)
+  v_auth_user_id := auth.uid();
+  IF v_auth_user_id IS NULL THEN
+    BEGIN
+      v_auth_user_id := NULLIF(current_setting('request.jwt.claims.sub', true), '')::UUID;
+    EXCEPTION WHEN others THEN
+      v_auth_user_id := NULL;
+    END;
+  END IF;
+
+  v_pessoa_id := fn_current_person_id();
+  v_tenant_id := fn_current_tenant_id();
+  v_unit_id := fn_current_unit_id();
+
+  INSERT INTO audit_events (
+    pessoa_id,
+    auth_user_id,
+    tenant_id,
+    unit_id,
+    recurso,
+    acao,
+    entidade,
+    entidade_id,
+    dados_anteriores,
+    dados_novos,
+    resultado,
+    criado_em
+  ) VALUES (
+    v_pessoa_id,
+    v_auth_user_id,
+    v_tenant_id,
+    v_unit_id,
+    TG_TABLE_NAME,
+    v_acao,
+    TG_TABLE_NAME,
+    COALESCE(NEW.id, OLD.id),
+    CASE WHEN TG_OP IN ('UPDATE','DELETE') THEN to_jsonb(OLD) ELSE NULL END,
+    CASE WHEN TG_OP IN ('INSERT','UPDATE') THEN to_jsonb(NEW) ELSE NULL END,
+    v_resultado,
+    now()
+  );
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION trg_audit_event() FROM PUBLIC;
+
+-- Remover INSERT livre: auditoria só pode ser escrita por mecanismos confiáveis (trigger/função definer).
+DROP POLICY IF EXISTS audit_system_insert ON audit_events;
+CREATE POLICY audit_no_direct_insert ON audit_events
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (false);
+
+-- ============================================
+-- 2. Função segura para registro explícito de eventos de auditoria (server-side)
+-- ============================================
+CREATE OR REPLACE FUNCTION fn_audit_log(
+  p_recurso TEXT,
+  p_acao TEXT,
+  p_entidade TEXT DEFAULT NULL,
+  p_entidade_id UUID DEFAULT NULL,
+  p_dados_anteriores JSONB DEFAULT NULL,
+  p_dados_novos JSONB DEFAULT NULL,
+  p_resultado TEXT DEFAULT 'sucesso',
+  p_tenant_id UUID DEFAULT NULL,
+  p_unit_id UUID DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_id UUID;
+  v_auth_user_id UUID;
+  v_pessoa_id UUID;
+BEGIN
+  v_auth_user_id := auth.uid();
+  IF v_auth_user_id IS NULL THEN
+    BEGIN
+      v_auth_user_id := NULLIF(current_setting('request.jwt.claims.sub', true), '')::UUID;
+    EXCEPTION WHEN others THEN
+      v_auth_user_id := NULL;
+    END;
+  END IF;
+
+  v_pessoa_id := fn_current_person_id();
+
+  INSERT INTO audit_events (
+    pessoa_id,
+    auth_user_id,
+    tenant_id,
+    unit_id,
+    recurso,
+    acao,
+    entidade,
+    entidade_id,
+    dados_anteriores,
+    dados_novos,
+    resultado,
+    criado_em
+  ) VALUES (
+    v_pessoa_id,
+    v_auth_user_id,
+    COALESCE(p_tenant_id, fn_current_tenant_id()),
+    COALESCE(p_unit_id, fn_current_unit_id()),
+    p_recurso,
+    p_acao,
+    p_entidade,
+    p_entidade_id,
+    p_dados_anteriores,
+    p_dados_novos,
+    COALESCE(p_resultado, 'sucesso'),
+    now()
+  )
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION fn_audit_log(TEXT, TEXT, TEXT, UUID, JSONB, JSONB, TEXT, UUID, UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION fn_audit_log(TEXT, TEXT, TEXT, UUID, JSONB, JSONB, TEXT, UUID, UUID) TO authenticated;
+
+-- ============================================
+-- 3. Correção de escopo em fn_person_has_permission
+--    - ROOT global (role_assignment.tenant_id NULL) deve valer em qualquer tenant.
+--    - Assignment tenant-wide (unit_id NULL) deve valer em qualquer unidade do tenant.
+--    - Mantém guard anti-vazamento e fail-closed.
+-- ============================================
+CREATE OR REPLACE FUNCTION fn_person_has_permission(
+  p_person_id UUID,
+  p_recurso TEXT,
+  p_acao TEXT,
+  p_tenant_id UUID DEFAULT NULL,
+  p_unit_id UUID DEFAULT NULL
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+PARALLEL SAFE
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_count INTEGER;
+  v_tenant_id UUID := COALESCE(p_tenant_id, fn_current_tenant_id());
+  v_unit_id UUID := COALESCE(p_unit_id, fn_current_unit_id());
+  v_current_person UUID := fn_current_person_id();
+BEGIN
+  -- Guard anti-vazamento: consultas diretas só para a própria pessoa no contexto.
+  IF p_person_id IS NULL THEN
+    RETURN false;
+  END IF;
+  IF v_current_person IS NOT NULL AND p_person_id <> v_current_person THEN
+    RETURN false;
+  END IF;
+
+  -- ROOT: assignment global (tenant_id NULL) ou escopado ao tenant solicitado.
+  SELECT COUNT(*) INTO v_count
+  FROM role_assignments ra
+  JOIN roles r ON r.id = ra.role_id
+  WHERE ra.person_id = p_person_id
+    AND ra.ativo = true
+    AND r.nome = 'root'
+    AND r.ativo = true
+    AND (ra.tenant_id IS NULL OR ra.tenant_id = v_tenant_id);
+
+  IF v_count > 0 THEN
+    RETURN true;
+  END IF;
+
+  -- Permissão via RBAC com escopo correto (NULL = escopo amplo dentro do nível).
+  SELECT COUNT(*) INTO v_count
+  FROM role_assignments ra
+  JOIN role_permissions rp ON rp.role_id = ra.role_id AND rp.ativo = true
+  JOIN permissions p ON p.id = rp.permission_id AND p.ativo = true
+  JOIN roles r ON r.id = ra.role_id AND r.ativo = true
+  WHERE ra.person_id = p_person_id
+    AND ra.ativo = true
+    AND p.recurso = p_recurso
+    AND p.acao = p_acao
+    AND (ra.tenant_id IS NULL OR ra.tenant_id = v_tenant_id)
+    AND (ra.unit_id IS NULL OR v_unit_id IS NULL OR ra.unit_id = v_unit_id);
+
+  RETURN v_count > 0;
+END;
+$$;
+
+-- ============================================
+-- 4. Contexto de sessão seguro (deriva identidade de auth.uid())
+--    Remove confiança em p_auth_user_id arbitrário.
+-- ============================================
+DROP FUNCTION IF EXISTS fn_set_session_contexto(UUID, UUID, UUID);
+
+CREATE OR REPLACE FUNCTION fn_set_session_contexto(
+  p_tenant_id UUID DEFAULT NULL,
+  p_unit_id UUID DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_auth_uid UUID;
+  v_person_id UUID;
+  v_membro_tenant BOOLEAN;
+  v_membro_unidade BOOLEAN;
+  v_is_root BOOLEAN := false;
+BEGIN
+  v_auth_uid := auth.uid();
+  IF v_auth_uid IS NULL THEN
+    RETURN false;
+  END IF;
+
+  SELECT ail.person_id INTO v_person_id
+  FROM auth_identity_links ail
+  JOIN people p ON p.id = ail.person_id
+  WHERE ail.auth_user_id = v_auth_uid
+    AND p.ativo = true;
+
+  IF v_person_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM role_assignments ra
+    JOIN roles r ON r.id = ra.role_id
+    WHERE ra.person_id = v_person_id
+      AND ra.ativo = true
+      AND r.ativo = true
+      AND r.nome = 'root'
+  ) INTO v_is_root;
+
+  IF p_tenant_id IS NOT NULL THEN
+    SELECT EXISTS (
+      SELECT 1 FROM tenant_memberships tm
+      WHERE tm.person_id = v_person_id
+        AND tm.tenant_id = p_tenant_id
+        AND tm.ativo = true
+    ) INTO v_membro_tenant;
+
+    IF NOT COALESCE(v_membro_tenant, false) AND NOT v_is_root THEN
+      RETURN false;
+    END IF;
+  END IF;
+
+  IF p_unit_id IS NOT NULL THEN
+    IF p_tenant_id IS NULL THEN
+      RETURN false;
+    END IF;
+    SELECT EXISTS (
+      SELECT 1 FROM unit_memberships um
+      WHERE um.person_id = v_person_id
+        AND um.unit_id = p_unit_id
+        AND um.tenant_id = p_tenant_id
+        AND um.ativo = true
+    ) INTO v_membro_unidade;
+
+    IF NOT COALESCE(v_membro_unidade, false) AND NOT v_is_root THEN
+      RETURN false;
+    END IF;
+  END IF;
+
+  PERFORM set_config('request.jwt.claims.person_id', v_person_id::TEXT, true);
+  PERFORM set_config('request.jwt.claims.tenant_id', COALESCE(p_tenant_id::TEXT, ''), true);
+  PERFORM set_config('request.jwt.claims.unit_id', COALESCE(p_unit_id::TEXT, ''), true);
+
+  RETURN true;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION fn_set_session_contexto(UUID, UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION fn_set_session_contexto(UUID, UUID) TO authenticated;
+
+COMMENT ON FUNCTION fn_set_session_contexto(UUID, UUID) IS
+  'Define claims de sessão (transacional) derivando identidade de auth.uid(); fail-closed.';
+
+-- ============================================
+-- 5. Helper interno: resolver pessoa autenticada atual (auth.uid -> people ativa)
+-- ============================================
+CREATE OR REPLACE FUNCTION fn_resolve_current_person()
+RETURNS TABLE(person_id UUID, full_name TEXT, email TEXT)
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public, pg_temp
+AS $$
+  SELECT p.id, p.nome, p.email
+  FROM auth_identity_links ail
+  JOIN people p ON p.id = ail.person_id
+  WHERE ail.auth_user_id = auth.uid()
+    AND p.ativo = true
+  LIMIT 1;
+$$;
+
+REVOKE EXECUTE ON FUNCTION fn_resolve_current_person() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION fn_resolve_current_person() TO authenticated;
+
