@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Loader2, Building2 } from 'lucide-react';
+import logoAlpha from '../img/Logo_Alpha.png';
 
 export default function LoginEnterprise(): React.ReactElement {
   const navigate = useNavigate();
@@ -29,29 +30,51 @@ export default function LoginEnterprise(): React.ReactElement {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left panel - institutional */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white p-12 flex-col justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Gestão Médica Alpha</h1>
-          <p className="text-blue-200 text-sm">Enterprise SaaS Platform</p>
+      {/* Left panel - 60% institutional */}
+      <div className="hidden lg:flex lg:w-3/5 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white flex-col justify-between p-12">
+        <div className="flex items-center gap-3">
+          <img src={logoAlpha} alt="Gestão Médica Alpha" className="h-12 w-auto object-contain" />
+          <div>
+            <h1 className="text-xl font-bold">Gestão Médica Alpha</h1>
+            <p className="text-blue-200 text-xs">Enterprise SaaS Platform</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Plataforma de gestão médica multiunidade</h2>
-          <p className="text-blue-100 text-sm leading-relaxed">
+
+        <div className="max-w-lg">
+          <h2 className="text-3xl font-bold mb-4 leading-tight">
+            Plataforma de gestão médica multiunidade
+          </h2>
+          <p className="text-blue-100 text-base leading-relaxed mb-6">
             Central administrativa, unidades, médicos, escalas, plantões e produção médica em um único sistema seguro e auditável.
           </p>
+          <div className="flex items-center gap-6 text-sm text-blue-200">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              <span>Central + 10 unidades</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>RBAC + RLS + Auditoria</span>
+            </div>
+          </div>
         </div>
+
         <div className="text-xs text-blue-300">
           © 2026 Gestão Médica Alpha. Todos os direitos reservados.
         </div>
       </div>
 
-      {/* Right panel - auth form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-900">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Entrar</h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Acesse sua conta para continuar</p>
+      {/* Right panel - 40% auth form */}
+      <div className="flex-1 lg:w-2/5 flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-900">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
+            <img src={logoAlpha} alt="Gestão Médica Alpha" className="h-10 w-auto object-contain" />
+            <span className="text-lg font-bold text-gray-900 dark:text-white">Gestão Médica Alpha</span>
+          </div>
+
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Bem-vindo de volta</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Acesse sua plataforma de gestão médica</p>
           </div>
 
           {error && (
@@ -60,9 +83,9 @@ export default function LoginEnterprise(): React.ReactElement {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 E-mail
               </label>
               <div className="relative">
@@ -73,14 +96,14 @@ export default function LoginEnterprise(): React.ReactElement {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="seu@email.com"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Senha
               </label>
               <div className="relative">
@@ -91,13 +114,13 @@ export default function LoginEnterprise(): React.ReactElement {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pl-10 pr-12 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-12 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -110,13 +133,13 @@ export default function LoginEnterprise(): React.ReactElement {
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'Entrando...' : 'Entrar no sistema'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <a href="/recuperar-senha" className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400">
-              Esqueceu sua senha?
+            <a href="/recuperar-senha" className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors">
+              Recuperar senha
             </a>
           </div>
         </div>
@@ -124,4 +147,3 @@ export default function LoginEnterprise(): React.ReactElement {
     </div>
   );
 }
-EOF
