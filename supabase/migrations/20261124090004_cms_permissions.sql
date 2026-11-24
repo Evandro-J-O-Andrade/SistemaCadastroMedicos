@@ -1,13 +1,13 @@
 -- 20261124090004_cms_permissions.sql
 -- Permissões CMS explícitas no RBAC
 
-INSERT INTO permissions (nome, descricao, ativo) VALUES
-  ('cms.read', 'Leitura de definições CMS', true),
-  ('cms.create', 'Criação de páginas CMS', true),
-  ('cms.update', 'Edição de páginas CMS', true),
-  ('cms.publish', 'Publicação de versões CMS', true),
-  ('cms.rollback', 'Rollback de versões CMS', true),
-  ('cms.manage', 'Gestão completa do CMS', true)
+INSERT INTO permissions (nome, recurso, acao, descricao, ativo) VALUES
+  ('cms.read', 'cms', 'read', 'Leitura de definições CMS', true),
+  ('cms.create', 'cms', 'create', 'Criação de páginas CMS', true),
+  ('cms.update', 'cms', 'update', 'Edição de páginas CMS', true),
+  ('cms.publish', 'cms', 'publish', 'Publicação de versões CMS', true),
+  ('cms.rollback', 'cms', 'rollback', 'Rollback de versões CMS', true),
+  ('cms.manage', 'cms', 'manage', 'Gestão completa do CMS', true)
 ON CONFLICT (nome) DO NOTHING;
 
 -- ROOT global gets all CMS permissions
