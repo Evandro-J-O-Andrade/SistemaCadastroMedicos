@@ -49,8 +49,9 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  IF p_auth_user_id IS NULL OR btrim(COALESCE(p_nome, '')) = '' THEN
-    RAISE EXCEPTION 'invalid_input: auth_user_id and nome are required';
+  IF p_auth_user_id IS NULL OR btrim(COALESCE(p_expected_email, '')) = '' OR btrim(COALESCE(p_nome, '')) = '' THEN
+    RAISE EXCEPTION 'invalid_input: auth_user_id, expected_email and nome are required'
+      USING ERRCODE = '22023';
   END IF;
 
   -- Verificar se o usuário Auth existe e está confirmado

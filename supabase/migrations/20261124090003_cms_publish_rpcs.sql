@@ -202,21 +202,29 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  v_version_status TEXT;
-  v_version_id UUID;
+  v_old_status TEXT;
+  v_new_status TEXT;
 BEGIN
-  IF TG_OP = 'DELETE' THEN
-    v_version_id := OLD.page_version_id;
-  ELSE
-    v_version_id := NEW.page_version_id;
+  -- Check OLD version (for UPDATE/DELETE)
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    SELECT status INTO v_old_status
+    FROM ui_page_versions
+    WHERE id = OLD.page_version_id;
+
+    IF v_old_status = 'published' THEN
+      RAISE EXCEPTION 'published_version_immutable: cannot modify or move blocks of a published version' USING ERRCODE = 'P0001';
+    END IF;
   END IF;
 
-  SELECT status INTO v_version_status
-  FROM ui_page_versions
-  WHERE id = v_version_id;
+  -- Check NEW version (for INSERT/UPDATE) - prevent moving to published
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    SELECT status INTO v_new_status
+    FROM ui_page_versions
+    WHERE id = NEW.page_version_id;
 
-  IF v_version_status = 'published' THEN
-    RAISE EXCEPTION 'published_version_immutable: cannot modify blocks of a published version' USING ERRCODE = 'P0001';
+    IF v_new_status = 'published' THEN
+      RAISE EXCEPTION 'published_version_immutable: cannot add or move blocks into a published version' USING ERRCODE = 'P0001';
+    END IF;
   END IF;
 
   IF TG_OP = 'DELETE' THEN
@@ -232,31 +240,32 @@ CREATE TRIGGER trg_prevent_published_block_change
   FOR EACH ROW
   EXECUTE FUNCTION fn_prevent_published_block_change();
 
--- Prevent direct metadata changes to published versions
-CREATE OR REPLACE FUNCTION fn_prevent_published_version_edit()
+-- Prevent direct status changes on published versions (only via RPC)
+CREATE OR REPLACE FUNCTION fn_prevent_direct_version_status_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  IF OLD.status = 'published' THEN
-    -- Allow only status transition to archived (via rollback RPC)
-    IF NEW.status NOT IN ('published', 'archived') THEN
-      RAISE EXCEPTION 'published_version_immutable: invalid status transition' USING ERRCODE = 'P0001';
-    END IF;
-    -- Block metadata changes
-    IF NEW.layout_id IS DISTINCT FROM OLD.layout_id THEN
-      RAISE EXCEPTION 'published_version_immutable: cannot change layout of published version' USING ERRCODE = 'P0001';
+  IF OLD.status = 'published' AND NEW.status IS DISTINCT FROM OLD.status THEN
+    -- Only allow transition to archived (handled by rollback RPC with audit)
+    -- But block direct client updates by checking session role
+    IF current_setting('request.jwt.claim.role', true) IS DISTINCT FROM 'service_role' THEN
+      -- Check if this is being called from within an RPC (service_role context)
+      IF current_setting('is_superuser', true) <> 'on' THEN
+        RAISE EXCEPTION 'direct_status_change_forbidden: use RPC to change published version status' USING ERRCODE = '42501';
+      END IF;
     END IF;
   END IF;
   RETURN NEW;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_prevent_published_version_edit ON ui_page_versions;
-CREATE TRIGGER trg_prevent_published_version_edit
+DROP TRIGGER IF EXISTS trg_prevent_direct_version_status_change ON ui_page_versions;
+CREATE TRIGGER trg_prevent_direct_version_status_change
   BEFORE UPDATE ON ui_page_versions
   FOR EACH ROW
-  EXECUTE FUNCTION fn_prevent_published_version_edit();
+  WHEN (OLD.status = 'published')
+  EXECUTE FUNCTION fn_prevent_direct_version_status_change();
 
 REVOKE EXECUTE ON FUNCTION fn_publish_page_version(UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION fn_rollback_page_version(UUID) FROM PUBLIC;
