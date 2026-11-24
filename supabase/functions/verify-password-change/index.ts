@@ -24,50 +24,65 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json();
-    const password = body.password;
-    if (!password) {
-      return new Response(JSON.stringify({ error: 'Password required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Verify user via their JWT
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
     const { data: { user }, error: userError } = await userClient.auth.getUser();
-    if (userError || !user || !user.email) {
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Invalid session' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Verify the password by attempting sign-in (server-side)
-    const verifyClient = createClient(supabaseUrl, supabaseAnonKey, {
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { error: signInError } = await verifyClient.auth.signInWithPassword({
-      email: user.email,
-      password: password,
-    });
+    // Verify user is ROOT (check auth_identity_links + user_roles)
+    const { data: link } = await adminClient
+      .from('auth_identity_links')
+      .select('person_id')
+      .eq('auth_user_id', user.id)
+      .single();
 
-    if (signInError) {
-      return new Response(JSON.stringify({ error: 'Senha incorreta' }), {
+    if (!link?.person_id) {
+      return new Response(JSON.stringify({ error: 'No identity link' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Password verified - call confirmation RPC with service role
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    // Check ROOT role
+    const { data: roles } = await adminClient
+      .from('user_roles')
+      .select('role_id, roles!inner(nome)')
+      .eq('person_id', link.person_id);
 
+    const isRoot = (roles || []).some((r: any) => r.roles?.nome === 'root');
+    if (!isRoot) {
+      return new Response(JSON.stringify({ error: 'Recovery only available to ROOT' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check state is consistent with pre-trigger change
+    const { data: onboarding } = await adminClient
+      .from('user_onboarding')
+      .select('must_change_password, password_changed_at')
+      .eq('person_id', link.person_id)
+      .single();
+
+    if (!onboarding || !onboarding.must_change_password || onboarding.password_changed_at !== null) {
+      return new Response(JSON.stringify({ error: 'Onboarding state not eligible for recovery' }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // One-time recovery: confirm password change
     const { data, error: rpcErr } = await adminClient.rpc('fn_confirm_password_changed_by_auth_user', {
       p_auth_user_id: user.id,
     });
@@ -81,14 +96,16 @@ Deno.serve(async (req) => {
 
     // Audit
     await adminClient.from('audit_events').insert({
+      pessoa_id: link.person_id,
       auth_user_id: user.id,
       recurso: 'auth',
-      acao: 'password_verified_recovery',
+      acao: 'password_changed_recovery_root',
       entidade: 'user_onboarding',
+      entidade_id: link.person_id,
       resultado: 'sucesso',
     });
 
-    return new Response(JSON.stringify({ success: data }), {
+    return new Response(JSON.stringify({ success: data, recovery: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
