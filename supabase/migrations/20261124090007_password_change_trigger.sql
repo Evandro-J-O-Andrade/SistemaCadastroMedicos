@@ -10,26 +10,50 @@ SET search_path = public, auth, pg_temp
 AS $$
 DECLARE
   v_person_id UUID;
+  v_caller_role TEXT;
 BEGIN
   -- Only fire when encrypted_password actually changes
   IF OLD.encrypted_password IS DISTINCT FROM NEW.encrypted_password THEN
+    -- Determine who initiated the change
+    v_caller_role := COALESCE(
+      auth.role(),
+      current_setting('request.jwt.claim.role', true),
+      current_setting('request.jwt.role', true)
+    );
+
     -- Resolve person via auth_identity_links
     SELECT ail.person_id INTO v_person_id
     FROM auth_identity_links ail
     WHERE ail.auth_user_id = NEW.id;
 
     IF v_person_id IS NOT NULL THEN
-      -- Update onboarding (same logic as fn_confirm_password_changed_by_auth_user)
-      INSERT INTO user_onboarding (person_id, must_change_password, password_changed_at)
-      VALUES (v_person_id, false, now())
-      ON CONFLICT (person_id) DO UPDATE
-      SET must_change_password = false,
-          password_changed_at = now(),
-          updated_at = now();
+      -- Only clear must_change_password if the user changed their own password
+      -- (authenticated role). Admin/service_role resets keep or set must_change_password = true.
+      IF v_caller_role = 'authenticated' THEN
+        INSERT INTO user_onboarding (person_id, must_change_password, password_changed_at)
+        VALUES (v_person_id, false, now())
+        ON CONFLICT (person_id) DO UPDATE
+        SET must_change_password = false,
+            password_changed_at = now(),
+            updated_at = now();
+      ELSE
+        -- Admin/service_role reset: ensure must_change_password = true
+        INSERT INTO user_onboarding (person_id, must_change_password, password_changed_at)
+        VALUES (v_person_id, true, NULL)
+        ON CONFLICT (person_id) DO UPDATE
+        SET must_change_password = true,
+            password_changed_at = NULL,
+            updated_at = now();
+      END IF;
 
-      -- Audit (no password or hash)
-      INSERT INTO audit_events (pessoa_id, auth_user_id, recurso, acao, entidade, entidade_id, resultado)
-      VALUES (v_person_id, NEW.id, 'auth', 'password_changed', 'user_onboarding', v_person_id, 'sucesso');
+      -- Audit (no password or hash) - wrapped to not crash Auth on failure
+      BEGIN
+        INSERT INTO audit_events (pessoa_id, auth_user_id, recurso, acao, entidade, entidade_id, resultado)
+        VALUES (v_person_id, NEW.id, 'auth', 'password_changed', 'user_onboarding', v_person_id, 'sucesso');
+      EXCEPTION WHEN OTHERS THEN
+        -- Log but don't fail the password change
+        NULL;
+      END;
     END IF;
   END IF;
 
