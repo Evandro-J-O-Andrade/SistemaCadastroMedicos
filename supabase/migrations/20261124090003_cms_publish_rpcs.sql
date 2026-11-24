@@ -277,24 +277,24 @@ CREATE TRIGGER trg_prevent_published_version_metadata
   FOR EACH ROW
   EXECUTE FUNCTION fn_prevent_published_version_metadata_change();
 
--- Prevent deletion of published versions (protect history)
-CREATE OR REPLACE FUNCTION fn_prevent_published_version_delete()
+-- Prevent deletion of published and archived versions (protect history)
+CREATE OR REPLACE FUNCTION fn_prevent_version_delete()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  IF OLD.status = 'published' THEN
-    RAISE EXCEPTION 'published_version_protected: cannot delete published version' USING ERRCODE = 'P0001';
+  IF OLD.status IN ('published', 'archived') THEN
+    RAISE EXCEPTION 'version_protected: cannot delete % version', OLD.status USING ERRCODE = 'P0001';
   END IF;
   RETURN OLD;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_prevent_published_version_delete ON ui_page_versions;
-CREATE TRIGGER trg_prevent_published_version_delete
+DROP TRIGGER IF EXISTS trg_prevent_version_delete ON ui_page_versions;
+CREATE TRIGGER trg_prevent_version_delete
   BEFORE DELETE ON ui_page_versions
   FOR EACH ROW
-  EXECUTE FUNCTION fn_prevent_published_version_delete();
+  EXECUTE FUNCTION fn_prevent_version_delete();
 
 REVOKE EXECUTE ON FUNCTION fn_publish_page_version(UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION fn_rollback_page_version(UUID) FROM PUBLIC;

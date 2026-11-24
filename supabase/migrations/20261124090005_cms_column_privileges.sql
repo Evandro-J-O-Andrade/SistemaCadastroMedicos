@@ -8,6 +8,10 @@ REVOKE UPDATE ON ui_page_versions FROM anon;
 REVOKE INSERT ON ui_page_versions FROM anon;
 REVOKE DELETE ON ui_page_versions FROM anon;
 
+-- Bloquear INSERT direto de status e published_at (forçar draft via DEFAULT)
+REVOKE INSERT (status, published_at) ON ui_page_versions FROM authenticated;
+REVOKE INSERT (status, published_at) ON ui_page_versions FROM anon;
+
 -- Conceder UPDATE apenas em colunas de rascunho (não status) para authenticated
 GRANT UPDATE (layout_id) ON ui_page_versions TO authenticated;
 -- status, page_id, versao são gerenciados apenas por RPCs
