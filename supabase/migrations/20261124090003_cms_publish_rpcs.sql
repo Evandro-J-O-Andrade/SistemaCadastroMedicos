@@ -19,6 +19,8 @@ DECLARE
   v_page RECORD;
   v_has_perm BOOLEAN := false;
 BEGIN
+  PERFORM set_config('app.cms_rpc_context', 'true', true);
+
   -- Resolve person from auth.uid()
   SELECT ail.person_id INTO v_person_id
   FROM auth_identity_links ail
@@ -49,15 +51,18 @@ BEGIN
     RETURN true;
   END IF;
 
-  -- Admin/gestor of the tenant with CMS permission
+  -- Check role_permissions for the required permission
   IF v_page.tenant_id IS NOT NULL THEN
     SELECT EXISTS (
       SELECT 1 FROM role_assignments ra
       JOIN roles r ON r.id = ra.role_id
+      JOIN role_permissions rp ON rp.role_id = r.id
+      JOIN permissions perm ON perm.id = rp.permission_id
       WHERE ra.person_id = v_person_id
-        AND r.nome = ANY(p_required_role)
-        AND ra.ativo = true AND r.ativo = true
+        AND r.ativo = true AND ra.ativo = true
         AND ra.tenant_id = v_page.tenant_id
+        AND perm.nome = ANY(p_required_role)  -- p_required_role contains permission names
+        AND perm.ativo = true
     ) INTO v_has_perm;
   END IF;
 
@@ -77,6 +82,8 @@ DECLARE
   v_page_id UUID;
   v_person_id UUID;
 BEGIN
+  PERFORM set_config('app.cms_rpc_context', 'true', true);
+
   -- Resolve person
   SELECT ail.person_id INTO v_person_id
   FROM auth_identity_links ail
@@ -106,9 +113,9 @@ BEGIN
   WHERE id = p_version_id
   FOR UPDATE;
 
-  -- RBAC check
-  IF NOT _cms_check_permission(v_page_id, ARRAY['root', 'admin', 'gestor']) THEN
-    RAISE EXCEPTION 'forbidden: insufficient CMS permissions' USING ERRCODE = '42501';
+  -- RBAC check: require cms.publish permission
+  IF NOT _cms_check_permission(v_page_id, ARRAY['cms.publish']) THEN
+    RAISE EXCEPTION 'forbidden: cms.publish permission required' USING ERRCODE = '42501';
   END IF;
 
   -- CMS permission check (must have cms.publish or be root/admin/gestor)
@@ -174,8 +181,8 @@ BEGIN
     RAISE EXCEPTION 'version_not_found' USING ERRCODE = 'P0002';
   END IF;
 
-  IF NOT _cms_check_permission(v_version.page_id, ARRAY['root', 'admin', 'gestor']) THEN
-    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  IF NOT _cms_check_permission(v_version.page_id, ARRAY['cms.rollback']) THEN
+    RAISE EXCEPTION 'forbidden: cms.rollback permission required' USING ERRCODE = '42501';
   END IF;
 
   IF v_version.status <> 'published' THEN
@@ -247,13 +254,9 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   IF OLD.status = 'published' AND NEW.status IS DISTINCT FROM OLD.status THEN
-    -- Only allow transition to archived (handled by rollback RPC with audit)
-    -- But block direct client updates by checking session role
-    IF current_setting('request.jwt.claim.role', true) IS DISTINCT FROM 'service_role' THEN
-      -- Check if this is being called from within an RPC (service_role context)
-      IF current_setting('is_superuser', true) <> 'on' THEN
-        RAISE EXCEPTION 'direct_status_change_forbidden: use RPC to change published version status' USING ERRCODE = '42501';
-      END IF;
+    -- Allow only if called from within a trusted RPC (session flag set)
+    IF COALESCE(current_setting('app.cms_rpc_context', true), '') <> 'true' THEN
+      RAISE EXCEPTION 'direct_status_change_forbidden: use RPC to change published version status' USING ERRCODE = '42501';
     END IF;
   END IF;
   RETURN NEW;
