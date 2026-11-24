@@ -1,85 +1,72 @@
-// src/pages/TrocaSenha.tsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, type FormEvent } from 'react';
+import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import './mobile.css';
-import './Login.css';
+import { useTheme } from '../core/theme/ThemeProvider';
 
 export default function TrocaSenha() {
-  const [senhaInput, setSenhaInput] = useState('');
-  const [confSenhaInput, setConfSenhaInput] = useState('');
-  const [erro, setErro] = useState('');
-  const [sucesso, setSucesso] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const { updatePassword, refresh, user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [visible, setVisible] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  const { updatePassword, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  const handleTrocarSenha = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErro('');
-    setSucesso(false);
-    setLoading(true);
-
-    if (!senhaInput || senhaInput.length < 6) {
-      setErro('A senha deve ter no mínimo 6 caracteres');
-      setLoading(false);
-      return;
-    }
-    if (senhaInput !== confSenhaInput) {
-      setErro('As senhas não coincidem');
-      setLoading(false);
-      return;
-    }
-
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (busy) return;
+    setError('');
+    setMessage('');
+    if (password.length < 12) return setError('Use pelo menos 12 caracteres para sua nova senha.');
+    if (password !== confirm) return setError('As senhas informadas não coincidem.');
+    setBusy(true);
     try {
-      await updatePassword(senhaInput);
-      setSucesso(true);
-      setTimeout(() => {
-        signOut();
-        navigate('/login');
-      }, 1500);
-    } catch (err: any) {
-      setErro(err.message || 'Erro ao trocar senha');
+      await updatePassword(password);
+      setPassword('');
+      setConfirm('');
+      await refresh();
+      // A confirmação de must_change_password é exclusiva do backend confiável.
+      // Não redirecionar ao dashboard e não encerrar a sessão arbitrariamente.
+      setMessage('Senha atualizada no Supabase Auth. Aguardando confirmação segura do primeiro acesso para avançar aos documentos legais.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível atualizar a senha.');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="login-page">
-      <div className="login-left" />
-      <div className="login-right">
-        <form onSubmit={handleTrocarSenha} className="login-form">
-          <h2 className="login-title">Troca de Senha</h2>
-
-          <input
-            type="password"
-            placeholder="Nova senha"
-            value={senhaInput}
-            onChange={(e) => setSenhaInput(e.target.value)}
-            className={`login-input ${erro ? 'input-erro' : ''}`}
-            required
-            autoFocus
-          />
-
-          <input
-            type="password"
-            placeholder="Confirmar nova senha"
-            value={confSenhaInput}
-            onChange={(e) => setConfSenhaInput(e.target.value)}
-            className={`login-input ${erro ? 'input-erro' : ''}`}
-            required
-          />
-
-          <button type="submit" className="login-btn" disabled={loading}>
-            {loading ? 'Atualizando...' : 'Atualizar Senha'}
-          </button>
-
-          {erro && <p className="login-erro">{erro}</p>}
-          {sucesso && <p className="login-erro" style={{ color: '#27ae60' }}>Senha atualizada com sucesso! Redirecionando...</p>}
+    <main className="flex min-h-dvh items-center justify-center bg-gray-100 px-4 py-10 text-gray-900 dark:bg-slate-950 dark:text-slate-100">
+      <section className="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+        <header className="border-b border-gray-200 bg-gray-50 px-6 py-5 dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2"><ShieldCheck size={21} className="text-blue-600 dark:text-blue-400" /><span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-300">Primeiro acesso · Etapa 1 de 3</span></div>
+            <button type="button" onClick={toggleTheme} aria-label="Alternar tema" className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs dark:border-slate-600">{theme === 'dark' ? 'Claro' : 'Escuro'}</button>
+          </div>
+          <h1 className="mt-4 text-xl font-bold">Crie sua senha definitiva</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Bem-vindo, {user?.nome || 'usuário'}. Para proteger seu acesso, altere a senha temporária antes de continuar.</p>
+        </header>
+        <form onSubmit={submit} className="space-y-5 px-6 py-6">
+          <div>
+            <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium">Nova senha</label>
+            <div className="relative">
+              <KeyRound aria-hidden="true" className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+              <input id="new-password" autoComplete="new-password" type={visible ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} minLength={12} required className="h-11 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-12 text-gray-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <button type="button" onClick={() => setVisible(x => !x)} aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'} className="absolute right-3 top-3 text-gray-500 dark:text-slate-400">{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+            </div>
+            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">Mínimo de 12 caracteres. Use uma senha exclusiva.</p>
+          </div>
+          <div>
+            <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium">Confirmar nova senha</label>
+            <input id="confirm-password" autoComplete="new-password" type={visible ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)} minLength={12} required className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-gray-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+          </div>
+          {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{error}</p>}
+          {message && <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-slate-800 dark:text-blue-200">{message}</p>}
+          <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Atualizando senha...' : 'Atualizar senha'}</button>
+          <button type="button" onClick={() => { void signOut(); }} className="block w-full text-center text-sm text-gray-500 underline dark:text-slate-400">Sair desta conta</button>
         </form>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
