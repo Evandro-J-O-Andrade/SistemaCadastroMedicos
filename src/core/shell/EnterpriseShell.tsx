@@ -91,4 +91,3 @@ export function EnterpriseShell({ children, sidebarContent, headerTitle }: Enter
     </div>
   );
 }
-EOF
