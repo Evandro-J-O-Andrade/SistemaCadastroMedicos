@@ -7,7 +7,8 @@ import DashboardAdminMaster from './pages/DashboardAdminMaster';
 import GestaoTenants from './pages/GestaoTenants';
 import GestaoDocumentosLegais from './pages/GestaoDocumentosLegais';
 import Login from './pages/LoginEnterprise';
-import TrocaSenha from './pages/TrocaSenha.tsx';
+import TrocaSenha from './pages/TrocaSenha';
+import LegalOnboarding from './pages/LegalOnboarding';
 import Home from './pages/Home';
 import Medicos from './pages/Medicos';
 import Plantao from './pages/Plantao';
@@ -16,20 +17,6 @@ import Filtros from './pages/Filtros';
 import CadastroEmLote from './pages/CadastroEmLote';
 import CadastroUsuarios from './pages/CadastroUsuarios';
 import { ProtectedRoute } from './components/ProtectedRoute';
-
-function LegalPending() {
-  return (
-    <main className="min-h-dvh flex items-center justify-center bg-gray-50 p-6 text-gray-900 dark:bg-slate-950 dark:text-white">
-      <section className="w-full max-w-xl rounded-2xl border border-gray-200 bg-white p-8 shadow-lg dark:border-slate-700 dark:bg-slate-900">
-        <h1 className="text-xl font-semibold">Termos e privacidade pendentes</h1>
-        <p className="mt-3 text-sm text-gray-600 dark:text-slate-300">
-          O acesso operacional permanece bloqueado até a publicação e a aceitação dos documentos
-          obrigatórios. Nenhum aceite será registrado sem sua manifestação expressa.
-        </p>
-      </section>
-    </main>
-  );
-}
 
 function App() {
   const { loading, authenticated, user } = useAuth();
@@ -56,7 +43,7 @@ function App() {
 
   if (user.terms_pending || user.responsibility_pending) {
     return <Routes>
-      <Route path="/onboarding/legal" element={<LegalPending />} />
+      <Route path="/onboarding/legal" element={<LegalOnboarding />} />
       <Route path="*" element={<Navigate to="/onboarding/legal" replace />} />
     </Routes>;
   }

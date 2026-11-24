@@ -17,7 +17,38 @@ export default function TrocaSenha() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [verifyPassword, setVerifyPassword] = useState('');
 
+  const handleRecovery = async () => {
+    if (busy) return;
+    setError('');
+    setMessage('');
+    if (!verifyPassword) return setError('Informe sua senha atual.');
+    setBusy(true);
+    try {
+      const { data: session } = await (await import('../lib/supabase')).supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (!token) throw new Error('Sessão inválida');
+
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-password-change`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: verifyPassword }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Verificação falhou');
+
+      setVerifyPassword('');
+      await refresh();
+      setMessage('Senha verificada. Redirecionando para os documentos legais...');
+      setTimeout(() => navigate('/onboarding/legal'), 1500);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível verificar a senha.');
+    } finally {
+      setBusy(false);
+    }
+  };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (busy) return;
@@ -93,8 +124,27 @@ export default function TrocaSenha() {
           </div>
           {error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{error}</p>}
           {message && <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-slate-800 dark:text-blue-200">{message}</p>}
-          <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Atualizando senha...' : 'Atualizar senha'}</button>
+          {recoveryMode ? (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-slate-300">Se você já alterou sua senha antes da instalação do mecanismo de confirmação, informe sua senha atual para verificar o acesso.</p>
+              <div>
+                <label htmlFor="verify-password" className="mb-1.5 block text-sm font-medium">Senha atual</label>
+                <div className="relative">
+                  <KeyRound aria-hidden="true" className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                  <input id="verify-password" type={visible ? 'text' : 'password'} value={verifyPassword} onChange={e => setVerifyPassword(e.target.value)} className="h-11 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-12 text-gray-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                  <button type="button" onClick={() => setVisible(x => !x)} aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'} className="absolute right-3 top-3 text-gray-500 dark:text-slate-400">{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                </div>
+              </div>
+              <button type="button" onClick={handleRecovery} disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-amber-600 font-semibold text-white hover:bg-amber-700 disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Verificando...' : 'Verificar senha atual'}</button>
+              <button type="button" onClick={() => setRecoveryMode(false)} className="block w-full text-center text-sm text-gray-500 underline dark:text-slate-400">Voltar para alteração de senha</button>
+            </div>
+          ) : (
+            <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Atualizando senha...' : 'Atualizar senha'}</button>
+          )}
           <button type="button" onClick={() => { void signOut(); }} className="block w-full text-center text-sm text-gray-500 underline dark:text-slate-400">Sair desta conta</button>
+          {!recoveryMode && (
+            <button type="button" onClick={() => setRecoveryMode(true)} className="block w-full text-center text-xs text-gray-400 underline dark:text-slate-500">Já alterei minha senha anteriormente</button>
+          )}
         </form>
       </section>
         </div>
