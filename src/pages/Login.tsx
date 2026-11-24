@@ -16,7 +16,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { signIn, error } = useAuth();
+  const { signIn, resetPassword: resetPwd, error } = useAuth();
 
   // Propaga erros globais de auth (ex: sessão expirada) para o erro do formulário
   useEffect(() => {
@@ -63,9 +63,18 @@ export default function Login() {
     e.preventDefault();
     clearErro();
     setLoading(true);
-    alert('Funcionalidade em desenvolvimento :)');
-    setLoading(false);
-    setRecuperarSenha(false);
+    try {
+      await resetPwd(usuarioRecuperacao.trim());
+      setErro('E-mail de recuperação enviado. Verifique sua caixa de entrada.');
+    } catch (err: unknown) {
+      const mapped =
+        err && typeof err === 'object' && 'code' in err && 'message' in err
+          ? (err as { code: string; message: string })
+          : { code: AUTH_ERRORS.SERVICE_ERROR, message: String(err ?? 'Erro desconhecido') };
+      setErro(mapped.message || 'Não foi possível enviar o e-mail de recuperação.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

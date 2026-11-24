@@ -4,6 +4,8 @@ import { useAuth } from './auth/context/AuthContextProvider';
 import AppShell from './components/layout/AppShell';
 import Welcome from './pages/Welcome';
 import DashboardAdminMaster from './pages/DashboardAdminMaster';
+import GestaoTenants from './pages/GestaoTenants';
+import GestaoDocumentosLegais from './pages/GestaoDocumentosLegais';
 import Login from './pages/Login';
 import TrocaSenha from './pages/TrocaSenha';
 import Home from './pages/Home';
@@ -32,6 +34,8 @@ function App() {
     <Routes>
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/dashboard/admin-master" element={<DashboardAdminMaster />} />
+        <Route path="/admin/tenants" element={<GestaoTenants />} />
+        <Route path="/admin/documentos-legais" element={<GestaoDocumentosLegais />} />
       <Route element={<ProtectedRoute requireOnboardingComplete={true} allowedOnboardingPaths={ONBOARDING_PATHS} />}>
         <Route path="/" element={<Home />} />
         <Route path="/relatorios" element={<Relatorios />} />
