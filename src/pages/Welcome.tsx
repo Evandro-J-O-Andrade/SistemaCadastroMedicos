@@ -10,11 +10,11 @@ export default function Welcome(): React.ReactElement {
   const fullName = user?.nome || user?.email || 'Usuário';
 
   const ctx = {
-    isRootGlobal: user?.isRootGlobal ?? false,
+    isRootGlobal: (user?.roles?.includes('root') ?? false) && !user?.tenant_id,
     roles: user?.roles ?? [],
     permissions: user?.permissions ?? [],
-    tenantId: user?.tenantId ?? null,
-    unitId: user?.unitId ?? null,
+    tenantId: user?.tenant_id ?? null,
+    unitId: user?.unit_id ?? null,
   };
   const routes = resolveRoutes(ctx);
   const firstAvailable = routes.find(r => r.disponivel)?.path || '/';
