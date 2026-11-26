@@ -6,8 +6,8 @@ import { supabase } from '../lib/supabase';
 interface LegalDoc { id: string; tipo: string; versao: string; titulo: string; conteudo: string; }
 
 const TYPE_LABEL: Record<string, string> = {
-  terms: 'Termos de Uso',
-  privacy: 'Política de Privacidade (LGPD)',
+  terms_of_use: 'Termos de Uso',
+  privacy_notice: 'Política de Privacidade (LGPD)',
   responsibility: 'Termo de Responsabilidade',
 };
 
