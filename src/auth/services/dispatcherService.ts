@@ -34,8 +34,8 @@ function temOnboardingPendente(user: AuthUser): boolean {
 // Caminho de onboarding prioritário
 function caminhoOnboarding(user: AuthUser): string | null {
   if (user.must_change_password) return AUTH_ROUTES.TROCA_SENHA;
-  if (user.terms_pending || user.responsibility_pending || user.welcome_pending)
-    return AUTH_ROUTES.WELCOME;
+  if (user.terms_pending || user.responsibility_pending) return '/onboarding/legal';
+  if (user.welcome_pending) return AUTH_ROUTES.WELCOME;
   return null;
 }
 
@@ -169,7 +169,7 @@ export function resolverDestino(user: AuthUser): DispatcherResult {
   }
 
   // 4. Verificar se o usuário tem tenant quando necessário (admin, gestor, root scoped)
-  const precisaTenant = ['admin', 'gestor', 'root'].some((r) => user.roles.includes(r));
+  const precisaTenant = !isRootGlobal(user) && ['admin', 'gestor', 'root'].some((r) => user.roles.includes(r));
   if (precisaTenant && !tenant) {
     return {
       destino: null,
