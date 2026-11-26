@@ -18,9 +18,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $docs = @(
-  @{ Tipo = "terms_of_use";    Titulo = "Termos de Uso";                     Path = "docs/legal/minuta_termos_de_uso.md";                   Obrigatorio = $true },
-  @{ Tipo = "responsibility";  Titulo = "Termo de Responsabilidade";         Path = "docs/legal/minuta_termo_de_responsabilidade.md";       Obrigatorio = $true },
-  @{ Tipo = "privacy_notice";  Titulo = "Política de Privacidade (LGPD)";    Path = "docs/legal/minuta_politica_de_privacidade.md";          Obrigatorio = $false }
+  @{ Tipo = "terms_of_use";    Titulo = "Termos de Uso";                     Path = "docs/legal/oficial_termos_de_uso.md";                   Obrigatorio = $true },
+  @{ Tipo = "responsibility";  Titulo = "Termo de Responsabilidade";         Path = "docs/legal/oficial_termo_de_responsabilidade.md";       Obrigatorio = $true },
+  @{ Tipo = "privacy_notice";  Titulo = "Política de Privacidade (LGPD)";    Path = "docs/legal/oficial_politica_de_privacidade.md";          Obrigatorio = $false }
 )
 
 function Get-Md5([string]$text) {
