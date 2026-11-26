@@ -8,7 +8,7 @@
 **Operadora:** New Wave Sistemas Digital, CNPJ 29.328.524/0001-98, com sede em Poá, Estado de São Paulo.
 **Plataforma:** Gestão Médica Alpha Enterprise (SaaS multi-tenant de gestão médica).
 **Canal de privacidade:** newwavesistemasdigital@hotmail.com.
-**Encarregado (DPO):** a designação formal do Encarregado, quando ocorrer, será comunicada por meio do canal de privacidade acima, conforme o art. 41 da LGPD e a regulamentação da ANPD. A disponibilização do canal de contato não equivale, por si só, à designação formal.
+**Encarregado (DPO):** a designação formal do Encarregado, quando ocorrer, será comunicada pelo canal acima, conforme o art. 41 da LGPD e a regulamentação da ANPD. A disponibilização do canal não equivale, por si só, à designação formal.
 
 ## 2. Categorias de dados
 2.1. **Cadastrais de usuários:** nome, e-mail, vínculo, papel/permissões.
@@ -23,24 +23,33 @@
 3.3. Segurança, prevenção a fraudes e auditoria.
 3.4. Cumprimento de obrigações legais e regulatórias.
 
-## 4. Bases legais (LGPD) por atividade
-4.1. **Atividades da Operadora (New Wave):** hospedagem, autenticação, segurança e auditoria apoiam-se em execução de contrato e procedimentos preliminares (art. 7º, V), obrigação legal/regulatória (art. 7º, II) e legítimo interesse (art. 7º, IX) para segurança, com avaliação de proporcionalidade.
-4.2. **Atividades do estabelecimento de saúde controlador:** os registros assistenciais e dados sensíveis de saúde apoiam-se nas bases legais definidas pelo controlador, inclusive tutela da saúde por profissional de saúde (art. 11, II, "f"), quando aplicável.
-4.3. A Operadora atua como operadora e segue as instruções documentadas do controlador.
+## 4. Bases legais por atividade (dados comuns e sensíveis)
+4.1. **Dados comuns (cadastrais, profissionais, técnicos):**
+- Execução de contrato e procedimentos preliminares (art. 7º, V) para cadastro, autenticação e operação dos módulos.
+- Obrigação legal/regulatória (art. 7º, II) para guarda de registros de acesso e auditoria.
+- Legítimo interesse (art. 7º, IX) para segurança e prevenção a fraudes, com avaliação de proporcionalidade.
+4.2. **Dados sensíveis de saúde (art. 11):**
+- Tutela da saúde por profissional de saúde (art. 11, II, "f"), quando aplicável e a cargo do estabelecimento de saúde controlador.
+- As demais hipóteses do art. 11 são definidas pelo controlador conforme a atividade assistencial.
+4.3. A base legal de cada tratamento é definida pela atividade correspondente; a Operadora segue as instruções documentadas do controlador.
 
 ## 5. Dados sensíveis de saúde
 5.1. Recebem proteção reforçada: minimização, controle de acesso por RLS, segregação e trilha de auditoria.
 
-## 6. Controlador e operador
-6.1. O tenant/estabelecimento de saúde é o **controlador** dos dados de seus usuários e pacientes; a New Wave Sistemas Digital é a **operadora**, nos termos do contrato.
-6.2. O detalhamento de papéis por módulo consta do contrato específico de cada cliente.
+## 6. Papéis (controlador e operador) por atividade
+6.1. **Dados tratados em nome dos estabelecimentos de saúde (tenants):** o tenant/estabelecimento é o **controlador** e a New Wave atua como **operadora**, nos termos do contrato.
+6.2. **Dados próprios da Operadora** (ex.: contato do canal de privacidade, dados de cobrança/contrato e registros de segurança da própria operação): a New Wave atua como **controladora** desses tratamentos, com base legal própria.
+6.3. O detalhamento de papéis por módulo consta do contrato específico de cada cliente.
 
-## 7. Compartilhamento e subprocessadores
-7.1. A hospedagem, o banco de dados e a autenticação são operados por **Supabase**, na condição de subprocessador.
-7.2. A Plataforma poderá utilizar provedores de e-mail e de observabilidade; a identificação de cada subprocessador, a finalidade e a localidade de armazenamento serão disponibilizadas por meio do canal de privacidade após verificação contratual, não sendo aqui presumidas.
-7.3. Não há venda de dados.
-7.4. Compartilhamento com autoridades ocorre mediante requisição legal.
-7.5. Eventuais transferências internacionais dependem da localidade de armazenamento do provedor de hospedagem e serão informadas após confirmação; não são declaradas enquanto não verificadas.
+## 7. Compartilhamento, subprocessadores e transferências internacionais
+7.1. **Inventário de subprocessadores (verificável):**
+| Finalidade | Subprocessador | Situação |
+|---|---|---|
+| Hospedagem, banco de dados e autenticação | Supabase | Em uso (verificar escopo contratual e localidade de armazenamento) |
+| E-mail | [a identificar] | Não presumido; informar após verificação |
+| Observabilidade | [a identificar] | Não presumido; informar após verificação |
+7.2. Não há venda de dados. Compartilhamento com autoridades ocorre mediante requisição legal.
+7.3. **Transferências internacionais:** eventuais transferências dependem da localidade de armazenamento dos subprocessadores e seguem a Resolução CD/ANPD nº 19/2024 e mecanismos aplicáveis. Não se presume localização de dados; a confirmação e o(s) mecanismo(s) serão informados após verificação contratual e técnica.
 
 ## 8. Medidas de segurança (art. 46)
 8.1. Mecanismos efetivamente adotados, conforme evidências técnicas:
@@ -50,7 +59,7 @@
 - Trilha de auditoria — implementada.
 - Minimização de dados — diretriz adotada.
 - Criptografia em trânsito (TLS/HTTPS) — prevista na infraestrutura de hospedagem.
-8.2. Criptografia em repouso, criptografia de backups e gestão de chaves não são declaradas como comprovadas nesta versão; serão objeto de verificação técnica e documentadas quando confirmadas.
+8.2. Criptografia em repouso, criptografia de backups e gestão de chaves não são declaradas como comprovadas nesta versão; serão verificadas e documentadas quando confirmadas.
 
 ## 9. Retenção e eliminação
 9.1. A retenção observa a vigência contratual e os prazos legais aplicáveis por categoria:
@@ -65,8 +74,10 @@
 10.1. Confirmação, acesso, correção, anonimização, portabilidade, informação sobre compartilhamento e oposição, nos termos da LGPD.
 10.2. O titular exerce direitos perante o controlador (tenant); a Operadora colabora como operadora.
 
-## 11. Incidentes (art. 48 e ANPD)
-11.1. Incidentes de segurança são objeto de procedimentos de identificação e resposta, com comunicação à ANPD e ao controlador quando aplicável, nos termos do art. 48 da LGPD e da regulamentação da ANPD, observados os prazos legais.
+## 11. Resposta a incidentes de segurança (art. 48 e Resolução CD/ANPD nº 15/2024)
+11.1. **Fluxo:** a Operadora comunica **imediatamente** o incidente ao controlador (tenant) afetado, com as informações disponíveis para a avaliação de risco.
+11.2. **Comunicação à ANPD e titulares:** cabe ao controlador avaliar a relevância e, quando exigível, comunicar à ANPD e aos titulares em **até 3 (três) dias úteis** da ciência do incidente, na forma da Resolução CD/ANPD nº 15/2024, ressalvadas as exceções nela previstas.
+11.3. A Operadora coopera com o controlador na apuração, contenção e documentação do incidente.
 
 ## 12. Atualizações e versionamento
 12.1. Esta Política pode ser atualizada; alterações materiais serão comunicadas e poderão exigir novo aceite de ciência, preservando o histórico.
@@ -75,4 +86,4 @@
 newwavesistemasdigital@hotmail.com.
 
 ---
-*Versão 1.0 para ciência e revisão jurídica/DPO. As declarações de subprocessadores adicionais, localidade de armazenamento, criptografia em repouso/backups e designação do Encarregado permanecem condicionadas à verificação técnica/contratual e serão incluídas quando confirmadas. Não declara conformidade integral sem auditoria e comprovação.*
+*Versão 1.0 para ciência e revisão jurídica/DPO. Declarações condicionadas à verificação: subprocessadores adicionais, localidade de armazenamento/transferências internacionais, criptografia em repouso/backups e designação do Encarregado. Não declara conformidade integral sem auditoria e comprovação.*
