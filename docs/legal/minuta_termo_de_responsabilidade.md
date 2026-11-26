@@ -4,7 +4,7 @@
 > Não constitui parecer jurídico vinculante nem certificação de conformidade integral.
 
 ## 1. Compromisso profissional
-Ao aceitar este Termo, o usuário declara utilizar a Plataforma Gestão Médica Alpha Enterprise, operada por New Wave Sistemas Digital (CNPJ 29.328.524/0001-98), em ambiente profissional, comprometendo-se com o uso responsável, a confidencialidade e a legislação aplicável, em especial a LGPD (Lei 13.709/2018) e as normas deontológicas de sua profissão.
+Ao aceitar este Termo, o usuário declara utilizar a Plataforma Gestão Médica Alpha Enterprise, operada por New Wave Sistemas Digital (CNPJ 29.328.524/0001-98), com sede em Poá/SP, em ambiente profissional, comprometendo-se com o uso responsável, a confidencialidade e a legislação aplicável, em especial a LGPD (Lei 13.709/2018) e as normas deontológicas de sua profissão.
 
 ## 2. Veracidade dos registros
 2.1. O usuário é integralmente responsável pelos dados que insere (cadastro de médicos, escalas, plantões, atendimentos e relatórios).

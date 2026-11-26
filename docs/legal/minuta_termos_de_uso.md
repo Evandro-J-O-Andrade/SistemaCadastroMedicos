@@ -5,7 +5,7 @@
 > A publicação depende de aprovação institucional e autorização expressa.
 
 ## 1. Identificação
-**Operadora:** New Wave Sistemas Digital, CNPJ 29.328.524/0001-98, representada por seu CEO, Evandro Andrade.
+**Operadora:** New Wave Sistemas Digital, CNPJ 29.328.524/0001-98, com sede na Comarca de Poá, Estado de São Paulo, representada por seu CEO, Evandro Andrade.
 **Plataforma:** Gestão Médica Alpha Enterprise — software SaaS multi-tenant para gestão médica, cadastro de profissionais, escalas e plantões, produção de atendimentos, relatórios e controle de acesso por perfis.
 **Contato institucional e de privacidade:** newwavesistemasdigital@hotmail.com.
 
@@ -30,9 +30,9 @@
 ## 6. Segregação multi-tenant
 6.1. Os dados são segregados por tenant e por unidade. O acesso a dados de outro tenant é vedado e bloqueado por RLS.
 
-## 7. Responsabilidades contratuais
-7.1. Obrigações, níveis de serviço, suporte e condições comerciais constam do contrato específico entre o tenant e a Operadora.
-7.2. [PENDENTE JURÍDICO/CONTRATUAL: vínculo integral do contrato, SLA e condições de pagamento a serem referenciados.]
+## 7. Responsabilidades contratuais, disponibilidade e suporte
+7.1. Obrigações, níveis de serviço (SLA), horários de atendimento, condições comerciais e suporte constam do contrato específico de cada cliente.
+7.2. A Operadora não garante disponibilidade de 100%; envida esforços razoáveis, sujeita a manutenções programadas e eventos fora de seu controle.
 
 ## 8. Proteção de dados pessoais e sensíveis
 8.1. O tratamento observa a LGPD (Lei 13.709/2018) e a Política de Privacidade da Plataforma.
@@ -40,22 +40,28 @@
 
 ## 9. Confidencialidade e segurança
 9.1. O usuário e o tenant obrigam-se a manter sigilo sobre dados de pacientes, profissionais e da organização.
-9.2. A Operadora aplica medidas técnicas e administrativas de segurança (art. 46 da LGPD), sem prometer segurança absoluta.
+9.2. A Operadora aplica medidas técnicas e administrativas de segurança (art. 46 da LGPD) conforme evidências técnicas, sem prometer segurança absoluta.
 
-## 10. Disponibilidade, suporte e manutenção
-10.1. A Operadora envida esforços razoáveis para disponibilidade, sujeita a manutenções programadas e eventos fora de seu controle.
-10.2. Suporte e manutenção nos termos e prazos do contrato. [PENDENTE CONTRATUAL: prazos e canais de suporte.]
+## 10. Suspensão e encerramento
+10.1. O descumprimento pode ensejar suspensão do acesso.
+10.2. Na rescisão, aplicam-se as regras contratuais de retenção e eliminação de dados, ressalvadas obrigações legais de guarda (ver seção 11).
 
-## 11. Suspensão, encerramento e retenção
-11.1. O descumprimento pode ensejar suspensão do acesso.
-11.2. Na rescisão, aplicam-se as regras contratuais de retenção e eliminação de dados, ressalvadas obrigações legais de guarda. [PENDENTE JURÍDICO: prazos de retenção por categoria.]
+## 11. Retenção e eliminação de dados
+11.1. A retenção observa a vigência contratual e os prazos legais aplicáveis por categoria:
+- **Prontuários e registros assistenciais sujeitos à guarda legal:** prazo legal aplicável, observado o mínimo de 20 anos a partir do último registro quando enquadrados na Lei nº 13.787/2018.
+- **Registros de acesso à aplicação (logs):** mínimo de 6 meses, quando aplicável o art. 15 do Marco Civil da Internet (Lei nº 12.965/2014).
+- **Auditoria de operações:** prazo definido conforme finalidade, obrigações legais e necessidade de rastreabilidade.
+- **Dados cadastrais de médicos e usuários:** durante a finalidade legítima, com conservação posterior apenas quando justificada.
+- **Backups:** conforme política de retenção e eliminação tecnicamente implementada.
+11.2. Não há eliminação automática enquanto a política de retenção por categoria não estiver homologada.
+11.3. A Operadora (fornecedora SaaS) distingue suas obrigações das atribuídas ao estabelecimento de saúde controlador dos dados.
 
 ## 12. Versionamento e novo aceite
 12.1. Estes Termos podem ser atualizados. Alterações materiais exigirão novo aceite, preservando o histórico de versões e aceites anteriores.
 
 ## 13. Legislação aplicável e foro
 13.1. Aplica-se a legislação brasileira.
-13.2. [PENDENTE JURÍDICO: foro/comarca a ser definido pela assessoria jurídica.]
+13.2. Fica eleito o foro da Comarca de Poá, Estado de São Paulo, para dirimir eventuais controvérsias decorrentes destes Termos, ressalvadas as hipóteses de competência legal obrigatória e os direitos assegurados pela legislação brasileira, inclusive pelo Código de Defesa do Consumidor, quando aplicável.
 
 ---
-*Versão 1.0 para aprovação institucional (New Wave Sistemas Digital) e revisão jurídica. Campos marcados [PENDENTE ...] dependem de decisão jurídica/contratual e não devem ser presumidos. Não declara conformidade integral sem auditoria.*
+*Versão 1.0 para aprovação institucional (New Wave Sistemas Digital) e revisão jurídica. Não declara conformidade integral sem auditoria.*
