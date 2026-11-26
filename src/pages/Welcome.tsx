@@ -5,6 +5,7 @@ import { ArrowRight, Building2, Shield, Users, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { resolverDestino } from '../auth/services/dispatcherService';
+import { authUserFromBootstrap, bootstrapFromResponse } from '../auth/services/authService';
 
 export default function Welcome(): React.ReactElement {
   const navigate = useNavigate();
@@ -26,19 +27,25 @@ export default function Welcome(): React.ReactElement {
         throw new Error('Não foi possível concluir as boas-vindas. Confirme que senha e documentos estão regularizados.');
       }
 
+      // Read the authoritative server-side state. Never overwrite onboarding
+      // flags in a local user snapshot to manufacture authorization.
+      const { data: bootstrapData, error: bootstrapError } = await supabase.rpc('fn_auth_bootstrap_v2');
+      if (bootstrapError) throw bootstrapError;
+      const bootstrap = bootstrapFromResponse(bootstrapData);
+      if (!bootstrap || !user?.auth_user_id) {
+        throw new Error('Não foi possível confirmar a identidade após as boas-vindas.');
+      }
+      const updatedUser = authUserFromBootstrap(user.auth_user_id, bootstrap);
+      if (updatedUser.must_change_password || updatedUser.terms_pending ||
+          updatedUser.responsibility_pending || updatedUser.welcome_pending) {
+        throw new Error('Ainda existe uma etapa obrigatória pendente. Acesso ao dashboard não liberado.');
+      }
+      const dest = resolverDestino(updatedUser);
+      if (!dest.destino?.disponivel) {
+        throw new Error(dest.motivoBloqueio || 'Nenhum dashboard autorizado para o seu perfil.');
+      }
       await refresh();
-
-      // Resolve o destino por papel (ROOT global, admin, gestor, etc.) sem depender
-      // do registro de células. As etapas de senha/LGPD já foram concluídas no servidor;
-      // apenas welcome_pending deixa de bloquear após fn_complete_welcome.
-      const dest = resolverDestino({
-        ...(user as NonNullable<typeof user>),
-        must_change_password: false,
-        terms_pending: false,
-        responsibility_pending: false,
-        welcome_pending: false,
-      });
-      navigate(dest.destino?.path ?? '/', { replace: true });
+      navigate(dest.destino.path, { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Falha ao concluir as boas-vindas.');
       setBusy(false);
