@@ -68,10 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     loadFromSession();
 
-    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Supabase Auth callbacks execute while the auth client holds its internal lock.
+    // Never await getSession()/RPCs inside this callback: defer the bootstrap.
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       if (session?.user) {
-        await loadFromSession();
+        setTimeout(() => {
+          if (mounted) void loadFromSession();
+        }, 0);
         return;
       }
       setState({
@@ -162,10 +166,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       throw new Error(mapped.message);
     }
-    // updatePassword() NÃO confirma automaticamente o estado de onboarding.
-    // A confirmação é feita por mecanismo server-side confiável após evento real de Auth.
-    await loadFromSession();
-  }, [loadFromSession, clearError]);
+    // The caller verifies onboarding through fn_auth_bootstrap_v2() after Auth
+    // confirms the password update. Avoid racing a second bootstrap here.
+  }, [clearError]);
 
   const refresh = useCallback(async () => {
     await loadFromSession();
