@@ -25,6 +25,17 @@ BEGIN
     RAISE EXCEPTION 'Conteúdo legal não revisado: substitua os marcadores __CONTEUDO_APROVADO_*__ pelo texto aprovado antes de aplicar.';
   END IF;
 
+  -- Validação de conteúdo: não vazio e comprimento mínimo por documento.
+  IF length(btrim(COALESCE(v_terms, ''))) < 200 THEN
+    RAISE EXCEPTION 'Termos de Uso (terms_of_use) ausente ou curto demais (mínimo 200 caracteres).';
+  END IF;
+  IF length(btrim(COALESCE(v_resp, ''))) < 200 THEN
+    RAISE EXCEPTION 'Termo de Responsabilidade (responsibility) ausente ou curto demais (mínimo 200 caracteres).';
+  END IF;
+  IF length(btrim(COALESCE(v_priv, ''))) < 200 THEN
+    RAISE EXCEPTION 'Política de Privacidade (privacy_notice) ausente ou curta demais (mínimo 200 caracteres).';
+  END IF;
+
   INSERT INTO legal_documents (tipo, versao, titulo, conteudo, conteudo_hash, obrigatorio, ativo)
   VALUES ('terms_of_use', v_versao, 'Termos de Uso', v_terms, md5(v_terms), true, true)
   ON CONFLICT (tipo, versao) DO NOTHING;
