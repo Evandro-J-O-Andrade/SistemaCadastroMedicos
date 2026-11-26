@@ -2,7 +2,7 @@
 -- TEMPLATE de publicação dos documentos legais obrigatórios (terms_of_use,
 -- responsibility) e da Política de Privacidade (privacy_notice).
 --
---！！ IMPORTANTE: este arquivo é um TEMPLATE. Ele NÃO contém texto jurídico real.
+--!! IMPORTANTE: este arquivo é um TEMPLATE. Ele NÃO contém texto jurídico real.
 -- Substitua os marcadores __CONTEUDO_APROVADO_TERMS__ / __CONTEUDO_APROVADO_RESPONSABILIDADE__
 -- / __CONTEUDO_APROVADO_PRIVACIDADE__ pelo texto FINAL revisado e aprovado.
 -- O bloco DO abaixo ABORTA a transação se qualquer marcador permanecer, evitando

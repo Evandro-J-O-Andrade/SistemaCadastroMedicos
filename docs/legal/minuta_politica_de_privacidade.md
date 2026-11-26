@@ -1,25 +1,21 @@
-# MINUTA — Política de Privacidade (privacy_notice) v1.0
+# Política de Privacidade — Gestão Médica Alpha Enterprise (v1.0)
 
-> **Status: RASCUNHO para revisão jurídica/DPO.** Não aprovado, não autorizado para
-> produção. Plataforma: Gestão Médica Alpha Enterprise (SaaS multi-tenant).
-> Finalidade da publicação: **ciência** (aclarar que o aceite é de ciência, não
-> consentimento para tratamento — ver seção 7 e nota final).
+> **Status: VERSÃO 1.0 PARA APROVAÇÃO INSTITUCIONAL E REVISÃO JURÍDICA/DPO.**
+> Apresentada para **ciência**, não como consentimento genérico. A ciência não
+> substitui bases legais específicas de tratamento. Não declara conformidade integral.
 
-## 1. Quem somos
-A operadora da Plataforma Gestão Médica Alpha Enterprise ("operadora") fornece
-software SaaS para gestão de profissionais médicos, escalas, atendimentos e
-relatórios. O cliente/organização contratante ("tenant") é o controlador dos dados
-inseridos; a operadora atua como operadora, nos termos do contrato e da LGPD.
+## 1. Identificação e contato
+**Operadora:** New Wave Sistemas Digital, CNPJ 29.328.524/0001-98.
+**Plataforma:** Gestão Médica Alpha Enterprise (SaaS multi-tenant de gestão médica).
+**Canal de privacidade/Encarregado:** newwavesistemasdigital@hotmail.com.
+[PENDENTE JURÍDICO: confirmar a designação formal do Encarregado (art. 41 da LGPD).]
 
-## 2. Dados tratados
-2.1. **Dados cadastrais de usuários:** nome, e-mail, vínculo, papel/permissões.
-2.2. **Dados profissionais:** cadastro de médicos, escalas e plantões.
-2.3. **Dados assistenciais (sensíveis, saúde):** registros de atendimentos e
-informações clínicas inseridas pelo tenant.
-2.4. **Dados técnicos e de segurança:** logs de acesso, trilha de auditoria, IP,
-user_agent, evidências de aceite.
-2.5. **Dados de autenticação:** credenciais protegidas (hash), não armazenadas em
-texto claro.
+## 2. Categorias de dados
+2.1. **Cadastrais de usuários:** nome, e-mail, vínculo, papel/permissões.
+2.2. **Profissionais:** cadastro de médicos, escalas e plantões.
+2.3. **Assistenciais (sensíveis, saúde):** registros de atendimentos e informações clínicas inseridas pelo tenant.
+2.4. **Técnicos e de segurança:** logs de acesso, trilha de auditoria, IP, user_agent, evidências de aceite.
+2.5. **Autenticação:** credenciais protegidas por hash, não armazenadas em texto claro.
 
 ## 3. Finalidades
 3.1. Autenticação e controle de acesso por papéis (RBAC).
@@ -30,47 +26,45 @@ texto claro.
 ## 4. Bases legais (LGPD)
 4.1. Execução de contrato e procedimentos preliminares (art. 7º, V).
 4.2. Obrigação legal/regulatória (art. 7º, II).
-4.3. Tutela da saúde, por profissional de saúde (art. 11, II, "f") para dados
-sensíveis, quando aplicável.
-4.4. Legítimo interesse (art. 7º, IX) para segurança e auditoria, com avaliação de
-proporcionalidade.
+4.3. Tutela da saúde, por profissional de saúde, para dados sensíveis (art. 11, II, "f"), quando aplicável.
+4.4. Legítimo interesse (art. 7º, IX) para segurança e auditoria, com avaliação de proporcionalidade.
+[PENDENTE JURÍDICO: validar base legal por atividade de tratamento.]
 
-## 5. Compartilhamento
-5.1. Dados podem ser processados por subprocessadores de infraestrutura (hospedagem,
-e-mail, observabilidade) sob contrato e dever de sigilo.
-5.2. Compartilhamento com autoridades mediante requisição legal.
-5.3. Não há venda de dados.
+## 5. Dados sensíveis de saúde
+5.1. Recebem proteção reforçada: minimização, controle de acesso por RLS, segregação e trilha de auditoria.
 
-## 6. Segurança
-6.1. Medidas técnicas e administrativas: criptografia em trânsito, controle de
-acesso, segregação multi-tenant, trilha de auditoria e minimização.
-6.2. Plano de resposta a incidentes e comunicação à ANPD/controlador quando aplicável.
+## 6. Controlador e operador
+6.1. O tenant atua como controlador dos dados de seus usuários e pacientes; a Operadora atua como operadora, conforme contrato.
+6.2. [PENDENTE JURÍDICO/CONTRATUAL: detalhar papéis por atividade e módulo.]
 
-## 7. Retenção e eliminação
-7.1. Dados mantidos durante a vigência contratual e por prazos legais aplicáveis
-(ex.: normas de guarda de prontuário).
-7.2. Na rescisão, eliminação ou anonimização conforme contrato e lei, ressalvada
-retenção legal.
+## 7. Compartilhamento e subprocessadores
+7.1. Dados podem ser processados por subprocessadores de infraestrutura (hospedagem, e-mail, observabilidade) sob contrato e sigilo.
+7.2. Compartilhamento com autoridades mediante requisição legal.
+7.3. Não há venda de dados.
+[PENDENTE JURÍDICO: listar subprocessadores efetivamente contratados.]
 
-## 8. Direitos do titular
-8.1. Confirmação, acesso, correção, anonimização, portabilidade, informação sobre
-compartilhamento e oposição, nos termos da LGPD.
-8.2. O titular deve exercer direitos perante o controlador (tenant); a operadora
-colabora como operadora.
-8.3. Canal do DPO/Encarregado: [inserir contato].
+## 8. Medidas de segurança (art. 46)
+8.1. Medidas efetivamente adotadas ou em implantação (identificar cada uma): criptografia em trânsito, controle de acesso por RLS/RBAC, segregação multi-tenant, trilha de auditoria e minimização.
+8.2. [PENDENTE TÉCNICO/JURÍDICO: confirmar criptografia em repouso, gestão de chaves e backups.]
 
-## 9. Natureza do aceite
-9.1. O aceite desta Política é de **ciência** quanto às práticas de privacidade, e
-não substitui as bases legais específicas de tratamento.
-9.2. Tratamentos que dependam de consentimento específico serão coletados em tela
-própria, se aplicável.
+## 9. Retenção e eliminação
+9.1. Dados mantidos durante a vigência contratual e por prazos legais aplicáveis (ex.: guarda de prontuário).
+9.2. Na rescisão, eliminação ou anonimização conforme contrato e lei, ressalvada retenção legal.
+[PENDENTE JURÍDICO: definir prazos de retenção por categoria.]
 
-## 10. Atualizações
-10.1. Esta Política pode ser atualizada; alterações materiais serão comunicadas e
-poderão exigir novo aceite de ciência.
+## 10. Direitos dos titulares (art. 18)
+10.1. Confirmação, acesso, correção, anonimização, portabilidade, informação sobre compartilhamento e oposição, nos termos da LGPD.
+10.2. O titular exerce direitos perante o controlador (tenant); a Operadora colabora como operadora.
+
+## 11. Incidentes (art. 48 e ANPD)
+11.1. Procedimentos de identificação, resposta e comunicação de incidentes à ANPD e ao controlador quando aplicável.
+[PENDENTE JURÍDICO: prazos e fluxo formal de comunicação.]
+
+## 12. Atualizações e versionamento
+12.1. Esta Política pode ser atualizada; alterações materiais serão comunicadas e poderão exigir novo aceite de ciência, preservando o histórico.
+
+## 13. Canal de privacidade
+newwavesistemasdigital@hotmail.com.
 
 ---
-*Minuta sujeita a revisão e aprovação jurídica/DPO. Confirmar: papéis
-controlador/operadora por módulo, bases legais de dados de saúde, prazos de retenção,
-contato do Encarregado e subprocessadores. Decidir se `privacy_notice` permanece
-`obrigatorio=false` (ciência, não bloqueia onboarding) — coerente com a seção 9.*
+*Versão 1.0 para ciência e revisão jurídica/DPO. Campos [PENDENTE ...] dependem de decisão jurídica/técnica e não devem ser presumidos. Não declara conformidade integral sem auditoria e comprovação.*

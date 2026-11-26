@@ -75,6 +75,8 @@ export default function LegalOnboarding() {
   const hasPublishedDocs = display.some(doc => doc.published);
   const ready = !loading && !error && !missingRequired && hasPublishedDocs &&
     display.filter(doc => doc.published && doc.obrigatorio).every(doc => doc.id && accepted.has(doc.id));
+  const requiredPublished = display.filter(doc => doc.published && doc.obrigatorio);
+  const acceptedCount = requiredPublished.filter(doc => doc.id && accepted.has(doc.id)).length;
 
   const toggle = (id: string) => setAccepted(prev => {
     const next = new Set(prev);
@@ -117,8 +119,8 @@ export default function LegalOnboarding() {
   };
 
   return (
-    <main className="relative min-h-dvh bg-slate-50 text-slate-900 dark:bg-[#080f1e] dark:text-slate-100">
-      <header className="border-b border-slate-200/80 bg-white/90 dark:border-slate-800 dark:bg-slate-950/80">
+    <main className="flex h-dvh flex-col overflow-hidden bg-slate-50 text-slate-900 dark:bg-[#080f1e] dark:text-slate-100">
+      <header className="shrink-0 border-b border-slate-200/80 bg-white/90 dark:border-slate-800 dark:bg-slate-950/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-4 sm:px-8">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white"><ShieldCheck size={22} aria-hidden="true" /></span>
@@ -130,82 +132,96 @@ export default function LegalOnboarding() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 sm:py-12">
-        <div className="mb-8 text-center">
-          <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
-            <LockKeyhole size={14} /> Etapa 2 de 3 · Documentos institucionais
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Termos, responsabilidade e LGPD</h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-            Consulte cada documento na íntegra. Os aceites são registrados individualmente, com a versão do documento, para fins de auditoria.
-          </p>
-        </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 sm:py-12">
+          <div className="mb-8 text-center">
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+              <LockKeyhole size={14} /> Etapa 2 de 3 · Documentos institucionais
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Termos, responsabilidade e LGPD</h1>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+              Consulte cada documento na íntegra. Os aceites são registrados individualmente, com a versão do documento, para fins de auditoria.
+            </p>
+          </div>
 
-        {!loading && missingRequired && (
-          <section role="status" className="mb-6 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-            <AlertCircle className="mt-0.5 shrink-0" size={19} />
-            <div><p className="font-semibold">Documentos oficiais aguardando publicação</p>
-              <p className="mt-1 leading-6">As minutas abaixo estão disponíveis somente para leitura e revisão. Os checkboxes e o botão de confirmação serão habilitados quando os Termos de Uso e o Termo de Responsabilidade aprovados forem publicados no Supabase. Nenhum aceite de rascunho será registrado.</p>
-            </div>
-          </section>
-        )}
+          {!loading && missingRequired && (
+            <section role="status" className="mb-6 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+              <AlertCircle className="mt-0.5 shrink-0" size={19} />
+              <div><p className="font-semibold">Documentos oficiais aguardando publicação</p>
+                <p className="mt-1 leading-6">As minutas abaixo estão disponíveis somente para leitura e revisão. Os checkboxes e o botão de confirmação serão habilitados quando os Termos de Uso e o Termo de Responsabilidade aprovados forem publicados no Supabase. Nenhum aceite de rascunho será registrado.</p>
+              </div>
+            </section>
+          )}
 
-        {error && <p role="alert" className="mb-5 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">{error}</p>}
+          {error && <p role="alert" className="mb-5 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">{error}</p>}
 
-        {loading ? (
-          <div role="status" className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm dark:border-slate-800 dark:bg-slate-900">Carregando documentos...</div>
-        ) : (
-          <div className="space-y-5">
-            {display.map((doc, index) => (
-              <article key={doc.key} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-5 dark:border-slate-800 sm:px-6">
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">{index === 2 ? <BookOpen size={20} /> : <FileText size={20} />}</span>
-                    <div>
-                      <h2 className="text-base font-bold sm:text-lg">{doc.titulo}</h2>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {doc.published ? 'Versão publicada: ' + doc.versao : 'Minuta não aprovada'} · {doc.key === 'privacy_notice' ? 'Ciência da política' : 'Aceite obrigatório'}
-                      </p>
+          {loading ? (
+            <div role="status" className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm dark:border-slate-800 dark:bg-slate-900">Carregando documentos...</div>
+          ) : (
+            <div className="space-y-5">
+              {display.map((doc, index) => (
+                <article key={doc.key} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-5 dark:border-slate-800 sm:px-6">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">{index === 2 ? <BookOpen size={20} /> : <FileText size={20} />}</span>
+                      <div>
+                        <h2 className="text-base font-bold sm:text-lg">{doc.titulo}</h2>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          {doc.published ? 'Versão publicada: ' + doc.versao : 'Minuta não aprovada'} · {doc.key === 'privacy_notice' ? 'Ciência da política' : 'Aceite obrigatório'}
+                        </p>
+                      </div>
                     </div>
+                    <span className={doc.published ? 'rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200'}>
+                      {doc.published ? 'Documento oficial' : 'Pré-visualização'}
+                    </span>
                   </div>
-                  <span className={doc.published ? 'rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200'}>
-                    {doc.published ? 'Documento oficial' : 'Pré-visualização'}
-                  </span>
-                </div>
-                <div className="px-5 py-5 sm:px-6">
-                  <div aria-label={'Texto de ' + doc.titulo} tabIndex={0} className="max-h-80 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 font-sans text-sm leading-7 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 sm:px-5">
-                    {doc.conteudo}
+                  <div className="px-5 py-5 sm:px-6">
+                    <div aria-label={'Texto de ' + doc.titulo} tabIndex={0} className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 font-sans text-sm leading-7 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 sm:px-5">
+                      {doc.conteudo}
+                    </div>
+                    <label className={'mt-5 flex items-start gap-3 rounded-xl border p-4 text-sm ' + (doc.published && !missingRequired ? 'cursor-pointer border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900/50')}>
+                      <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600" checked={Boolean(doc.id && accepted.has(doc.id))} disabled={!doc.published || missingRequired || busy} onChange={() => { if (doc.id) toggle(doc.id); }} />
+                      <span>{doc.key === 'privacy_notice'
+                        ? 'Declaro que li e tomei ciência desta Política de Privacidade. Esta ciência não substitui uma base legal de tratamento.'
+                        : 'Declaro que li e aceito integralmente este documento, na versão indicada acima.'}</span>
+                    </label>
                   </div>
-                  <label className={'mt-5 flex items-start gap-3 rounded-xl border p-4 text-sm ' + (doc.published && !missingRequired ? 'cursor-pointer border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900/50')}>
-                    <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600" checked={Boolean(doc.id && accepted.has(doc.id))} disabled={!doc.published || missingRequired || busy} onChange={() => { if (doc.id) toggle(doc.id); }} />
-                    <span>{doc.key === 'privacy_notice'
-                      ? 'Declaro que li e tomei ciência desta Política de Privacidade. Esta ciência não substitui uma base legal de tratamento.'
-                      : 'Declaro que li e aceito integralmente este documento, na versão indicada acima.'}</span>
-                  </label>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+                </article>
+              ))}
+            </div>
+          )}
 
-        <div className="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><p className="font-semibold">Confirmar e continuar</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{missingRequired ? 'Aguardando publicação dos documentos aprovados.' : 'O aceite dos documentos obrigatórios é necessário para avançar.'}</p></div>
-            <button type="button" onClick={() => void loadDocuments()} disabled={busy || loading} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-800">
-              <RefreshCw size={15} /> Atualizar documentos
+          <div className="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold">Confirmar e continuar</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  {missingRequired
+                    ? 'Aguardando publicação dos documentos aprovados.'
+                    : `${acceptedCount} de ${requiredPublished.length} aceites obrigatórios confirmados.`}
+                </p>
+              </div>
+              <button type="button" onClick={() => void loadDocuments()} disabled={busy || loading} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-800">
+                <RefreshCw size={15} /> Atualizar documentos
+              </button>
+            </div>
+            <button type="button" onClick={() => void submit()} disabled={!ready || busy} className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-400">
+              {busy ? 'Registrando aceites...' : 'Confirmar e continuar'} <ChevronRight size={19} aria-hidden="true" />
             </button>
+            {!missingRequired && ready && <p className="mt-3 flex items-center justify-center gap-2 text-xs text-emerald-700 dark:text-emerald-300"><CheckCircle2 size={15} /> Pronto para registrar os aceites.</p>}
+            <button type="button" onClick={() => void signOut()} className="mt-4 block w-full text-center text-xs text-slate-500 hover:underline dark:text-slate-400">Sair desta conta</button>
           </div>
-          <button type="button" onClick={() => void submit()} disabled={!ready || busy} className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-400">
-            {busy ? 'Registrando aceites...' : 'Confirmar e ir para boas-vindas'} <ChevronRight size={19} aria-hidden="true" />
-          </button>
-          {!missingRequired && ready && <p className="mt-3 flex items-center justify-center gap-2 text-xs text-emerald-700 dark:text-emerald-300"><CheckCircle2 size={15} /> Pronto para registrar os aceites.</p>}
-          <button type="button" onClick={() => void signOut()} className="mt-4 block w-full text-center text-xs text-slate-500 hover:underline dark:text-slate-400">Sair desta conta</button>
         </div>
       </div>
-      <footer className="flex items-center justify-center gap-2 border-t border-slate-200 px-4 py-5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-        <img src={logoNewWave} alt="" className="h-6 w-12 rounded bg-white object-contain p-1" />
-        Tecnologia por New Wave Sistemas Digital
+
+      <footer
+        className="shrink-0 border-t border-slate-200 bg-white/95 dark:border-slate-800 dark:bg-slate-950/95"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)' }}
+      >
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-2 px-5 pt-4 text-xs text-slate-500 dark:text-slate-400 sm:px-8">
+          <img src={logoNewWave} alt="" className="h-5 w-10 rounded bg-white object-contain p-0.5" />
+          <span>© {new Date().getFullYear()} New Wave Sistemas Digital · Tecnologia e conformidade.</span>
+        </div>
       </footer>
     </main>
   );
