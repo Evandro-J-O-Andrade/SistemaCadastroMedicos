@@ -176,7 +176,7 @@ export default function LegalOnboarding() {
                     </span>
                   </div>
                   <div className="px-5 py-5 sm:px-6">
-                    <div aria-label={'Texto de ' + doc.titulo} tabIndex={0} className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 font-sans text-sm leading-7 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 sm:px-5">
+                    <div aria-label={'Texto de ' + doc.titulo} tabIndex={0} className="max-h-72 overflow-y-auto overscroll-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 font-sans text-sm leading-7 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 sm:max-h-96 sm:px-5">
                       {doc.conteudo}
                     </div>
                     <label className={'mt-5 flex items-start gap-3 rounded-xl border p-4 text-sm ' + (doc.published && !missingRequired ? 'cursor-pointer border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900' : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900/50')}>
