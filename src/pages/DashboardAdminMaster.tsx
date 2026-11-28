@@ -248,10 +248,8 @@ export default function DashboardAdminMaster() {
       <Card isDark={isDark} padding={SPACING.md}>
         <Table isDark={isDark}>
           <TableHeader isDark={isDark}>
-            <TableRow isDark={isDark}>
-              <TableCell isDark={isDark} bold>Campo</TableCell>
-              <TableCell isDark={isDark} bold>Valor</TableCell>
-            </TableRow>
+            <TableCell isDark={isDark} bold>Campo</TableCell>
+            <TableCell isDark={isDark} bold>Valor</TableCell>
           </TableHeader>
           <tbody>
             <TableRow isDark={isDark}>
