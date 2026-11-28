@@ -11,6 +11,7 @@ import {
   defaultContext,
   type ResolvedContext,
 } from './contextResolver';
+import { clearCache } from '../data/queryClient';
 
 interface ContextValue {
   contexts: ResolvedContext[];
@@ -42,6 +43,7 @@ export function ContextProvider({ children }: { children: ReactNode }) {
   const setContext = useCallback(
     (ctx: ResolvedContext): boolean => {
       if (!isContextAllowed(user, ctx)) return false; // falha nega acesso
+      clearCache(); // isolamento: descarta cache in-memory do contexto anterior (tenant/unidade)
       setActive(ctx);
       return true;
     },
