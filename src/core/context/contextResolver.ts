@@ -46,11 +46,9 @@ export function resolveContexts(user: AuthUser | null): ResolvedContext[] {
     });
   }
 
-  // Fallback: usuário com tenant mas sem membership detalhada.
-  if (contexts.length === 0 && user.tenant_id) {
-    contexts.push({ key: user.tenant_id, label: 'Organização', tenantId: user.tenant_id, unitIds: [], isGlobal: false });
-  }
-
+  // Sem fallback fictício: sem membership detalhada e sem ROOT global, não há contexto
+  // autorizado a exibir. A decisão de entrada retorna 'none' (honesto), nunca um tenant
+  // fabricado a partir de tenant_id. A validade é imposta por RLS no servidor.
   return contexts;
 }
 

@@ -1,14 +1,17 @@
 // src/pages/BemVindo.tsx
 // Recepção Enterprise (landing page premium) — mini landing personalizada.
-// 100% dados reais: identidade/vínculos do bootstrap; módulos filtrados por permissão efetiva.
+// 100% dados reais: identidade/vínculos do bootstrap; cards de módulos Database-Driven
+// (ui_navigation_items) filtrados por permissão efetiva. Navega SOMENTE após sucesso confirmado.
 // Não é seleção de contexto: a troca de acesso só abre via CTA "Trocar de conta" (EscolhaConta).
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sun, Moon, Stethoscope, CalendarClock, Activity, BarChart3 } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useActiveContext } from '../core/context/ContextProvider';
 import { useTheme } from '../core/theme/ThemeProvider';
 import { useContextEntry } from '../core/context/useContextEntry';
+import { useNavigation } from '../core/shell/useNavigation';
+import { iconFor } from '../core/shell/navIcons';
 import { decideEntry } from '../services/accessContextService';
 import { WelcomeHero } from '../components/welcome/WelcomeHero';
 import { WelcomeProfileCard } from '../components/welcome/WelcomeProfileCard';
@@ -16,21 +19,15 @@ import { WelcomeModuleCard, type WelcomeModule } from '../components/welcome/Wel
 import { WelcomeActions } from '../components/welcome/WelcomeActions';
 import '../styles/pages/bem-vindo.css';
 
-const MODULES: WelcomeModule[] = [
-  { key: 'medicos', title: 'Médicos', description: 'Gestão profissional', icon: Stethoscope, permission: 'medicos.read', roles: ['root', 'admin', 'suporte'] },
-  { key: 'plantoes', title: 'Plantões', description: 'Escalas e turnos', icon: CalendarClock, permission: 'plantoes.read', roles: ['root', 'admin', 'suporte'] },
-  { key: 'producao', title: 'Produção', description: 'Atendimentos', icon: Activity, permission: 'producao.read' },
-  { key: 'relatorios', title: 'Relatórios', description: 'Análises e indicadores', icon: BarChart3, permission: 'relatorios.read' },
-];
-
-function canSeeModule(mod: WelcomeModule, roles: string[], permissions: string[]): boolean {
-  if (mod.roles && !mod.roles.some((r) => roles.includes(r))) return false;
-  if (mod.permission) {
-    const [rec, acao] = mod.permission.split('.');
-    return permissions.includes(mod.permission) || permissions.includes(`${rec}.*`) || permissions.includes('*.*') || !acao;
-  }
-  return true;
-}
+// Descrição cosmética por célula (apresentação). O catálogo/ordem/permissão vem do banco.
+const DESCRICAO: Record<string, string> = {
+  medicos: 'Gestão profissional',
+  plantoes: 'Escalas e turnos',
+  producao: 'Atendimentos',
+  relatorios: 'Análises e indicadores',
+  'admin-master': 'Visão administrativa',
+  usuarios: 'Pessoas e permissões',
+};
 
 export default function BemVindo() {
   const navigate = useNavigate();
@@ -38,18 +35,28 @@ export default function BemVindo() {
   const { active, contexts } = useActiveContext();
   const { theme, toggleTheme } = useTheme();
   const { enter, busy, error } = useContextEntry();
+  const { items: navItems } = useNavigation();
 
   const nome = user?.nome || user?.full_name || user?.email || 'Usuário';
   const decision = useMemo(() => decideEntry(user, contexts), [user, contexts]);
-  const modules = useMemo(
-    () => MODULES.filter((m) => canSeeModule(m, user?.roles ?? [], user?.permissions ?? [])),
-    [user],
+
+  const modules = useMemo<WelcomeModule[]>(
+    () =>
+      navItems
+        .filter((it) => it.cell_id)
+        .map((it) => ({
+          key: it.key,
+          title: it.label,
+          description: DESCRICAO[it.cell_id ?? ''] ?? '',
+          icon: iconFor(it.icon),
+        })),
+    [navItems],
   );
 
   const acessar = async () => {
     if (decision.mode === 'auto') {
-      await enter(decision.context);
-      navigate('/inicio', { replace: true });
+      const ok = await enter(decision.context); // só navega se o sucesso for confirmado
+      if (ok) navigate('/inicio', { replace: true });
       return;
     }
     if (decision.mode === 'select-context' || decision.mode === 'select-unit') {

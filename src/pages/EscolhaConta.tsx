@@ -1,14 +1,16 @@
 // src/pages/EscolhaConta.tsx
 // Troca de acesso — seleção operacional de conta/ambiente/perfil autorizados.
 // Acionada SOMENTE pelo CTA "Trocar de conta" (ou quando há múltiplos contextos).
-// 100% dados reais (memberships do bootstrap); validade imposta por RLS no servidor.
-import { useMemo, useState } from 'react';
+// 100% dados reais: memberships do bootstrap + nomes reais de unidades (tabela units, RLS).
+// Navega SOMENTE após sucesso confirmado. Validade imposta por RLS no servidor.
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Building2, CheckCircle2, ShieldCheck, Hospital } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useActiveContext } from '../core/context/ContextProvider';
 import type { ResolvedContext } from '../core/context/contextResolver';
 import { useContextEntry } from '../core/context/useContextEntry';
+import { tenantService } from '../auth/services/tenantService';
 import '../styles/pages/escolha-conta.css';
 
 export default function EscolhaConta() {
@@ -17,13 +19,37 @@ export default function EscolhaConta() {
   const { contexts } = useActiveContext();
   const { enter, busy, error } = useContextEntry();
 
-  const [selectedKey, setSelectedKey] = useState<string>(contexts[0]?.key ?? '');
-  const [unitId, setUnitId] = useState<string | null>(null);
+  const first = contexts[0];
+  const [selectedKey, setSelectedKey] = useState<string>(first?.key ?? '');
+  // Unidade inicial coerente com o primeiro contexto (não null quando há unidades).
+  const [unitId, setUnitId] = useState<string | null>(first?.unitIds[0] ?? null);
+  const [unitNames, setUnitNames] = useState<Record<string, string>>({});
 
   const selected = useMemo(
     () => contexts.find((c) => c.key === selectedKey) ?? null,
     [contexts, selectedKey],
   );
+
+  // Nomes reais das unidades do tenant selecionado (RLS). Sem mock; fallback neutro se ausente.
+  useEffect(() => {
+    let cancelled = false;
+    setUnitNames({});
+    const tenantId = selected?.tenantId ?? null;
+    if (!selected || selected.isGlobal || !tenantId) return;
+    tenantService
+      .listarUnidades(tenantId)
+      .then((units) => {
+        if (!cancelled) {
+          setUnitNames(Object.fromEntries(units.map((u) => [u.id, u.nome])));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setUnitNames({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.tenantId, selected?.isGlobal]);
 
   const pickContext = (ctx: ResolvedContext) => {
     setSelectedKey(ctx.key);
@@ -32,8 +58,8 @@ export default function EscolhaConta() {
 
   const confirmar = async () => {
     if (!selected) return;
-    await enter({ ...selected, selectedUnitId: unitId });
-    navigate('/inicio', { replace: true });
+    const ok = await enter({ ...selected, selectedUnitId: unitId }); // só navega se confirmado
+    if (ok) navigate('/inicio', { replace: true });
   };
 
   return (
@@ -83,7 +109,7 @@ export default function EscolhaConta() {
           <div className="escolha-units">
             <p className="escolha-units-label">Unidade de atendimento</p>
             <div className="escolha-units-grid">
-              {selected.unitIds.map((uid, i) => {
+              {selected.unitIds.map((uid) => {
                 const isSel = uid === unitId;
                 return (
                   <button
@@ -93,7 +119,7 @@ export default function EscolhaConta() {
                     className={`escolha-unit ${isSel ? 'is-sel' : ''}`}
                   >
                     <Hospital aria-hidden />
-                    <span className="truncate">Unidade {i + 1}</span>
+                    <span className="truncate">{unitNames[uid] ?? 'Unidade'}</span>
                     {isSel && <CheckCircle2 className="ml-auto" aria-hidden />}
                   </button>
                 );

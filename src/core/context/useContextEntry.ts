@@ -2,6 +2,8 @@
 // Conclui a jornada de entrada: finaliza boas-vindas (1º acesso), reaplica bootstrap,
 // aplica o contexto autorizado e marca a seleção de contexto da sessão como concluída.
 // Não concede acesso: apenas orquestra UX; a validade é imposta por RLS no servidor.
+// Contrato: enter() retorna true SOMENTE após sucesso confirmado (bootstrap + contexto aplicados);
+// em qualquer falha captura o erro em `error` (estado), retorna false e NÃO navega.
 import { useCallback, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
@@ -10,11 +12,17 @@ import { isContextAllowed, type ResolvedContext } from './contextResolver';
 import { authUserFromBootstrap, bootstrapFromResponse } from '../../auth/services/authService';
 
 export interface UseContextEntryResult {
-  /** Aplica o contexto e conclui a entrada. Retorna true em sucesso; lança Error em falha. */
-  enter: (ctx: ResolvedContext) => Promise<void>;
+  /** Aplica o contexto e conclui a entrada. Retorna true em sucesso; false em falha (erro em `error`). */
+  enter: (ctx: ResolvedContext) => Promise<boolean>;
   busy: boolean;
   error: string;
   clearError: () => void;
+}
+
+function messageOf(cause: unknown): string {
+  if (cause instanceof Error && cause.message) return cause.message;
+  if (typeof cause === 'string' && cause) return cause;
+  return 'Não foi possível concluir a entrada. Tente novamente.';
 }
 
 export function useContextEntry(): UseContextEntryResult {
@@ -26,8 +34,8 @@ export function useContextEntry(): UseContextEntryResult {
   const clearError = useCallback(() => setError(''), []);
 
   const enter = useCallback(
-    async (ctx: ResolvedContext) => {
-      if (busy) return;
+    async (ctx: ResolvedContext): Promise<boolean> => {
+      if (busy) return false;
       setBusy(true);
       setError('');
       try {
@@ -66,6 +74,10 @@ export function useContextEntry(): UseContextEntryResult {
         }
         completeContextSelection();
         await refresh();
+        return true; // sucesso confirmado — caller pode navegar
+      } catch (cause) {
+        setError(messageOf(cause)); // falha capturada: feedback controlado, sem rejeição não tratada
+        return false;
       } finally {
         setBusy(false);
       }
