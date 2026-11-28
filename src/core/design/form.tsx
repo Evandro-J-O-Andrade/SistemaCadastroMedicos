@@ -11,6 +11,7 @@ import {
   type FieldValues,
   type Path,
   type UseFormReturn,
+  type Resolver,
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { ZodType } from 'zod';
@@ -18,8 +19,13 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, ChevronDown, Loader2, Search, AlertCircle } from 'lucide-react';
 
 /* ----------------------------- helper de form ----------------------------- */
-export function useZodForm<T extends FieldValues>(schema: ZodType<T>) {
-  return useForm<T>({ resolver: zodResolver(schema), mode: 'onBlur' });
+export function useZodForm<T extends FieldValues>(schema: ZodType<T>): UseFormReturn<T> {
+  // @hookform/resolvers 7 suporta Zod 4 em runtime (peer ^3.25 || ^4); os casts abaixo
+  // reconciliam apenas a variância de generics (Zod3Type/Resolver) sem afetar o runtime.
+  return useForm<T>({
+    resolver: zodResolver(schema as never) as unknown as Resolver<T>,
+    mode: 'onBlur',
+  });
 }
 
 /* ----------------------------- FormField ----------------------------- */
