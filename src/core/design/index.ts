@@ -6,3 +6,4 @@ export * from './navigation';
 export * from './feedback';
 export * from './data';
 export * from './form';
+export * from './charts';
