@@ -1,7 +1,8 @@
 // DashboardAdminMaster — Central administrativa para ROOT global
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useIsDark } from '../core/theme/useIsDark';
 import {
   Building,
   Users,
@@ -74,22 +75,7 @@ function ModuleCard({ title, description, icon: Icon, role, disponivel, motivo, 
 export default function DashboardAdminMaster() {
   const navigate = useNavigate();
   const { user, loading, authenticated, error } = useAuth();
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('gma-theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setIsDark(saved ? saved === 'dark' : prefersDark);
-  }, []);
-
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('gma-theme', isDark ? 'dark' : 'light');
-  }, [isDark]);
+  const isDark = useIsDark();
 
   const theme = getThemeColors(isDark);
 
