@@ -6,7 +6,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useActiveContext } from '../core/context/ContextProvider';
 import { isContextAllowed } from '../core/context/contextResolver';
 import { supabase } from '../lib/supabase';
-import { resolverDestino } from '../auth/services/dispatcherService';
 import { authUserFromBootstrap, bootstrapFromResponse } from '../auth/services/authService';
 
 export default function Welcome(): React.ReactElement {
@@ -52,17 +51,15 @@ export default function Welcome(): React.ReactElement {
         throw new Error('Ainda existe uma etapa obrigatória pendente. Acesso não liberado.');
       }
 
-      // Aplica o contexto escolhido (validado contra memberships) e resolve o destino.
+      // Aplica o contexto escolhido (validado contra memberships).
       if (!setContext(selected)) {
         throw new Error('Contexto não autorizado para o seu perfil.');
       }
-      const dest = resolverDestino(updatedUser);
-      if (!dest.destino?.disponivel) {
-        throw new Error(dest.motivoBloqueio || 'Nenhum dashboard autorizado para o seu perfil.');
-      }
       completeContextSelection();
       await refresh();
-      navigate(dest.destino.path, { replace: true });
+      // Nova jornada: após seleção de contexto, o usuário entra no portal Início
+      // (tela cheia) e só então clica em "Entrar no Painel" para o dashboard.
+      navigate('/inicio', { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Falha ao concluir as boas-vindas.');
       setBusy(false);

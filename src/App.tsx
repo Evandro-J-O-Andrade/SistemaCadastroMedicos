@@ -1,5 +1,5 @@
 // src/App.tsx — rotas separadas por estado de autenticação/onboarding
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './auth/context/AuthContextProvider';
 import { EnterpriseShell } from './core/shell/EnterpriseShell';
 import Welcome from './pages/Welcome';
@@ -9,7 +9,6 @@ import GestaoDocumentosLegais from './pages/GestaoDocumentosLegais';
 import Login from './pages/LoginEnterprise';
 import TrocaSenha from './pages/TrocaSenha';
 import LegalOnboarding from './pages/LegalOnboarding';
-import Home from './pages/Home';
 import Medicos from './pages/Medicos';
 import Plantao from './pages/Plantao';
 import Relatorios from './pages/Relatorios';
@@ -18,6 +17,7 @@ import CadastroEmLote from './pages/CadastroEmLote';
 import CadastroUsuarios from './pages/CadastroUsuarios';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { SidebarNav } from './core/shell/SidebarNav';
+import Inicio from './pages/Inicio';
 
 function App() {
   const { loading, authenticated, user, contextSelectionPending } = useAuth();
@@ -65,17 +65,26 @@ function App() {
   }
 
   return (
-    <EnterpriseShell sidebarContent={<SidebarNav />}>
-      <Routes>
-        <Route path="/login" element={<Navigate to="/" replace />} />
-        <Route path="/welcome" element={<Welcome />} />
+    <Routes>
+      {/* Portal de entrada em tela cheia (sem sidebar operacional) */}
+      <Route path="/inicio" element={<Inicio />} />
+      <Route path="/welcome" element={<Welcome />} />
+
+      {/* Workspace operacional com AppShell Enterprise */}
+      <Route
+        element={
+          <EnterpriseShell sidebarContent={({ collapsed, onNavigate }) => <SidebarNav collapsed={collapsed} onNavigate={onNavigate} />}>
+            <Outlet />
+          </EnterpriseShell>
+        }
+      >
+        <Route path="/" element={<Navigate to="/inicio" replace />} />
         <Route element={<ProtectedRoute requireOnboardingComplete allowedRoles={['root', 'admin']} />}>
           <Route path="/dashboard/admin-master" element={<DashboardAdminMaster />} />
           <Route path="/admin/tenants" element={<GestaoTenants />} />
           <Route path="/admin/documentos-legais" element={<GestaoDocumentosLegais />} />
         </Route>
         <Route element={<ProtectedRoute requireOnboardingComplete />}>
-          <Route path="/" element={<Home />} />
           <Route path="/relatorios" element={<Relatorios />} />
           <Route path="/filtros" element={<Filtros />} />
         </Route>
@@ -87,9 +96,9 @@ function App() {
         <Route element={<ProtectedRoute requireOnboardingComplete allowedRoles={['root', 'admin']} />}>
           <Route path="/cadastro-usuarios" element={<CadastroUsuarios />} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </EnterpriseShell>
+        <Route path="*" element={<Navigate to="/inicio" replace />} />
+      </Route>
+    </Routes>
   );
 }
 
