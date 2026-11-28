@@ -2,11 +2,14 @@
 // Paleta semântica para dark/light, tipografia e espaçamento.
 
 export const COLORS = {
-  // Brand
-  primary: '#021e3aff',
-  primaryHover: '#0a3d6c',
-  accent: '#2563eb',
-  accentHover: '#3b82f6',
+  // Brand — Enterprise hospitalar (Navy / Azul / Teal)
+  navy: '#101d32',
+  primary: '#101d32',
+  primaryHover: '#1b2f4d',
+  accent: '#245a81',
+  accentHover: '#2e6e9e',
+  teal: '#0e8d85',
+  tealHover: '#12a79d',
 
   // Semantic
   success: '#059669',
@@ -15,30 +18,30 @@ export const COLORS = {
   warningBg: '#fffbeb',
   error: '#dc2626',
   errorBg: '#fef2f2',
-  info: '#0891b2',
+  info: '#245a81',
   infoBg: '#eff6ff',
 
   // Neutral (light mode)
-  bg: '#f8fafc',
+  bg: '#f4f7fa',
   surface: '#ffffff',
-  border: '#e2e8f0',
-  text: '#0f172a',
-  textSecondary: '#475569',
-  textMuted: '#64748b',
-  textOnDark: '#f1f5f9',
+  border: '#e8eef3',
+  text: '#101d32',
+  textSecondary: '#3c4d63',
+  textMuted: '#6b7c93',
+  textOnDark: '#e8eef3',
 
   // Neutral (dark mode)
-  bgDark: '#0f172a',
-  surfaceDark: '#1e293b',
-  borderDark: '#334155',
-  textDark: '#f1f5f9',
-  textSecondaryDark: '#cbd5e1',
-  textMutedDark: '#94a3b8',
+  bgDark: '#0b1220',
+  surfaceDark: '#101d32',
+  borderDark: '#223350',
+  textDark: '#e8eef3',
+  textSecondaryDark: '#b7c4d6',
+  textMutedDark: '#8395ad',
 
   // Overlay
-  overlay: 'rgba(0, 0, 0, 0.5)',
+  overlay: 'rgba(16, 29, 50, 0.55)',
   dropdownBg: '#ffffff',
-  dropdownBorder: '#e2e8f0',
+  dropdownBorder: '#e8eef3',
 } as const;
 
 export const TYPOGRAPHY = {

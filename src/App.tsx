@@ -1,8 +1,10 @@
 // src/App.tsx — rotas separadas por estado de autenticação/onboarding
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './auth/context/AuthContextProvider';
-import { EnterpriseShell } from './core/shell/EnterpriseShell';
-import Welcome from './pages/Welcome';
+import { AppShell } from './core/shell/AppShell';
+import { SidebarNavEnterprise } from './core/shell/SidebarNavEnterprise';
+import BemVindo from './pages/BemVindo';
+import EscolhaConta from './pages/EscolhaConta';
 import DashboardAdminMaster from './pages/DashboardAdminMaster';
 import GestaoTenants from './pages/GestaoTenants';
 import GestaoDocumentosLegais from './pages/GestaoDocumentosLegais';
@@ -16,14 +18,13 @@ import Filtros from './pages/Filtros';
 import CadastroEmLote from './pages/CadastroEmLote';
 import CadastroUsuarios from './pages/CadastroUsuarios';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { SidebarNav } from './core/shell/SidebarNav';
 import Inicio from './pages/Inicio';
 
 function App() {
   const { loading, authenticated, user, contextSelectionPending } = useAuth();
 
   if (loading) {
-    return <div role="status" className="min-h-dvh flex items-center justify-center bg-gray-50 text-gray-700 dark:bg-slate-950 dark:text-slate-200">Carregando acesso...</div>;
+    return <div role="status" className="min-h-dvh flex items-center justify-center bg-bg text-ink-secondary">Carregando acesso...</div>;
   }
 
   if (!authenticated || !user) {
@@ -49,17 +50,11 @@ function App() {
     </Routes>;
   }
 
-  if (user.welcome_pending) {
+  // 1º acesso (welcome_pending) OU seleção de contexto da sessão: recepção Enterprise.
+  if (user.welcome_pending || contextSelectionPending) {
     return <Routes>
-      <Route path="/welcome" element={<Welcome />} />
-      <Route path="*" element={<Navigate to="/welcome" replace />} />
-    </Routes>;
-  }
-
-  // Welcome recorrente por login (não em refresh/token refresh): seleção de contexto da sessão.
-  if (contextSelectionPending) {
-    return <Routes>
-      <Route path="/welcome" element={<Welcome />} />
+      <Route path="/welcome" element={<BemVindo />} />
+      <Route path="/escolha-conta" element={<EscolhaConta />} />
       <Route path="*" element={<Navigate to="/welcome" replace />} />
     </Routes>;
   }
@@ -68,14 +63,15 @@ function App() {
     <Routes>
       {/* Portal de entrada em tela cheia (sem sidebar operacional) */}
       <Route path="/inicio" element={<Inicio />} />
-      <Route path="/welcome" element={<Welcome />} />
+      <Route path="/welcome" element={<BemVindo />} />
+      <Route path="/escolha-conta" element={<EscolhaConta />} />
 
       {/* Workspace operacional com AppShell Enterprise */}
       <Route
         element={
-          <EnterpriseShell sidebarContent={({ collapsed, onNavigate }) => <SidebarNav collapsed={collapsed} onNavigate={onNavigate} />}>
+          <AppShell sidebarContent={({ collapsed, onNavigate }) => <SidebarNavEnterprise collapsed={collapsed} onNavigate={onNavigate} />}>
             <Outlet />
-          </EnterpriseShell>
+          </AppShell>
         }
       >
         <Route path="/" element={<Navigate to="/inicio" replace />} />

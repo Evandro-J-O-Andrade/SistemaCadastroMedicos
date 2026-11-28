@@ -12,20 +12,23 @@
   color-scheme: light;
 
   /* Superfícies */
-  --color-bg: #f8fafc;
+  --color-bg: #f4f7fa;
   --color-surface: #ffffff;
-  --color-surface-2: #f1f5f9;
-  --color-border: #e2e8f0;
+  --color-surface-2: #eef3f8;
+  --color-border: #e8eef3;
 
   /* Texto */
-  --color-text: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #64748b;
+  --color-text: #101d32;
+  --color-text-secondary: #3c4d63;
+  --color-text-muted: #6b7c93;
 
-  /* Marca / acento */
-  --color-primary: #021e3a;
-  --color-accent: #2563eb;
-  --color-accent-hover: #3b82f6;
+  /* Marca / acento (Enterprise: Navy / Azul / Teal) */
+  --color-navy: #101d32;
+  --color-primary: #101d32;
+  --color-accent: #245a81;
+  --color-accent-hover: #2e6e9e;
+  --color-teal: #0e8d85;
+  --color-teal-hover: #12a79d;
 
   /* Semânticos */
   --color-success: #059669;
@@ -34,28 +37,31 @@
   --color-warning-bg: #fffbeb;
   --color-error: #dc2626;
   --color-error-bg: #fef2f2;
-  --color-info: #0891b2;
+  --color-info: #245a81;
   --color-info-bg: #eff6ff;
 
   /* Overlays */
-  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-overlay: rgba(16, 29, 50, 0.55);
 }
 
 .dark {
   color-scheme: dark;
 
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-surface-2: #1e293b;
-  --color-border: #334155;
+  --color-bg: #0b1220;
+  --color-surface: #101d32;
+  --color-surface-2: #16243c;
+  --color-border: #223350;
 
-  --color-text: #f1f5f9;
-  --color-text-secondary: #cbd5e1;
-  --color-text-muted: #94a3b8;
+  --color-text: #e8eef3;
+  --color-text-secondary: #b7c4d6;
+  --color-text-muted: #8395ad;
 
-  --color-primary: #021e3a;
-  --color-accent: #3b82f6;
-  --color-accent-hover: #60a5fa;
+  --color-navy: #0b1220;
+  --color-primary: #101d32;
+  --color-accent: #3e8fc7;
+  --color-accent-hover: #5aa3d6;
+  --color-teal: #2bb3a8;
+  --color-teal-hover: #3ac7bb;
 
   --color-success: #34d399;
   --color-success-bg: #064e3b;
@@ -63,10 +69,10 @@
   --color-warning-bg: #78350f;
   --color-error: #f87171;
   --color-error-bg: #7f1d1d;
-  --color-info: #22d3ee;
-  --color-info-bg: #164e63;
+  --color-info: #3e8fc7;
+  --color-info-bg: #12314a;
 
-  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-overlay: rgba(3, 8, 18, 0.65);
 }
 
 html, body, #root {

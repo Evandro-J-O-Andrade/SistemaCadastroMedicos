@@ -1,4 +1,8 @@
 // src/core/theme/ThemeProvider.tsx
+// Tema dark/light controlado pela classe .dark (html) — fonte única do CSS.
+// SEM localStorage/sessionStorage: preferência vive em memória nesta sessão.
+// Inicial deriva de prefers-color-scheme (dark-first). Persistência em banco (preferências
+// do usuário, respeitando escopo) é tarefa separada — ver diretriz Database-Driven.
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'dark' | 'light';
@@ -17,12 +21,15 @@ export function useTheme(): ThemeContextValue {
   return ctx;
 }
 
+function initialTheme(): Theme {
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  return 'dark';
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }): React.ReactElement {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = localStorage.getItem('theme');
-    if (stored === 'light' || stored === 'dark') return stored;
-    return 'dark'; // dark-first default
-  });
+  const [theme, setThemeState] = useState<Theme>(initialTheme);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -31,7 +38,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }): Reac
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('theme', theme);
   }, [theme]);
 
   const toggleTheme = () => setThemeState((t) => (t === 'dark' ? 'light' : 'dark'));

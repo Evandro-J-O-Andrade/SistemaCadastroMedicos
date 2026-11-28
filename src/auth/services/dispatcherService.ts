@@ -232,3 +232,32 @@ export function resolverDestinoPorBootstrap(
 
   return resolverDestino(user);
 }
+
+/**
+ * Variante ciente do contexto ativo: usa o tenant/unidade do contexto selecionado
+ * em vez da primeira membership. Não concede privilégio — apenas corrige o escopo de UX.
+ * Reaproveita toda a lógica de onboarding/papel de resolverDestino.
+ */
+export function resolverDestinoComContexto(
+  user: AuthUser,
+  ctx: { tenantId: string | null; unitId?: string | null; isGlobal?: boolean } | null,
+): DispatcherResult {
+  // Sem contexto selecionado ainda: delega ao resolvedor padrão (pode indicar bloqueio).
+  if (!ctx) return resolverDestino(user);
+
+  // ROOT global mantém o destino global independentemente de tenant.
+  if (ctx.isGlobal || isRootGlobal(user)) return resolverDestino(user);
+
+  // Reescopa o usuário para o tenant do contexto ativo (UX), preservando papéis/permissões.
+  const scoped: AuthUser = {
+    ...user,
+    tenant_id: ctx.tenantId ?? user.tenant_id,
+    unit_id: ctx.unitId ?? user.unit_id,
+    memberships: user.memberships?.length
+      ? user.memberships
+      : ctx.tenantId
+        ? [{ tenant_id: ctx.tenantId, tenant_nome: ctx.tenantId, unit_ids: ctx.unitId ? [ctx.unitId] : [] }]
+        : [],
+  };
+  return resolverDestino(scoped);
+}

@@ -13,6 +13,8 @@ export interface ResolvedContext {
   tenantId: string | null;
   unitIds: string[];
   isGlobal: boolean;
+  /** Unidade escolhida dentro do contexto (quando há várias). Persistida com o contexto. */
+  selectedUnitId?: string | null;
 }
 
 /** ROOT global: papel root sem tenant vinculado. */
@@ -75,4 +77,42 @@ export function defaultContext(user: AuthUser | null, contexts?: ResolvedContext
 /** Rótulo do contexto ativo para o header/sidebar. */
 export function contextLabel(ctx: ResolvedContext | null): string {
   return ctx?.label ?? 'Selecionar contexto';
+}
+
+/** Unidade padrão dentro de um contexto (respeita selectedUnitId; senão a primeira) ou null. */
+export function defaultUnit(ctx: ResolvedContext | null): string | null {
+  if (!ctx || ctx.isGlobal) return null;
+  if (ctx.selectedUnitId && ctx.unitIds.includes(ctx.selectedUnitId)) return ctx.selectedUnitId;
+  return ctx.unitIds[0] ?? null;
+}
+
+export type EntryDecision =
+  | { mode: 'auto'; context: ResolvedContext; unitId: string | null }
+  | { mode: 'select-context' }
+  | { mode: 'select-unit'; context: ResolvedContext }
+  | { mode: 'none' };
+
+/**
+ * Decisão de entrada conforme a tabela de regra de negócio:
+ * - ROOT global                         → auto (contexto global);
+ * - 1 tenant, 1 unidade                 → auto (tenant + unidade);
+ * - 1 tenant, várias unidades          → select-unit (escolhe a unidade);
+ * - vários tenants                      → select-context (tenant e depois unidade);
+ * - usuário sem contexto autorizado     → none.
+ * Não concede acesso: apenas decide a UX. A validade é imposta por RLS no servidor.
+ */
+export function resolveEntryDecision(user: AuthUser | null, contexts?: ResolvedContext[]): EntryDecision {
+  const list = contexts ?? resolveContexts(user);
+  if (list.length === 0) return { mode: 'none' };
+
+  const global = list.find((c) => c.isGlobal);
+  if (global) return { mode: 'auto', context: global, unitId: null };
+
+  if (list.length > 1) return { mode: 'select-context' };
+
+  const only = list[0];
+  if (only.unitIds.length === 1) return { mode: 'auto', context: only, unitId: only.unitIds[0] };
+  if (only.unitIds.length > 1) return { mode: 'select-unit', context: only };
+  // 1 tenant sem unidades detalhadas: segue com o tenant (RLS restringe no servidor).
+  return { mode: 'auto', context: only, unitId: null };
 }

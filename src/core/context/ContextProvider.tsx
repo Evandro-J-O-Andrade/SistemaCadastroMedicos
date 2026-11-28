@@ -1,6 +1,8 @@
 // src/core/context/ContextProvider.tsx
 // Mantém o contexto ativo (tenant/unidade) validado contra o bootstrap.
 // A troca de contexto NUNCA concede permissão nova: apenas reescopa dados/navegação.
+// SEM localStorage/sessionStorage: o contexto vive em memória e é re-derivado do bootstrap
+// (fonte real). Em login novo, a jornada de entrada (BemVindo/EscolhaConta) redefine o contexto.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import {
@@ -18,7 +20,6 @@ interface ContextValue {
 }
 
 const ContextContext = createContext<ContextValue | undefined>(undefined);
-const STORAGE_KEY = 'gma.activeContext';
 
 export function ContextProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -26,37 +27,22 @@ export function ContextProvider({ children }: { children: ReactNode }) {
 
   const contexts = useMemo(() => resolveContexts(user), [user]);
 
-  // Reconcilia o contexto ativo quando o usuário/contextos mudam.
+  // Reconcilia o contexto ativo quando o usuário/contextos mudam (sem persistência em storage).
   useEffect(() => {
     if (!user) {
       setActive(null);
       return;
     }
-    let stored: ResolvedContext | null = null;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) stored = JSON.parse(raw) as ResolvedContext;
-    } catch {
-      stored = null;
-    }
-
-    if (stored && isContextAllowed(user, stored)) {
-      setActive(stored);
-      return;
-    }
-    // Contexto armazenado inválido → pré-seleção padrão (ou null se exigir escolha).
-    setActive(defaultContext(user, contexts));
+    setActive((prev) => {
+      if (prev && isContextAllowed(user, prev)) return prev; // mantém o selecionado nesta sessão
+      return defaultContext(user, contexts); // auto quando único; null quando exige escolha
+    });
   }, [user, contexts]);
 
   const setContext = useCallback(
     (ctx: ResolvedContext): boolean => {
       if (!isContextAllowed(user, ctx)) return false; // falha nega acesso
       setActive(ctx);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(ctx));
-      } catch {
-        /* persistência é best-effort */
-      }
       return true;
     },
     [user],

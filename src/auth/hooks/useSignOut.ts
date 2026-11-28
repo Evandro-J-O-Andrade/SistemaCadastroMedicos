@@ -1,12 +1,11 @@
 // src/auth/hooks/useSignOut.ts
-// Logout real: encerra sessão no Supabase, limpa o contexto local da sessão
-// (preserva preferências gerais como tema) e redireciona para /login.
-// Trata falhas sem simular sucesso e impede operações duplicadas.
+// Logout real: encerra sessão no Supabase e redireciona para /login.
+// O contexto ativo vive em memória (ContextProvider) e é re-derivado do bootstrap,
+// portanto não há storage de sessão a limpar aqui. Trata falhas sem simular sucesso
+// e impede operações duplicadas.
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-
-const ACTIVE_CONTEXT_KEY = 'gma.activeContext';
 
 export function useSignOut() {
   const { signOut } = useAuth();
@@ -20,11 +19,6 @@ export function useSignOut() {
     setError('');
     try {
       await signOut();
-      try {
-        localStorage.removeItem(ACTIVE_CONTEXT_KEY);
-      } catch {
-        /* limpeza best-effort */
-      }
       navigate('/login', { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Falha ao encerrar a sessão.');

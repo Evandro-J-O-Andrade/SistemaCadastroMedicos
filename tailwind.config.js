@@ -32,6 +32,11 @@ export default {
           DEFAULT: 'var(--color-accent)',
           hover: 'var(--color-accent-hover)',
         },
+        navy: 'var(--color-navy)',
+        teal: {
+          DEFAULT: 'var(--color-teal)',
+          hover: 'var(--color-teal-hover)',
+        },
         success: { DEFAULT: 'var(--color-success)', bg: 'var(--color-success-bg)' },
         warning: { DEFAULT: 'var(--color-warning)', bg: 'var(--color-warning-bg)' },
         danger: { DEFAULT: 'var(--color-error)', bg: 'var(--color-error-bg)' },

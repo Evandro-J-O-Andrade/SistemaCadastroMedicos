@@ -12,7 +12,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useActiveContext } from '../core/context/ContextProvider';
 import { useTheme } from '../core/theme/ThemeProvider';
 import { useSignOut } from '../auth/hooks/useSignOut';
-import { resolverDestino } from '../auth/services/dispatcherService';
+import { resolverDestinoComContexto } from '../auth/services/dispatcherService';
 import { fetchSnapshot } from '../modules/intelligence/analyticsService';
 import type { Periodo, SnapshotInteligencia } from '../modules/intelligence/types';
 
@@ -33,7 +33,9 @@ export default function Inicio(): React.ReactElement {
   const [entering, setEntering] = useState(false);
   const [enterError, setEnterError] = useState('');
   const [periodo, setPeriodo] = useState<Periodo>('30d');
-  const [unitId, setUnitId] = useState<string | null>(active?.unitIds[0] ?? null);
+  const [unitId, setUnitId] = useState<string | null>(
+    active?.selectedUnitId ?? active?.unitIds[0] ?? null,
+  );
   const [snapshot, setSnapshot] = useState<SnapshotInteligencia | null>(null);
   const [available, setAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -78,7 +80,7 @@ export default function Inicio(): React.ReactElement {
     setEnterError('');
     try {
       if (!user) throw new Error('Sessão não encontrada.');
-      const dest = resolverDestino(user);
+      const dest = resolverDestinoComContexto(user, active);
       if (!dest.destino?.disponivel) {
         throw new Error(dest.motivoBloqueio || 'Nenhum dashboard autorizado para o seu perfil.');
       }
