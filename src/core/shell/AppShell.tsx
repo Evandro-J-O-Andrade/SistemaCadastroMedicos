@@ -6,7 +6,9 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useAuth } from '../../hooks/useAuth';
 import { useSignOut } from '../../auth/hooks/useSignOut';
 import { Sun, Moon, Menu, X, ChevronLeft, ChevronRight, LogOut, Loader2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { Breadcrumbs } from './Breadcrumbs';
+import { PageTransition } from '../design/motion';
 
 interface SidebarRenderState {
   collapsed: boolean;
@@ -23,6 +25,7 @@ export function AppShell({ children, sidebarContent, title }: AppShellProps) {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { doSignOut, busy: signingOut } = useSignOut();
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -148,7 +151,9 @@ export function AppShell({ children, sidebarContent, title }: AppShellProps) {
         )}
 
         <main className="min-w-0 flex-1 overflow-y-auto bg-bg">
-          <div className="p-4 md:p-6 lg:p-8">{children}</div>
+          <div className="p-4 md:p-6 lg:p-8">
+            <PageTransition transitionKey={location.pathname}>{children}</PageTransition>
+          </div>
         </main>
       </div>
     </div>
