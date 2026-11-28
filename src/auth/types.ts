@@ -57,6 +57,8 @@ export interface AuthState {
   loading: boolean;
   authenticated: boolean;
   error: { code: AuthErrorCode; message: string } | null;
+  /** Seleção de contexto por sessão: true apenas em login novo (SIGNED_IN), não em refresh/token refresh. */
+  contextSelectionPending: boolean;
 }
 
 export interface HasPermissionOptions {

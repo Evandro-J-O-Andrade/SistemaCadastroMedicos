@@ -17,9 +17,10 @@ import Filtros from './pages/Filtros';
 import CadastroEmLote from './pages/CadastroEmLote';
 import CadastroUsuarios from './pages/CadastroUsuarios';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { SidebarNav } from './core/shell/SidebarNav';
 
 function App() {
-  const { loading, authenticated, user } = useAuth();
+  const { loading, authenticated, user, contextSelectionPending } = useAuth();
 
   if (loading) {
     return <div role="status" className="min-h-dvh flex items-center justify-center bg-gray-50 text-gray-700 dark:bg-slate-950 dark:text-slate-200">Carregando acesso...</div>;
@@ -55,8 +56,16 @@ function App() {
     </Routes>;
   }
 
+  // Welcome recorrente por login (não em refresh/token refresh): seleção de contexto da sessão.
+  if (contextSelectionPending) {
+    return <Routes>
+      <Route path="/welcome" element={<Welcome />} />
+      <Route path="*" element={<Navigate to="/welcome" replace />} />
+    </Routes>;
+  }
+
   return (
-    <EnterpriseShell>
+    <EnterpriseShell sidebarContent={<SidebarNav />}>
       <Routes>
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/welcome" element={<Welcome />} />

@@ -16,6 +16,8 @@ interface AuthContextValue extends AuthState {
   refresh: () => Promise<void>;
   hasPermission: (recurso: string, acao: string) => boolean;
   enterpriseEnabled: boolean;
+  contextSelectionPending: boolean;
+  completeContextSelection: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -28,7 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading: true,
     authenticated: false,
     error: null,
+    contextSelectionPending: false,
   });
+
+  const completeContextSelection = useCallback(() => {
+    setState((prev) => ({ ...prev, contextSelectionPending: false }));
+  }, []);
 
   const clearError = useCallback(() => {
     setState((prev: AuthState) => ({ ...prev, error: null }));
@@ -40,27 +47,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { user, bootstrap } = await authService.bootstrap();
       const { data: sessionData } = await supabase.auth.getSession();
-      setState({
+      setState((prev) => ({
+        ...prev,
         user,
         session: sessionData.session ?? null,
         bootstrap,
         loading: false,
         authenticated: true,
         error: null,
-      });
+      }));
     } catch (err: unknown) {
       const mapped =
         err && typeof err === 'object' && 'code' in err && 'message' in err
           ? (err as { code: string; message: string })
           : { code: AUTH_ERRORS.SERVICE_ERROR, message: AUTH_ERROR_MESSAGES[AUTH_ERRORS.SERVICE_ERROR] };
-      setState({
+      setState((prev) => ({
+        ...prev,
         user: null,
         session: null,
         bootstrap: null,
         loading: false,
         authenticated: false,
         error: { code: mapped.code as typeof AUTH_ERRORS[keyof typeof AUTH_ERRORS], message: mapped.message },
-      });
+      }));
     }
   }, [clearError]);
 
@@ -70,22 +79,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Supabase Auth callbacks execute while the auth client holds its internal lock.
     // Never await getSession()/RPCs inside this callback: defer the bootstrap.
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
+      // Login novo (SIGNED_IN) marca seleção de contexto pendente para ESTA sessão.
+      // INITIAL_SESSION (refresh) e TOKEN_REFRESHED não reabrem o Welcome.
+      if (event === 'SIGNED_IN') {
+        setState((prev) => ({ ...prev, contextSelectionPending: true }));
+      }
       if (session?.user) {
         setTimeout(() => {
           if (mounted) void loadFromSession();
         }, 0);
         return;
       }
-      setState({
+      setState((prev) => ({
+        ...prev,
         user: null,
         session: null,
         bootstrap: null,
         loading: false,
         authenticated: false,
         error: null,
-      });
+        contextSelectionPending: false,
+      }));
     });
 
     return () => {
@@ -109,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading: false,
         authenticated: false,
         error: { code: mapped.code as typeof AUTH_ERRORS[keyof typeof AUTH_ERRORS], message: mapped.message },
+        contextSelectionPending: false,
       });
       throw new Error(mapped.message);
     }
@@ -125,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading: false,
       authenticated: false,
       error: null,
+      contextSelectionPending: false,
     });
   }, [clearError]);
 
@@ -143,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading: false,
         authenticated: false,
         error: { code: mapped.code as typeof AUTH_ERRORS[keyof typeof AUTH_ERRORS], message: mapped.message },
+        contextSelectionPending: false,
       });
       throw new Error(mapped.message);
     }
@@ -163,6 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading: false,
         authenticated: false,
         error: { code: mapped.code as typeof AUTH_ERRORS[keyof typeof AUTH_ERRORS], message: mapped.message },
+        contextSelectionPending: false,
       });
       throw new Error(mapped.message);
     }
@@ -191,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh,
     hasPermission,
     enterpriseEnabled: true,
+    completeContextSelection,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
